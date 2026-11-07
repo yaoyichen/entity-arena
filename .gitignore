@@ -1,0 +1,11 @@
+# 生成物不进 git（retrieval-forge 同款约定）：一条命令可确定性重建
+data/
+build/
+.tmp/
+__pycache__/
+*.egg-info/
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.DS_Store
+.venv/
