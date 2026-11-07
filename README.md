@@ -66,11 +66,25 @@ python3 scripts/build_demo.py --open  # ② 构建 build/demo.html 并用浏览�
 4. **换真模型**：`make_mock_data.py` 换成真跑分脚本、写同样的
    `results.json`/`metrics.json` 即可，**页面零改动**（数据契约见 `AGENTS.md`）。
 
+## 开源基准轨道（进行中）
+
+除合成剧本数据外，引入公开 ER 基准 **Febrl**（ANU / recordlinkage 发行版）作真实训练评测：
+
+- 源数据 `data_open/febrl/febrl3.csv`（5000 条个人记录 / 2000 实体，随仓库提交可复现）；
+- `scripts/make_open_dataset.py` 生成 inf-retriever 训练平台上传包（BEIR 风格：
+  queries/corpus/qrels + 硬负例），实体级 80/20 划分防泄漏；
+  硬负例 = 同姓 / 同 suburb+postcode / 同生日的**异实体**记录（正是"相似实体不该连"）；
+- 训练与评测走 inf-retriever 平台（MCP `inf-retriever` + skill
+  `.claude/skills/inf-retriever-finetune`），基模 × {inf-1.5, nvidia, gemma}
+  训练前后对比，结果回填演示页；
+- 口径注意：查询与文档同池，top-1 自命中对所有模型是同口径均匀代价，
+  前后对比公平，绝对值按"有效 k−1"解读。
+
 ## 下一步（通往真演示）
 
-1. 用 [retrieval-forge](../retrieval-forge) 造 ER 训练对（正例=同实体跨源，负例=影子人）；
-2. 微调检索模型（BGE/自研 baseline）；
-3. 真模型对同一批合成记录跑检索，替换 `results.json`/`metrics.json` 重建页面；
+1. ~~用 retrieval-forge 造 ER 训练对~~ → 已引入 Febrl 开源基准（见上）；
+2. inf-retriever 平台微调三个基模（inf-1.5 / nvidia / gemma），训练前后同集评测；
+3. 真实指标回填演示页（数据契约不变）；
 4. 拿到客户真实数据后按同一契约接入。
 
 ## 设计决策

@@ -29,7 +29,10 @@ PYTHONPATH=src python3 -m unittest discover -s tests   # 49 项测试（或装 p
 - `src/entity_arena/layout.py` 网络两套坐标（FR + 分位归一 + 光环防撞）
 - `src/entity_arena/page.py` 演示页模板 + 前端 JS（双语文案、四个视图、深链）
 - `src/entity_arena/theme.py` 色板与 CSS
-- `scripts/make_mock_data.py` 数据生成入口；`scripts/build_demo.py` 页面构建入口
+- `scripts/make_mock_data.py` 合成数据入口；`scripts/build_demo.py` 页面构建入口
+- `scripts/make_open_dataset.py` 开源基准（Febrl）→ inf-retriever 训练平台上传包；
+  源数据在 `data_open/`（随仓库提交）；训练/评测走 MCP `inf-retriever`（token 在
+  `~/.claude.json`，不进仓库），流程见 skill `inf-retriever-finetune`
 
 ## 视觉语言（继承 retrieval-forge ADR 0005）
 
