@@ -25,6 +25,15 @@ def load(data_dir: Path) -> dict:
         if line.strip():
             r = json.loads(line)
             records[r["record_id"]] = r
+    pairs = json.loads((data_dir / "pairs.json").read_text(encoding="utf-8"))
+    sources = json.loads((data_dir / "meta.json").read_text(encoding="utf-8"))["sources"]
+    oc = _load_open_cases(data_dir)
+    if oc and "explain" in oc:
+        # Explain 实测卡：真实模型分数 + 逐字段四态拆解（R1 连对 / R2 拒连）
+        pairs = pairs + oc["explain"]["pairs"]
+        records.update(oc["explain"]["records"])
+        sources = {**sources, "febrl3": {"en": "Febrl3 (public ER benchmark)",
+                                         "zh": "Febrl3（公开 ER 基准）"}}
     return {
         "meta": {
             "seed": json.loads((data_dir / "meta.json").read_text(encoding="utf-8"))["seed"],
@@ -33,7 +42,7 @@ def load(data_dir: Path) -> dict:
             "threshold": json.loads((data_dir / "metrics.json").read_text(encoding="utf-8"))["threshold"],
             "generated_at": datetime.datetime.now().strftime("%Y-%m-%d %H:%M"),
         },
-        "sources": json.loads((data_dir / "meta.json").read_text(encoding="utf-8"))["sources"],
+        "sources": sources,
         "scenarios": json.loads((data_dir / "meta.json").read_text(encoding="utf-8"))["scenarios"],
         "records": records,
         "entities": json.loads((data_dir / "entities.json").read_text(encoding="utf-8")),
@@ -41,9 +50,9 @@ def load(data_dir: Path) -> dict:
         "metrics": json.loads((data_dir / "metrics.json").read_text(encoding="utf-8")),
         "network": json.loads((data_dir / "network.json").read_text(encoding="utf-8")),
         "queries": json.loads((data_dir / "queries.json").read_text(encoding="utf-8")),
-        "pairs": json.loads((data_dir / "pairs.json").read_text(encoding="utf-8")),
+        "pairs": pairs,
         "open_bench": _load_open_bench(data_dir),
-        "open_cases": _load_open_cases(data_dir),
+        "open_cases": oc,
     }
 
 

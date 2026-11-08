@@ -80,6 +80,124 @@ def components(nids: list[str], links: list[tuple[str, str]]) -> list[list[str]]
     return [sorted(v) for k, v in sorted(groups.items())]
 
 
+# ---- Explain 实测案例卡（两张，规则确定性挑选，分数为真实服务输出） ----
+
+_FIELD_LABELS = {
+    "name": {"en": "Name", "zh": "姓名"},
+    "dob": {"en": "Date of birth", "zh": "生日"},
+    "address": {"en": "Address", "zh": "地址"},
+    "locality": {"en": "Locality", "zh": "地区"},
+    "ssn": {"en": "ID Number", "zh": "证件号"},
+}
+
+
+def _lev_ratio(a: str, b: str) -> float:
+    """朴素 Levenshtein 相似度（字段都是短文本，够用且零依赖）。"""
+    if a == b:
+        return 1.0
+    la, lb = len(a), len(b)
+    prev = list(range(lb + 1))
+    for i in range(1, la + 1):
+        cur = [i] + [0] * lb
+        ca = a[i - 1]
+        for j in range(1, lb + 1):
+            cur[j] = min(prev[j] + 1, cur[j - 1] + 1, prev[j - 1] + (ca != b[j - 1]))
+        prev = cur
+    return 1.0 - prev[lb] / max(la, lb)
+
+
+def _field_state(va: str | None, vb: str | None) -> tuple[str, float | None]:
+    """与合成轨 Explain 四态同语义：exact / missing / fuzzy(≈) / conflict(✗)。"""
+    if not va or not vb:
+        return "missing", None
+    if va == vb:
+        return "exact", 1.0
+    sim = round(_lev_ratio(va, vb), 2)
+    return ("fuzzy" if sim >= 0.7 else "conflict"), sim
+
+
+def build_explain_cards(records: list[dict], pairs: list[tuple[str, str, float]],
+                        ent_of: dict[str, str], theta: float, model_name: str) -> dict:
+    """R1 = 正确断言的真对中差异字段最多者（再取分数高）——"乱成这样仍连对"；
+    R2 = 被拒的异实体对中分数最高者——"长得最像仍拒连"。
+    挑选规则确定、对叙事盲（不是看故事挑的，是按规则算的极值）。"""
+    recs = {r["rid"]: r for r in records}
+    score_of = {(a, b): s for a, b, s in pairs}
+
+    def rows_of(a: str, b: str) -> list[dict]:
+        fa, fb = recs[a]["fields"], recs[b]["fields"]
+        rows = []
+        for k, label in _FIELD_LABELS.items():
+            if k not in fa and k not in fb:
+                continue
+            state, sim = _field_state(fa.get(k), fb.get(k))
+            rows.append({"key": k, "label": label,
+                         "va": fa.get(k) or "—", "vb": fb.get(k) or "—",
+                         "sim": sim, "state": state})
+        return rows
+
+    def n_diff(ab: tuple[str, str]) -> int:
+        return sum(1 for f in rows_of(*ab) if f["state"] != "exact")
+
+    linked_true = [((a, b), s) for a, b, s in pairs
+                   if ent_of[a] == ent_of[b] and s >= theta]
+    if not linked_true:
+        raise SystemExit("没有正确断言的真对——R1 卡无法生成（数据变化，规则需复查）")
+    def n_missing(ab: tuple[str, str]) -> int:
+        return sum(1 for f in rows_of(*ab) if f["state"] == "missing")
+    # 极值规则（结构性、对叙事盲）："最乱仍连对"——缺失字段最多、差异字段最多、分数最接近 θ
+    r1 = sorted(linked_true,
+                key=lambda x: (-n_missing(x[0]), -n_diff(x[0]), x[1], x[0]))[0][0]
+    refused = [((a, b), s) for a, b, s in pairs
+               if ent_of[a] != ent_of[b] and s < theta]
+    if not refused:
+        raise SystemExit("没有可拒连的异实体对——R2 卡无法生成")
+    r2 = sorted(refused, key=lambda x: (-x[1], x[0]))[0][0]
+
+    def card(pid: str, ab: tuple[str, str], title: dict, note: dict) -> dict:
+        a, b = ab
+        s = score_of[ab]
+        linked = s >= theta
+        return {
+            "pair_id": pid, "a": a, "b": b, "real": True,
+            "truth": "match" if ent_of[a] == ent_of[b] else "nonmatch",
+            "title": title, "note": note,
+            "fields": rows_of(a, b),
+            "scores": {"tuned": round(s, 4)},
+            "verdicts": {"tuned": "match" if linked else "nonmatch"},
+            "theta": round(theta, 4), "model": model_name,
+        }
+
+    a1, b1 = r1
+    s1 = score_of[r1]
+    rows1 = rows_of(a1, b1)
+    nd1 = sum(1 for f in rows1 if f["state"] != "exact")
+    c1 = card("R1", r1,
+              {"en": "Real · messy records, same person", "zh": "实测 · 错字风暴，仍是同一人"},
+              {"en": f"Febrl3 ground truth: same entity. {nd1} of {len(rows1)} fields differ "
+                     f"(typos/missing), yet the fine-tuned model scores {s1:.3f} ≥ θ and links them. "
+                     f"Live: python scripts/live_pair_score.py --rids {a1},{b1}",
+               "zh": f"Febrl3 真值：同一实体。{len(rows1)} 个字段里 {nd1} 个有差异（错字/缺失），"
+                     f"微调模型仍给出 {s1:.3f} ≥ θ，断言连接。现场复现："
+                     f"python scripts/live_pair_score.py --rids {a1},{b1}"})
+    a2, b2 = r2
+    s2 = score_of[r2]
+    c2 = card("R2", r2,
+              {"en": "Real · look-alikes, two people", "zh": "实测 · 长得像的两个人"},
+              {"en": f"Febrl3 ground truth: different people. This is the highest-scoring refused "
+                     f"pair in the village ({s2:.3f} < θ {theta:.3f}) — the strongest look-alike "
+                     f"temptation still gets resisted. Live: --rids {a2},{b2}",
+               "zh": f"Febrl3 真值：不同人。这是案例村里分数最高的被拒对"
+                     f"（{s2:.3f} < θ {theta:.3f}）——最强的“像”也没能骗过模型。"
+                     f"现场复现：python scripts/live_pair_score.py --rids {a2},{b2}"})
+    stubs = {}
+    for rid in (a1, b1, a2, b2):
+        f = recs[rid]["fields"]
+        stubs[rid] = {"record_id": rid, "name": f.get("name") or rid,
+                      "dob": f.get("dob"), "id_number": f.get("ssn"), "source": "febrl3"}
+    return {"pairs": [c1, c2], "records": stubs}
+
+
 def main() -> None:
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument("--village", type=Path, default=ROOT / "data_open" / "village.json")
@@ -154,6 +272,7 @@ def main() -> None:
         shadow_pairs=[tuple(p) for p in village["shadow_pairs"]],
         seed=args.seed,
     )
+    explain = build_explain_cards(records, pairs, ent_of, theta, model_name)
 
     payload = {
         "model": model_name,
@@ -175,6 +294,7 @@ def main() -> None:
         "components": comp_meta,
         "comp_of": comp_of,
         "top3": {r: [[o, round(s, 6)] for o, s in v] for r, v in top3.items()},
+        "explain": explain,
         "network": network,
         "provenance": {
             **village["provenance"],

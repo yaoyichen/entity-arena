@@ -28,9 +28,14 @@ def make_fixture(tmp: Path) -> tuple[Path, Path]:
       精度优先 → θ=0.90：false_links=1（0.93 那对）、missed=1（E2 内部 0.50）。
     """
     records = [
-        {"rid": f"rec-{i}", "entity": e, "fields": {"name": n}, "text": f"text {i}"}
-        for i, (e, n) in enumerate([
-            (1, "aa"), (1, "aa"), (2, "bb"), (2, "bb"), (3, "cc"), (3, "cc"),
+        {"rid": f"rec-{i}", "entity": e, "fields": f, "text": f"text {i}"}
+        for i, (e, f) in enumerate([
+            # E1 两条：姓名全同，但生日一侧缺失、地址错字 —— Explain 极值规则应挑它做 R1
+            (1, {"name": "aa", "dob": "1980-01-01", "address": "1 main st"}),
+            (1, {"name": "aa", "address": "1 mani st"}),
+            (2, {"name": "bb"}), (2, {"name": "bb"}),
+            # E3 两条：全同的干净对（分数更低 0.90 但零缺失）—— 不得抢走 R1
+            (3, {"name": "cc"}), (3, {"name": "cc"}),
         ])
     ]
     rids = [r["rid"] for r in records]
@@ -161,6 +166,58 @@ class TestOpenCases(unittest.TestCase):
         before = self.scores.read_text(encoding="utf-8")
         run_build(self.village, self.scores, self.dir / "once_more.json")
         self.assertEqual(self.scores.read_text(encoding="utf-8"), before)
+
+    def test_explain_cards_structure(self):
+        """Explain 实测卡：真实分数 + 逐字段四态；θ/模型与全 payload 一致。"""
+        exp = self.payload["explain"]
+        self.assertEqual([c["pair_id"] for c in exp["pairs"]], ["R1", "R2"])
+        for c in exp["pairs"]:
+            self.assertTrue(c["real"])
+            self.assertEqual(c["theta"], round(self.payload["theta"], 4))
+            self.assertEqual(c["model"], self.payload["model"])
+            self.assertIn("en", c["title"]); self.assertIn("zh", c["title"])
+            self.assertIn("en", c["note"]); self.assertIn("zh", c["note"])
+            self.assertTrue(c["fields"])
+            for f in c["fields"]:
+                self.assertIn(f["state"], ("exact", "fuzzy", "conflict", "missing"))
+                self.assertIn("en", f["label"]); self.assertIn("zh", f["label"])
+                if f["state"] == "exact":
+                    self.assertEqual(f["va"], f["vb"]); self.assertEqual(f["sim"], 1.0)
+                elif f["state"] == "missing":
+                    self.assertIsNone(f["sim"]); self.assertIn("—", (f["va"], f["vb"]))
+                elif f["state"] == "fuzzy":
+                    self.assertGreaterEqual(f["sim"], 0.7)
+                else:
+                    self.assertLess(f["sim"], 0.7)
+            self.assertIn(c["verdicts"]["tuned"], ("match", "nonmatch"))
+            self.assertNotIn("baseline", c["scores"])  # 实测卡只有微调一行
+
+    def test_explain_r1_extreme_pick(self):
+        """R1 = 正确断言的真对中"最乱"者：缺失字段数优先（E1 缺生日、地址错字，
+        即便 E3 分数更接近 θ 也不得抢走）；分数必须过线。"""
+        r1 = self.payload["explain"]["pairs"][0]
+        self.assertEqual((r1["a"], r1["b"]), ("rec-0", "rec-1"))
+        self.assertEqual(r1["truth"], "match")
+        self.assertGreaterEqual(r1["scores"]["tuned"], self.payload["theta"])
+        self.assertEqual(r1["verdicts"]["tuned"], "match")
+        states = {f["key"]: f["state"] for f in r1["fields"]}
+        self.assertEqual(states["dob"], "missing")
+        self.assertEqual(states["address"], "fuzzy")
+        # 档案 stub 恰好覆盖两卡涉及的记录（并集）
+        stubs = self.payload["explain"]["records"]
+        used = {rid for c in self.payload["explain"]["pairs"] for rid in (c["a"], c["b"])}
+        self.assertEqual(set(stubs), used)
+        for rid in used:
+            self.assertEqual(stubs[rid]["source"], "febrl3")
+
+    def test_explain_r2_strongest_refusal(self):
+        """R2 = 被拒异实体对中分数最高者：真值不同人、分数不过线、判定拒连。"""
+        r2 = self.payload["explain"]["pairs"][1]
+        self.assertEqual(r2["truth"], "nonmatch")
+        self.assertLess(r2["scores"]["tuned"], self.payload["theta"])
+        self.assertEqual(r2["verdicts"]["tuned"], "nonmatch")
+        # fixture 里被拒的最高分是 0.50（0.93 那对是误连、不在被拒池）
+        self.assertAlmostEqual(r2["scores"]["tuned"], 0.50, places=6)
 
 
 if __name__ == "__main__":

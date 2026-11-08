@@ -60,6 +60,13 @@ class TestEndToEnd(unittest.TestCase):
         self.assertEqual((self.d1 / "open_cases.json").read_bytes(),
                          (self.d2 / "open_cases.json").read_bytes())
 
+    @unittest.skipUnless(HAS_OPEN_CASES, "data_open/village_scores.json 未入库（平台部署修复后接入）")
+    def test_explain_real_cards_in_page(self):
+        """Explain 实测卡必须打进页面：R1/R2 卡、基线不可部署注脚、?case= 深链。"""
+        for marker in ('"pair_id":"R1"', '"pair_id":"R2"', "exp.realonly",
+                       "qs.get('case')", "Febrl3"):
+            self.assertIn(marker, self.html)
+
     def test_page_markers_present(self):
         for marker in ('id="view-arena"', 'id="view-network"', 'id="view-explain"',
                        'id="view-scoreboard"', 'id="openBench"', 'id="netTrack"',

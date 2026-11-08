@@ -52,7 +52,9 @@ PYTHONPATH=src python3 -m unittest discover -s tests   # 测试（或装 pytest 
 - `scripts/build_open_cases.py` 案例村 + 真实成对分数 → `data/open_cases.json`
   （θ 扫描 F1 最大化 → 断言链 → 组件纯度；溯源分数写 `data_open/village_scores.json`
   入库，`--scores` 模式离线复算）。网络视图第二轨道（Febrl3 实测）由它供数：
-  before=影子关系纠缠簇，after=微调模型断言组件（红光环=混入异实体）
+  before=影子关系纠缠簇，after=微调模型断言组件（红光环=混入异实体）；
+  Explain 的两张实测卡（R1 最乱仍连对 / R2 最像仍拒连）也由它生成——
+  极值规则挑选（缺失数→差异数→分数贴近 θ），对叙事盲
 - `src/entity_arena/febrl.py` Febrl 数据共用工具（实体切分/序列化/索引）
 - **部署要点（2026-11-08 实测）**：平台 serving 当日整体故障过一轮（新产物
   `train`/`pipeline`、旧产物一律 ~4min FAILED；`deploy_model` 起的服务全挂），

@@ -164,11 +164,13 @@ const I18N = {
   'ob.comps':      {en:'components (n/pure)', zh:'组件（总/纯）'},
 
   'exp.h':         {en:'Why did it match — or refuse to', zh:'为什么连上了——或者为什么拒绝'},
-  'exp.sub':       {en:'Field-by-field evidence for four decisive pairs. The threshold bar marks θ = 0.55; scores above it are asserted as links.',
-                   zh:'四对决定性记录的逐字段证据。阈值线标在 θ = 0.55，过线即断言为同一实体。'},
+  'exp.sub':       {en:'Field-by-field evidence for the decisive pairs. The tick on each score bar marks that track\'s decision threshold θ; scores above it are asserted as links. Cards marked Real are actual fine-tuned-model scores on Febrl3.',
+                   zh:'关键记录对的逐字段证据。分数条上的刻度线是该案例所属轨道的判定线 θ，过线即断言；标注"实测"的卡片是 Febrl3 上微调模型的真实分数。'},
   'exp.truth':     {en:'Ground truth', zh:'真实标签'},
   'exp.match':     {en:'TRUE MATCH', zh:'真·同一人'},
   'exp.nonmatch':  {en:'TRUE NON-MATCH', zh:'真·不同人'},
+  'exp.realonly':  {en:'Base models cannot be served on this platform (deploy supports trained models only), so no per-record baseline score here — the before/after comparison is in the Scoreboard (same-set offline eval).',
+                    zh:'基线模型无法在平台部署（deploy 仅支持已训练模型），这里没有逐条基线分数——训练前后对比见记分牌（同集离线评测）。'},
   'exp.ok-link':   {en:'correctly linked', zh:'正确连接'},
   'exp.ok-sep':    {en:'correctly separated', zh:'正确分开'},
   'exp.bad-miss':  {en:'MISSED — same person, not linked', zh:'漏连——同一人未被连接'},
@@ -717,7 +719,12 @@ function renderExplain(){
 
   html += '<div class="card verdict-zone"><div style="display:flex;align-items:center;gap:12px;margin-bottom:6px">' +
     truthChip + '</div>';
-  [['baseline', t('lg.baseline').toUpperCase()], ['tuned', t('lg.tuned').toUpperCase()]].forEach(pair => {
+  // 实测卡只有微调模型一行（基线无法部署），判定线用该轨道真实 θ
+  const rows = p.real
+    ? [['tuned', t('lg.tuned').toUpperCase()]]
+    : [['baseline', t('lg.baseline').toUpperCase()], ['tuned', t('lg.tuned').toUpperCase()]];
+  const thr = p.theta != null ? p.theta : TAU;
+  rows.forEach(pair => {
     const model = pair[0], accent = model === 'baseline' ? 'violet' : 'cyan';
     const score = p.scores[model], verdict = p.verdicts[model];
     const isMatch = verdict === 'match';
@@ -728,10 +735,12 @@ function renderExplain(){
     html += '<div class="vrow"><span class="vmodel" style="color:var(--' + accent + ')">' + pair[1] + '</span>' +
       '<div class="srow"><span class="num">' + f2(score) + '</span><div class="sbar" style="height:9px">' +
       '<div class="fill" style="width:' + Math.round(score*100) + '%;background:var(--' + accent + ')"></div>' +
-      '<div class="tick" style="left:' + Math.round(TAU*100) + '%"></div></div></div>' +
+      '<div class="tick" style="left:' + Math.round(thr*100) + '%"></div></div></div>' +
       '<span class="vnote" style="color:' + (correct ? 'var(--t2)' : 'var(--red)') + '">' +
       (correct ? '✓ ' : '✗ ') + note + '</span></div>';
   });
+  if (p.real) html += '<div class="vnote" style="color:var(--t3);font-size:12px;margin-top:4px">' +
+    t('exp.realonly') + '</div>';
   html += '</div>';
   html += '<div class="story" style="margin-top:12px">' + esc(bi(p.note)) + '</div>';
   document.getElementById('explainMain').innerHTML = html;
@@ -893,9 +902,11 @@ function init(){
   if (qs.get('track') === 'open' && OC) switchNetTrack('open');
   const f = qs.get('focus');
   if (f && netNodes[f]) netSide(f);
-  // ?q= 直达 Arena 指定剧本查询（与 ?view=arena 配套，现场演示一键到位）
+  // ?q= 直达 Arena 指定剧本查询、?case= 直达 Explain 指定案例（现场演示一键到位）
   const qsel = qs.get('q');
   if (qsel && DATA.queries.some(x => x.query_id === qsel)) { arenaSel = qsel; renderArena(); }
+  const csel = qs.get('case');
+  if (csel && DATA.pairs.some(x => x.pair_id === csel)) { expSel = csel; renderExplain(); }
   // ?resolve=1 直达"归并后"状态（跳过动画，供截图/分享）
   if (qs.get('resolve')) { netResolved = true; netT = 1; netApply(1); netSyncUI(); }
 }

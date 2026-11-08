@@ -17,7 +17,7 @@ python3 scripts/build_demo.py --open         # ④ 构建 build/demo.html 并用
 ```
 
 - 零第三方依赖（Python ≥3.11 纯标准库）；产物**单文件、零外链、断网可开**，可直接发给客户。
-- 测试（69 项）：`PYTHONPATH=src python3 -m unittest discover -s tests`
+- 测试（73 项）：`PYTHONPATH=src python3 -m unittest discover -s tests`
 
 ## 四个视图（给客户讲的动线）
 
@@ -25,12 +25,13 @@ python3 scripts/build_demo.py --open         # ④ 构建 build/demo.html 并用
 |---|---|---|
 | **Arena 对决台** | 6 个剧本查询，左右双栏 baseline vs 微调 | 切查询；判定线 θ=0.55，误连标红、真身标青、候选虚线 |
 | **Network 关系网** | 双轨道：**合成剧本**（按来源孤岛 → 实体 halo 形变）与 **Febrl3 实测**（真实微调模型向量：影子纠缠簇 → 断言组件；红光环 = 混入异实体） | 「执行归并」动画；轨道切换；点节点看档案（实测轨含真实分数 top-3 与 θ 判定）；影子人/双胞胎肉眼可分 |
-| **Explain 为什么** | 4 张案例卡逐字段拆解：✓ 全同 / ≈ 近似 / ✗ 冲突 / — 缺失 | 切案例；两个模型的判决 vs 地面真值 |
+| **Explain 为什么** | 6 张案例卡逐字段拆解：4 合成（✓ 全同 / ≈ 近似 / ✗ 冲突 / — 缺失）+ **2 张 Febrl3 实测卡**（R1 错字风暴仍连对 0.946 / R2 最像的两个人仍拒连 0.915，真实模型分数 + 该轨真实 θ 刻度） | 切案例；合成卡=两模型判决对比，实测卡=微调单行 + 真值 |
 | **Scoreboard 记分牌** | 三大指标 + 分场景柱状图 + 指标口径脚注；下接**开源基准轨**（三个真实基模微调前后实测 × Febrl3） | — |
 
 深链（截图/分享直达状态）：`?view=arena|network|explain|scoreboard`、
 `?track=open`（网络视图直达 Febrl3 实测轨）、`?focus=R101`（自动开档案）、
-`?resolve=1`（直达归并后）、`?lang=zh|en`。
+`?resolve=1`（直达归并后）、`?q=Q2`（Arena 直达查询）、`?case=R1`（Explain
+直达案例卡）、`?lang=zh|en`。
 
 ## 指标（seed=42 实测，测试锁定）
 
