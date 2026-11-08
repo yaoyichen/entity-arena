@@ -5,7 +5,7 @@ from __future__ import annotations
 import math
 import unittest
 
-from entity_arena.layout import MARGIN, build_network
+from entity_arena.layout import MARGIN, _halo_radius, build_network
 from entity_arena.synth import build_world
 
 SEED = 42
@@ -46,8 +46,8 @@ class TestLayout(unittest.TestCase):
             for j in range(i + 1, len(ents)):
                 ea, eb = ents[i], ents[j]
                 d = math.hypot(ea["x"] - eb["x"], ea["y"] - eb["y"])
-                ra = 43 + 7 * ea["size"]  # 与前端 halo 半径公式一致
-                rb = 43 + 7 * eb["size"]
+                ra = _halo_radius(ea["size"])  # 与前端 halo 半径公式一致（单一出处）
+                rb = _halo_radius(eb["size"])
                 self.assertGreaterEqual(
                     d, ra + rb - 2,
                     f"光环压叠：{ea['e']}(r={ra:.0f}) ↔ {eb['e']}(r={rb:.0f}) 距离 {d:.1f}")

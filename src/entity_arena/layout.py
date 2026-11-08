@@ -15,6 +15,7 @@ from .synth import World
 
 CANVAS_W, CANVAS_H = 1200, 780
 MARGIN = 90
+TOP = 120  # 顶部预留：前端 .netbar（按钮+状态条）是画布顶部浮层，光环/标签不得进入
 
 
 def _quantile_norm(points: list[list[float]], lo=0.02, hi=0.98) -> list[list[float]]:
@@ -35,10 +36,10 @@ def _quantile_norm(points: list[list[float]], lo=0.02, hi=0.98) -> list[list[flo
         x1 = x0 + 1.0
     if y1 - y0 < 1e-6:
         y1 = y0 + 1.0
-    span_x, span_y = (CANVAS_W - 2 * MARGIN) / (x1 - x0), (CANVAS_H - 2 * MARGIN) / (y1 - y0)
+    span_x, span_y = (CANVAS_W - 2 * MARGIN) / (x1 - x0), (CANVAS_H - MARGIN - TOP) / (y1 - y0)
     scale = min(span_x, span_y)  # 保持纵横比
     off_x = MARGIN + ((CANVAS_W - 2 * MARGIN) - (x1 - x0) * scale) / 2
-    off_y = MARGIN + ((CANVAS_H - 2 * MARGIN) - (y1 - y0) * scale) / 2
+    off_y = TOP + ((CANVAS_H - MARGIN - TOP) - (y1 - y0) * scale) / 2
     return [[off_x + (p[0] - x0) * scale, off_y + (p[1] - y0) * scale] for p in points]
 
 
@@ -85,8 +86,9 @@ def _fr_layout(n: int, edges: list[tuple[int, int]], seed: int, iters: int = 340
 
 
 def _halo_radius(size: int) -> float:
-    """与前端 halo r = 24 + 7*(size+1) + 12 保持一致。"""
-    return 43 + 7 * size
+    """与前端 halo R = 30 + 4*size 保持一致（扩村到 ~78 组件后缩小半径，
+    否则光环总面积超过可布面积的 8 成，物理上无法互不压叠）。"""
+    return 30 + 4 * size
 
 
 def _separate_halos(pts: list[list[float]], sizes: list[int], iters: int = 240) -> None:
@@ -115,7 +117,7 @@ def _separate_halos(pts: list[list[float]], sizes: list[int], iters: int = 240) 
                     moved = True
         for i in range(n):
             pts[i][0] = min(max(pts[i][0], MARGIN), CANVAS_W - MARGIN)
-            pts[i][1] = min(max(pts[i][1], MARGIN), CANVAS_H - MARGIN)
+            pts[i][1] = min(max(pts[i][1], TOP), CANVAS_H - MARGIN)  # 顶部给 .netbar 浮层让位
         if not moved:
             break
 
@@ -177,7 +179,7 @@ def build_open_network(records: list[dict], links: list[tuple[str, str]],
     for ci, mems in enumerate(members):
         cx, cy = comp_pts[ci]
         mems_sorted = sorted(mems)
-        radius = 24 + 7 * len(mems_sorted)
+        radius = 12 + 4 * len(mems_sorted)   # 成员环：节点外缘 19+4n，稳落光环 30+4n 内
         for k, rid in enumerate(mems_sorted):
             ang = -math.pi / 2 + 2 * math.pi * k / len(mems_sorted)
             pts_after[idx_of[rid]] = [cx + radius * math.cos(ang), cy + radius * math.sin(ang)]
@@ -201,8 +203,8 @@ def build_open_network(records: list[dict], links: list[tuple[str, str]],
                     label_pts[i][1] = yi + uy
                     label_pts[j][1] = yj - uy
                     moved = True
-        for p in label_pts:  # 软墙：标签留在画布内
-            p[1] = min(max(p[1], 26.0), CANVAS_H - 26.0)
+        for p in label_pts:  # 软墙：标签留在画布内、避开顶部 .netbar 浮层
+            p[1] = min(max(p[1], 54.0), CANVAS_H - 26.0)
         if not moved:
             break
 
@@ -300,7 +302,7 @@ def build_network(world: World, seed: int = 42) -> dict:
         i = used[eid]
         used[eid] += 1
         cx, cy = ent_pts[eid_to_idx[eid]]
-        radius = 24 + 7 * len(mems)
+        radius = 12 + 4 * len(mems)   # 与 build_open_network 成员环同公式，稳落光环内
         ang = -math.pi / 2 + 2 * math.pi * i / max(len(mems), 1)
         pts_after.append([cx + radius * math.cos(ang), cy + radius * math.sin(ang)])
 

@@ -67,6 +67,12 @@ class TestEndToEnd(unittest.TestCase):
                        "qs.get('case')", "Febrl3"):
             self.assertIn(marker, self.html)
 
+    def test_open_baseline_stage_in_page(self):
+        """网络实测轨三态必须打进页面：基线代理数据 + 状态文案 + ?stage= 深链。"""
+        for marker in ('"kind":"proxy"', "net.open.state.baseline",
+                       "net.open.btn.base", "qs.get('stage')"):
+            self.assertIn(marker, self.html)
+
     def test_page_markers_present(self):
         for marker in ('id="view-arena"', 'id="view-network"', 'id="view-explain"',
                        'id="view-scoreboard"', 'id="openBench"', 'id="netTrack"',

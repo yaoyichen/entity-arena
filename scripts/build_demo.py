@@ -83,7 +83,8 @@ def _load_open_cases(data_dir: Path) -> dict | None:
         return None
     payload = json.loads(p.read_text(encoding="utf-8"))
     for key in ("model", "theta", "stats", "records", "links", "false_links",
-                "missed_pairs", "components", "comp_of", "top3", "network"):
+                "missed_pairs", "components", "comp_of", "top3", "baseline",
+                "explain", "network"):
         if key not in payload:
             raise SystemExit(f"{p}: 缺字段 {key}，拒绝构建")
     if not payload["records"]:

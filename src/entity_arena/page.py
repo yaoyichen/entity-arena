@@ -150,7 +150,16 @@ const I18N = {
   'net.track.synth': {en:'Scripted world', zh:'合成剧本'},
   'net.track.open':  {en:'Febrl3 · real model', zh:'Febrl3 · 真实模型'},
   'net.open.state.before': {en:'RAW · look-alike ties tangle different people together', zh:'原始态 · 相似纠缠把不同的人缠在一起'},
+  'net.open.state.baseline': {en:'BASELINE · literal-similarity proxy · red links = false merges, red halo = mixed', zh:'基线打分（字面相似度代理）· 红线 = 误连，红光环 = 混入异实体'},
   'net.open.state.after':  {en:'RESOLVED by the fine-tuned model · red halo = mixed', zh:'微调模型归并完成 · 红色光环 = 混入异实体'},
+  'net.open.btn.base':   {en:'⟶ Score with baseline', zh:'⟶ 基线打分归并'},
+  'net.open.btn.tuned':  {en:'⟶ Resolve with fine-tuned model', zh:'⟶ 微调模型归并'},
+  'net.open.base.note':  {en:'Proxy baseline: classic field-similarity ER scorer, same θ rule (F1-optimal). Not per-record base-model scores — base models cannot be served on this platform; real base-model metrics are in the Scoreboard.', zh:'代理基线：经典字段相似度打分器，θ 同规则（F1 最优）。非基模逐条分数——基模无法在平台部署，真实基线指标见记分牌。'},
+  'net.open.lg.blink':   {en:'baseline asserted link', zh:'基线断言连线'},
+  'net.open.lg.blink.bad': {en:'false merge (baseline)', zh:'误连（红线）'},
+  'ob.baseline.tag':     {en:'BASELINE · literal-similarity proxy', zh:'基线 · 字面相似度代理'},
+  'ob.shadow':           {en:'look-alike ties', zh:'影子对'},
+  'ob.shadow.note':      {en:'same surname / address / DOB — different people', zh:'同姓 / 同址 / 同生日的异实体，不是一伙的'},
   'net.open.lg.mixed': {en:'MIXED component (false link)', zh:'混合组件（误连）'},
   'net.open.lg.island': {en:'look-alike cluster', zh:'相似纠缠簇'},
   'ob.trueEnt':    {en:'True entity', zh:'真实实体'},
@@ -333,9 +342,10 @@ let NET = DATA.network;              // 当前轨道的网络数据（switchNetT
 let TRACK = 'synth';                 // 'synth' 合成剧本 | 'open' Febrl3 实测案例村
 const OC = DATA.open_cases;
 const OPEN_RELS = {lookalike: {en: 'Look-alike tie', zh: '相似纠缠'}};
-let netT = 0, netResolved = false, netAnim = null;
+let netT = 0, netResolved = false, netAnim = null, netMax = 1;
 const netNodes = {}, netPos = {};
 let svg = null, gSrc, gEB, gEA, gHalo, gNode, gELabel;
+let gBL = null, gHaloB = null, gELabelB = null, BASE_ENTS = null;
 
 function openComps() {
   const comps = {};
@@ -344,6 +354,15 @@ function openComps() {
                    pure: c.pure, entities: c.entities};
   });
   return comps;
+}
+function baselineEnts() {
+  /* 基线代理组件表（"微调前"态）：结构与 openComps 一致，坐标/成员来自 baseline.network */
+  const m = {};
+  (OC.baseline ? OC.baseline.components : []).forEach(c => {
+    m[c.id] = {members: OC.baseline.network.comp_members[c.id] || [],
+               pure: c.pure, entities: c.entities};
+  });
+  return m;
 }
 function trackAdapter() {
   if (TRACK === 'open') {
@@ -377,7 +396,7 @@ function switchNetTrack(track) {
   if (track === TRACK) return;
   TRACK = track;
   NET = trackAdapter().net;
-  netT = 0; netResolved = false;
+  netT = 0; netResolved = false; netMax = 1;
   if (netAnim) cancelAnimationFrame(netAnim);
   Object.keys(netNodes).forEach(k => delete netNodes[k]);
   if (svg) svg.remove();
@@ -428,11 +447,22 @@ function buildNet(){
   const box = document.getElementById('netbox');
   const A = trackAdapter();
   const openIsl = TRACK === 'open' ? openIslands() : null;
+  const hasBase = TRACK === 'open' && !!OC.baseline;   // 三态：原始 → 基线(代理) → 微调
+  netMax = hasBase ? 2 : 1;
+  BASE_ENTS = hasBase ? baselineEnts() : null;
   svg = svgEl('svg', {viewBox: '0 0 ' + NET.canvas.w + ' ' + NET.canvas.h, 'aria-label': 'network'});
   box.appendChild(svg);
-  gSrc = svgEl('g', {}); gEB = svgEl('g', {}); gEA = svgEl('g', {});
-  gHalo = svgEl('g', {}); gNode = svgEl('g', {}); gELabel = svgEl('g', {});
-  svg.append(gSrc, gEB, gEA, gHalo, gNode, gELabel);
+  gSrc = svgEl('g', {}); gEB = svgEl('g', {});
+  gBL = hasBase ? svgEl('g', {}) : null;               // 基线断言连线
+  gEA = svgEl('g', {});
+  gHaloB = hasBase ? svgEl('g', {}) : null;            // 基线组件光环
+  gHalo = svgEl('g', {}); gNode = svgEl('g', {});
+  gELabelB = hasBase ? svgEl('g', {}) : null;
+  gELabel = svgEl('g', {});
+  const layers = [gSrc, gEB];
+  layers.push.apply(layers, hasBase ? [gBL, gEA, gHaloB, gHalo, gNode, gELabelB, gELabel]
+                                    : [gEA, gHalo, gNode, gELabel]);
+  svg.append.apply(svg, layers);
 
   // 来源孤岛标签：取各孤岛的质心 x / 最高点 y，落在孤岛正上方（避免撞节点）
   const bySrc = {};
@@ -456,6 +486,32 @@ function buildNet(){
     el.dataset.a = e.a; el.dataset.b = e.b; el.dataset.kind = 'before';
     gEB.appendChild(el);
   });
+  // 基线层（仅开源轨）：断言连线（红线=误连）+ 组件光环（红=混入异实体）+ 标签
+  if (hasBase) {
+    const badSet = new Set(OC.baseline.false_links);
+    OC.baseline.links.forEach(l => {
+      const isBad = badSet.has([l.a, l.b].sort().join('|'));
+      const el = svgEl('line', {'class': 'edge'});
+      if (isBad) { el.style.stroke = 'var(--red)'; el.style.strokeWidth = '2'; el.style.strokeOpacity = '.85'; }
+      else { el.style.stroke = '#7aa7c9'; el.style.strokeWidth = '1.1'; el.style.strokeOpacity = '.3'; }
+      el.dataset.a = l.a; el.dataset.b = l.b; el.dataset.kind = 'blink';
+      gBL.appendChild(el);
+    });
+    OC.baseline.network.entities.forEach(en => {
+      const meta = BASE_ENTS[en.e];
+      const bad = meta && !meta.pure;
+      const R = 30 + 4 * en.size;   // 与 layout._halo_radius 保持一致
+      const halo = svgEl('circle', {'class': bad ? 'halo bad' : 'halo', r: 4, opacity: 0});
+      halo.dataset.R = R; halo.dataset.cx = en.x; halo.dataset.cy = en.y;
+      gHaloB.appendChild(halo);
+      const n = meta ? meta.members.length : en.size;
+      const lab = svgEl('text', {'class': bad ? 'elabel badlabel' : 'elabel',
+                                  x: en.lx != null ? en.lx : en.x,
+                                  y: en.ly != null ? en.ly : en.y - R - 8, opacity: 0});
+      lab.textContent = (bad ? 'MIXED' : 'E' + (meta ? meta.entities[0] : '?')) + (n > 1 ? ' ×' + n : '');
+      gELabelB.appendChild(lab);
+    });
+  }
   // after 边（实体中心之间）
   NET.edges_after.forEach(e => {
     const el = svgEl('line', {'class': 'edge', 'stroke-width': 2, 'stroke-opacity': .6,
@@ -465,7 +521,7 @@ function buildNet(){
   });
   // 实体光环 + 标签（开源轨：混入异实体的组件标红）
   NET.entities.forEach(en => {
-    const R = 24 + 7 * (en.size + 1) + 12;
+    const R = 30 + 4 * en.size;   // 与 layout._halo_radius 保持一致
     const meta = A.ent[en.e];
     const bad = TRACK === 'open' && meta && !meta.pure;
     const halo = svgEl('circle', {'class': bad ? 'halo bad' : 'halo', r: 4, opacity: 0});
@@ -476,10 +532,11 @@ function buildNet(){
                                 y: en.ly != null ? en.ly : en.y - R - 8, opacity: 0});
     lab.dataset.eid = en.e; gELabel.appendChild(lab);
   });
-  // 记录节点
-  const before = {}, after = {};
+  // 记录节点（开源轨三态：bx/by 原始 → cx/cy 基线组件 → ax/ay 微调组件）
+  const before = {}, after = {}, basePos = {};
   NET.nodes_before.forEach(n => before[n.r] = n);
   NET.nodes_after.forEach(n => after[n.r] = n);
+  if (hasBase) OC.baseline.network.nodes_after.forEach(n => basePos[n.r] = n);
   Object.keys(before).forEach(rid => {
     const g = svgEl('g', {});
     const c = svgEl('circle', {'class': 'node', r: 7});
@@ -491,20 +548,34 @@ function buildNet(){
     g.addEventListener('click', () => netSide(rid));
     gNode.appendChild(g);
     netNodes[rid] = {el: g, circle: c, bx: before[rid].x, by: before[rid].y,
-                     ax: after[rid].x, ay: after[rid].y, eid: A.eid(rid, before[rid])};
+                     ax: after[rid].x, ay: after[rid].y,
+                     cx: basePos[rid] ? basePos[rid].x : null,
+                     cy: basePos[rid] ? basePos[rid].y : null,
+                     eid: A.eid(rid, before[rid]),
+                     bid: hasBase ? OC.baseline.comp_of[rid] : null};
   });
   netApply(0);
   netSide(null);
 }
 function netApply(u){
-  const e = easeIO(u);
+  /* 三态开源轨：u∈[0,2] —— 0 原始 / 1 基线代理组件 / 2 微调组件（两跳插值）；
+     合成轨与无基线数据时 u∈[0,1]，行为与原版一致。 */
+  const two = netMax === 2;
+  const e1 = easeIO(Math.max(0, Math.min(1, u)));
+  const e2 = easeIO(Math.max(0, Math.min(1, u - 1)));
   Object.keys(netNodes).forEach(rid => {
     const n = netNodes[rid];
-    const x = lerp(n.bx, n.ax, e), y = lerp(n.by, n.ay, e);
+    const mx = n.cx != null ? n.cx : n.ax, my = n.cy != null ? n.cy : n.ay;
+    let x, y;
+    if (!two || u <= 1) { x = lerp(n.bx, mx, e1); y = lerp(n.by, my, e1); }
+    else { x = lerp(mx, n.ax, e2); y = lerp(my, n.ay, e2); }
     n.el.setAttribute('transform', 'translate(' + x + ',' + y + ')');
     netPos[rid] = [x, y];
   });
-  const oB = 1 - smooth(u, .12, .45), oA = smooth(u, .5, .82), oH = smooth(u, .42, .8);
+  const oB = 1 - smooth(u, .12, .45);
+  const oHB = two ? smooth(u, .42, .8) * (1 - smooth(u, 1.42, 1.8)) : 0;   // 基线层
+  const u2 = two ? u - 1 : u;                                              // 微调层的局部进度
+  const oA = smooth(u2, .5, .82), oH = smooth(u2, .42, .8);
   // before 边：跟随节点当前位置（否则 line 无坐标、塌缩在原点不可见）
   gEB.childNodes.forEach(el => {
     const pa = netPos[el.dataset.a], pb = netPos[el.dataset.b];
@@ -515,39 +586,85 @@ function netApply(u){
     el.setAttribute('opacity', oB);
   });
   gSrc.childNodes.forEach(el => el.setAttribute('opacity', .5 * oB));
+  if (gBL) gBL.childNodes.forEach(el => {   // 基线断言连线：同样跟随节点
+    const pa = netPos[el.dataset.a], pb = netPos[el.dataset.b];
+    if (pa && pb) {
+      el.setAttribute('x1', pa[0]); el.setAttribute('y1', pa[1]);
+      el.setAttribute('x2', pb[0]); el.setAttribute('y2', pb[1]);
+    }
+    el.setAttribute('opacity', oHB);
+  });
   gEA.childNodes.forEach(el => {
     const a = NET.entities.find(x => x.e === el.dataset.ea), b = NET.entities.find(x => x.e === el.dataset.eb);
     el.setAttribute('x1', a.x); el.setAttribute('y1', a.y);
     el.setAttribute('x2', b.x); el.setAttribute('y2', b.y);
     el.setAttribute('opacity', oA);
   });
+  if (gHaloB) {
+    gHaloB.childNodes.forEach(h => {
+      h.setAttribute('cx', h.dataset.cx); h.setAttribute('cy', h.dataset.cy);
+      h.setAttribute('r', lerp(6, +h.dataset.R, smooth(u, .35, .9)));
+      h.setAttribute('opacity', oHB * .95);
+    });
+    gELabelB.childNodes.forEach(l => l.setAttribute('opacity', oHB));
+  }
   gHalo.childNodes.forEach(h => {
     h.setAttribute('cx', h.dataset.cx); h.setAttribute('cy', h.dataset.cy);
-    h.setAttribute('r', lerp(6, +h.dataset.R, smooth(u, .35, .9)));
+    h.setAttribute('r', lerp(6, +h.dataset.R, smooth(u2, .35, .9)));
     h.setAttribute('opacity', oH * .95);
   });
   gELabel.childNodes.forEach(l => l.setAttribute('opacity', oH));
 }
-function netSyncUI(){
+function netStage(){
+  return netMax === 2 ? Math.max(0, Math.min(2, Math.round(netT))) : (netResolved ? 1 : 0);
+}
+function netSyncUI(stage){
+  const s = stage != null ? stage : netStage();
   const btn = document.getElementById('resolveBtn');
-  if (btn) btn.textContent = netResolved ? t('net.unresolve') : t('net.resolve');
-  btn.classList.toggle('off', netResolved);
   const st = document.getElementById('netState');
+  st.title = '';
+  if (TRACK === 'open' && netMax === 2) {
+    btn.textContent = t(['net.open.btn.base', 'net.open.btn.tuned', 'net.unresolve'][s]);
+    btn.classList.toggle('off', s === 2);
+    st.textContent = t(['net.open.state.before', 'net.open.state.baseline', 'net.open.state.after'][s]);
+    if (s === 1) st.title = t('net.open.base.note');   // 诚实口径挂 tooltip
+    renderOpenStats(s);
+    return;
+  }
+  btn.textContent = s ? t('net.unresolve') : t('net.resolve');
+  btn.classList.toggle('off', !!s);
   if (TRACK === 'open') {
-    st.textContent = netResolved ? t('net.open.state.after') : t('net.open.state.before');
-    renderOpenStats();
+    st.textContent = t(s ? 'net.open.state.after' : 'net.open.state.before');
+    renderOpenStats(s);
   } else {
-    st.textContent = netResolved ? t('net.state.after') : t('net.state.before');
+    st.textContent = t(s ? 'net.state.after' : 'net.state.before');
     const sub = document.getElementById('netTrackSub');
     if (sub) sub.innerHTML = '';
   }
 }
-function renderOpenStats(){
-  /* 开源轨统计条：真实数字（真值对 / 断言 / 误连 / 漏连 / 组件纯度 / θ / 模型） */
+function renderOpenStats(stage){
+  /* 开源轨统计条：按阶段显示真实数字（0 影子对 / 1 基线代理 / 2 微调模型） */
   const sub = document.getElementById('netTrackSub');
   if (!sub) return;
-  const s = OC.stats;
   const cell = (v, cls) => '<b class="mono ' + (cls || '') + '">' + v + '</b>';
+  if (stage === 1 && OC.baseline) {
+    const b = OC.baseline.stats;
+    sub.innerHTML =
+      '<span class="ob-sub mono">' + t('ob.baseline.tag') + '</span>' +
+      '<span>θ ' + cell(OC.baseline.theta.toFixed(3)) + '</span>' +
+      '<span>' + t('ob.asserted') + ' ' + cell(b.asserted) + '</span>' +
+      '<span>' + t('ob.false') + ' ' + cell(b.false_links, 'num-bad') + '</span>' +
+      '<span>' + t('ob.missed') + ' ' + cell(b.missed_pairs, 'num-bad') + '</span>' +
+      '<span>' + t('ob.comps') + ' ' + cell(b.components + '/' + b.pure_components) + '</span>';
+    return;
+  }
+  if (stage === 0) {
+    sub.innerHTML =
+      '<span>' + t('ob.shadow') + ' ' + cell(NET.edges_before.length) + '</span>' +
+      '<span style="opacity:.6">' + t('ob.shadow.note') + '</span>';
+    return;
+  }
+  const s = OC.stats;
   sub.innerHTML =
     '<span class="ob-sub mono">' + esc(OC.model) + '</span>' +
     '<span>' + t('ob.truth') + ' ' + cell(s.truth_pairs) + '</span>' +
@@ -558,9 +675,11 @@ function renderOpenStats(){
     '<span>θ ' + cell(OC.theta.toFixed(3)) + '</span>';
 }
 function netToggle(){
-  netResolved = !netResolved;
-  netSyncUI();
-  const target = netResolved ? 1 : 0, from = netT, t0 = performance.now(), DUR = 900;
+  const target = netMax === 2 ? (netStage() >= 2 ? 0 : netStage() + 1)
+                              : (netResolved ? 0 : 1);
+  if (netMax !== 2) netResolved = !netResolved;
+  netSyncUI(target);
+  const from = netT, t0 = performance.now(), DUR = 900;
   if (netAnim) cancelAnimationFrame(netAnim);
   const step = now => {
     const u = Math.min(1, (now - t0) / DUR);
@@ -578,14 +697,26 @@ function netFocus(rid, on){
   const eid = netNodes[rid].eid;
   const A = trackAdapter();
   const neigh = new Set([rid]);
-  (A.ent[eid] ? A.ent[eid].members : []).forEach(m => neigh.add(m));
-  if (netResolved || netT > .5) {
-    NET.edges_after.forEach(e => {
-      if (e.a === eid && A.ent[e.b]) A.ent[e.b].members.forEach(m => neigh.add(m));
-      if (e.b === eid && A.ent[e.a]) A.ent[e.a].members.forEach(m => neigh.add(m));
-    });
+  if (TRACK === 'open' && netMax === 2) {
+    const stage = netStage();
+    if (stage === 1 && BASE_ENTS) {          // 基线态：聚焦基线组件成员
+      const ent = BASE_ENTS[netNodes[rid].bid];
+      if (ent) ent.members.forEach(m => neigh.add(m));
+    } else if (stage === 2) {                // 微调态：聚焦微调组件成员
+      (A.ent[eid] ? A.ent[eid].members : []).forEach(m => neigh.add(m));
+    } else {                                 // 原始态：影子关系邻居
+      NET.edges_before.forEach(e => { if (e.a === rid) neigh.add(e.b); if (e.b === rid) neigh.add(e.a); });
+    }
   } else {
-    NET.edges_before.forEach(e => { if (e.a === rid) neigh.add(e.b); if (e.b === rid) neigh.add(e.a); });
+    (A.ent[eid] ? A.ent[eid].members : []).forEach(m => neigh.add(m));
+    if (netResolved || netT > .5) {
+      NET.edges_after.forEach(e => {
+        if (e.a === eid && A.ent[e.b]) A.ent[e.b].members.forEach(m => neigh.add(m));
+        if (e.b === eid && A.ent[e.a]) A.ent[e.a].members.forEach(m => neigh.add(m));
+      });
+    } else {
+      NET.edges_before.forEach(e => { if (e.a === rid) neigh.add(e.b); if (e.b === rid) neigh.add(e.a); });
+    }
   }
   Object.keys(netNodes).forEach(k => {
     if (!neigh.has(k)) netNodes[k].el.classList.add('dim');
@@ -653,6 +784,7 @@ function renderNetLegend(){
   html += '<span class="k">' + t('net.lg.record') + '</span>';
   html += '<span class="k">' + t('net.lg.halo') + '</span>';
   if (TRACK === 'open') html += '<span class="k"><span class="lg-bad-halo"></span>' + t('net.open.lg.mixed') + '</span>';
+  if (TRACK === 'open' && OC.baseline) html += '<span class="k"><svg width="26" height="8"><line x1="1" y1="4" x2="25" y2="4" stroke="#d97862" stroke-width="2"/></svg>' + t('net.open.lg.blink.bad') + '</span>';
   html += '<span class="k">' + t(TRACK === 'open' ? 'net.open.lg.island' : 'net.lg.src') + '</span>';
   for (const rel in rels) {
     html += '<span class="k"><svg width="26" height="8"><line x1="1" y1="4" x2="25" y2="4" ' +
@@ -907,8 +1039,13 @@ function init(){
   if (qsel && DATA.queries.some(x => x.query_id === qsel)) { arenaSel = qsel; renderArena(); }
   const csel = qs.get('case');
   if (csel && DATA.pairs.some(x => x.pair_id === csel)) { expSel = csel; renderExplain(); }
-  // ?resolve=1 直达"归并后"状态（跳过动画，供截图/分享）
-  if (qs.get('resolve')) { netResolved = true; netT = 1; netApply(1); netSyncUI(); }
+  // ?resolve=1 直达"归并后"状态（跳过动画，供截图/分享；三态开源轨直达微调态）
+  if (qs.get('resolve')) { netResolved = true; netT = netMax; netApply(netMax); netSyncUI(netMax); }
+  // ?stage=0|1|2 直达开源轨三态（原始/基线/微调——截图与现场剧本直达基线态）
+  const nst = qs.get('stage');
+  if (nst !== null && TRACK === 'open' && +nst >= 0 && +nst <= netMax) {
+    netT = +nst; netApply(+nst); netSyncUI(+nst);
+  }
 }
 init();
 """

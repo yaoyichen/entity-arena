@@ -17,7 +17,7 @@
 ```bash
 python3 scripts/make_mock_data.py            # 生成 data/ 合成轨（确定性）
 python3 scripts/update_open_benchmark.py     # 生成 data/open_benchmark.json（开源基准轨，从已入库报告解析）
-python3 scripts/build_open_cases.py --scores # 生成 data/open_cases.json（网络实测轨，从已入库分数重建）
+python3 scripts/build_open_cases.py             # 生成 data/open_cases.json（网络实测轨三态，从已入库分数离线复算）
 python3 scripts/build_demo.py --open         # 构建 build/demo.html 并打开（三个数据文件缺一即 raise）
 PYTHONPATH=src python3 -m unittest discover -s tests   # 测试（或装 pytest 后 pytest）
 ```
@@ -25,7 +25,7 @@ PYTHONPATH=src python3 -m unittest discover -s tests   # 测试（或装 pytest 
 改了 `synth/simulate/layout` → 必须重跑生成+构建；改了 `page/theme` → 重跑构建；
 重新评测了平台模型 → 重跑 `update_open_benchmark.py` + 构建；
 重新取样了案例村向量 → 覆盖 `data_open/village_scores.json` 后重跑
-`build_open_cases.py --scores` + 构建（village_scores 缺席时构建显式提示，
+`build_open_cases.py` + 构建（village_scores 缺席时构建显式提示，
 页面只出合成轨——优雅降级路径保留，平台再故障时用）。
 
 ## 代码地图
@@ -42,8 +42,9 @@ PYTHONPATH=src python3 -m unittest discover -s tests   # 测试（或装 pytest 
 - `scripts/update_open_benchmark.py` 平台评测报告（`data_open/eval_reports/`，随仓库
   提交作溯源）→ `data/open_benchmark.json`；基线口径漂移会 raise。指标板第二板块
   （开源基准轨：真实模型实测）由它供数，双轨 footer 各自诚实标注
-- `scripts/pick_open_village.py` 从 Febrl3 测试实体选"案例村"（102 条记录/影子对，
-  **选村对模型分数盲**，规则写在 provenance 里，避免挑案例之嫌）→ `data_open/village.json`
+- `scripts/pick_open_village.py` 从 Febrl3 测试实体选"案例村"（228 条记录/
+  78 实体/1223 影子对，预算 `--budget 230`；**选村对模型分数盲**，规则写在
+  provenance 里，避免挑案例之嫌）→ `data_open/village.json`
 - `scripts/fetch_village_embeddings.py` 调平台已部署微调服务的 `/v1/embeddings`
   取真实向量（`EMB_TOKEN` 环境变量传令牌；向量只落 `.tmp/`，不入库）
 - `scripts/live_pair_score.py` 现场演示打分器：两条记录（案例村实体/rid/自由文本）
@@ -51,10 +52,12 @@ PYTHONPATH=src python3 -m unittest discover -s tests   # 测试（或装 pytest 
   直达 Arena 指定剧本查询）
 - `scripts/build_open_cases.py` 案例村 + 真实成对分数 → `data/open_cases.json`
   （θ 扫描 F1 最大化 → 断言链 → 组件纯度；溯源分数写 `data_open/village_scores.json`
-  入库，`--scores` 模式离线复算）。网络视图第二轨道（Febrl3 实测）由它供数：
-  before=影子关系纠缠簇，after=微调模型断言组件（红光环=混入异实体）；
+  入库，默认从该文件离线复算）。网络视图第二轨道（Febrl3 实测）**三态**由它供数：
+  原始=影子关系纠缠簇 → 基线=字面相似度**代理**打分（平台无法逐对部署基模，
+  权重/口径写进 provenance，误连红线+混合组件红光环）→ 微调=真实断言组件；
   Explain 的两张实测卡（R1 最乱仍连对 / R2 最像仍拒连）也由它生成——
-  极值规则挑选（缺失数→差异数→分数贴近 θ），对叙事盲
+  极值规则挑选（缺失数→差异数→分数贴近 θ，两卡距 θ 均 ≥0.01 防 GPU 抖动翻判定），
+  对叙事盲
 - `src/entity_arena/febrl.py` Febrl 数据共用工具（实体切分/序列化/索引）
 - **部署要点（2026-11-08 实测）**：平台 serving 当日整体故障过一轮（新产物
   `train`/`pipeline`、旧产物一律 ~4min FAILED；`deploy_model` 起的服务全挂），
@@ -79,4 +82,4 @@ PYTHONPATH=src python3 -m unittest discover -s tests   # 测试（或装 pytest 
 重新评测后用新报告覆盖该目录再跑 `update_open_benchmark.py` 即可。
 网络实测轨：`open_cases.json`（由 `data_open/village.json` + `village_scores.json`
 重建；village_scores 缺席时优雅降级为仅合成轨）——重新取样向量后覆盖
-`village_scores.json` 再跑 `build_open_cases.py --scores` 即可。
+`village_scores.json` 再跑 `build_open_cases.py` 即可。

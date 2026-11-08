@@ -33,7 +33,11 @@ ROOT = Path(__file__).resolve().parents[1]
 VILLAGE = ROOT / "data_open" / "village.json"
 DEFAULT_URL = "https://9dogmocj5hg5cpbgmkmcehcg5qkpcdqm.openapi-inspire.inf.tech"
 DEFAULT_MODEL = "febrl3-er-gemma"
-THETA = 0.9328  # 案例村 link-F1 最优判定线（build_open_cases.py 扫描得出）
+THETA = 0.9208  # 案例村 link-F1 最优判定线（build_open_cases.py 扫描得出）
+try:  # 优先用最新构建产物里的 θ，避免两处维护漂移
+    THETA = float(json.loads((ROOT / "data" / "open_cases.json").read_text())["theta"])
+except Exception:
+    pass
 RETRIES = 3
 
 

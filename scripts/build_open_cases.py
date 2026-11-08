@@ -120,6 +120,7 @@ def build_explain_cards(records: list[dict], pairs: list[tuple[str, str, float]]
                         ent_of: dict[str, str], theta: float, model_name: str) -> dict:
     """R1 = 正确断言的真对中差异字段最多者（再取分数高）——"乱成这样仍连对"；
     R2 = 被拒的异实体对中分数最高者——"长得最像仍拒连"。
+    两卡都要求距 θ ≥ 0.01（GPU 抖动 ~0.005 不翻判定、条形图可读）。
     挑选规则确定、对叙事盲（不是看故事挑的，是按规则算的极值）。"""
     recs = {r["rid"]: r for r in records}
     score_of = {(a, b): s for a, b, s in pairs}
@@ -140,18 +141,20 @@ def build_explain_cards(records: list[dict], pairs: list[tuple[str, str, float]]
         return sum(1 for f in rows_of(*ab) if f["state"] != "exact")
 
     linked_true = [((a, b), s) for a, b, s in pairs
-                   if ent_of[a] == ent_of[b] and s >= theta]
+                   if ent_of[a] == ent_of[b] and s >= theta + 0.01]
     if not linked_true:
-        raise SystemExit("没有正确断言的真对——R1 卡无法生成（数据变化，规则需复查）")
+        raise SystemExit("没有距 θ ≥0.01 的正确断言真对——R1 卡无法生成（边距规则需复查）")
     def n_missing(ab: tuple[str, str]) -> int:
         return sum(1 for f in rows_of(*ab) if f["state"] == "missing")
     # 极值规则（结构性、对叙事盲）："最乱仍连对"——缺失字段最多、差异字段最多、分数最接近 θ
     r1 = sorted(linked_true,
                 key=lambda x: (-n_missing(x[0]), -n_diff(x[0]), x[1], x[0]))[0][0]
+    # 拒连卡候选：距 θ 至少 0.01（GPU 推理抖动 ~0.005 不翻判定；条形图上分数与
+    # 刻度线也须肉眼可分）——在满足边距的候选里仍取分数最高者
     refused = [((a, b), s) for a, b, s in pairs
-               if ent_of[a] != ent_of[b] and s < theta]
+               if ent_of[a] != ent_of[b] and s <= theta - 0.01]
     if not refused:
-        raise SystemExit("没有可拒连的异实体对——R2 卡无法生成")
+        raise SystemExit("没有距 θ ≥0.01 的异实体对——R2 卡无法生成（边距规则需复查）")
     r2 = sorted(refused, key=lambda x: (-x[1], x[0]))[0][0]
 
     def card(pid: str, ab: tuple[str, str], title: dict, note: dict) -> dict:
@@ -196,6 +199,62 @@ def build_explain_cards(records: list[dict], pairs: list[tuple[str, str, float]]
         stubs[rid] = {"record_id": rid, "name": f.get("name") or rid,
                       "dob": f.get("dob"), "id_number": f.get("ssn"), "source": "febrl3"}
     return {"pairs": [c1, c2], "records": stubs}
+
+
+# ---- 基线代理：经典字面相似度 ER 打分器（"微调前"的可视化口径） ----
+
+_BASE_W = {"name": 0.40, "dob": 0.20, "address": 0.20, "locality": 0.10, "ssn": 0.10}
+
+
+def baseline_score(fa: dict, fb: dict) -> float:
+    """字段 Levenshtein 相似度加权；单侧缺失 = 0.5（无证据中性）；双侧缺失不参与。
+
+    诚实口径：这是经典规则打分器的代理，不是基模的逐条分数——基模无法在平台
+    逐条部署（deploy 仅支持已训练模型），真实基线检索指标见记分牌开源基准轨。
+    """
+    num = den = 0.0
+    for k, w in _BASE_W.items():
+        va, vb = fa.get(k), fb.get(k)
+        if not va and not vb:
+            continue
+        den += w
+        if not va or not vb:
+            num += w * 0.5
+        elif va == vb:
+            num += w
+        else:
+            num += w * _lev_ratio(va, vb)
+    return num / den if den else 0.0
+
+
+def baseline_pairs(records: list[dict], rids: list[str]) -> list[tuple[str, str, float]]:
+    recs = {r["rid"]: r for r in records}
+    out = []
+    for i, a in enumerate(rids):
+        for b in rids[i + 1:]:
+            out.append((a, b, baseline_score(recs[a]["fields"], recs[b]["fields"])))
+    out.sort(key=lambda p: (p[0], p[1]))
+    return out
+
+
+def _fmt_w() -> str:
+    return " / ".join(f"{k} {v:.2f}" for k, v in _BASE_W.items())
+
+
+def comp_analysis(rids: list[str], links: list[tuple[str, str]],
+                  ent_of: dict[str, str]) -> tuple[list[list[str]], dict[str, str], list[dict]]:
+    """断言链 → 组件（并查集）+ 每组件真值实体集合与纯度。微调/基线共用。"""
+    comps = components(rids, links)
+    comp_of: dict[str, str] = {}
+    comp_meta = []
+    for ci, mem in enumerate(comps):
+        cid = f"comp-{ci}"
+        for m in mem:
+            comp_of[m] = cid
+        ents = sorted({ent_of[m] for m in mem})
+        comp_meta.append({"id": cid, "size": len(mem), "entities": ents,
+                          "pure": len(ents) == 1})
+    return comps, comp_of, comp_meta
 
 
 def main() -> None:
@@ -256,15 +315,7 @@ def main() -> None:
     )
     missed = sorted({"|".join(sorted(p)) for p in truth if p not in asserted})
 
-    comps = components(rids, links)
-    comp_of: dict[str, str] = {}
-    comp_meta = []
-    for ci, mem in enumerate(comps):
-        cid = f"comp-{ci}"
-        for m in mem:
-            comp_of[m] = cid
-        ents = {ent_of[m] for m in mem}
-        comp_meta.append({"id": cid, "size": len(mem), "entities": sorted(ents), "pure": len(ents) == 1})
+    comps, comp_of, comp_meta = comp_analysis(rids, links, ent_of)
 
     network = build_open_network(
         records=[{"rid": r["rid"], "entity": r["entity"]} for r in records],
@@ -273,6 +324,26 @@ def main() -> None:
         seed=args.seed,
     )
     explain = build_explain_cards(records, pairs, ent_of, theta, model_name)
+
+    # ---- 基线代理（"微调前"态）：同一案例村、同一 θ 规则，经典字面相似度打分
+    bpairs = baseline_pairs(records, rids)
+    theta_b, stats_b = pick_theta(bpairs, truth)
+    links_b = [(a, b) for a, b, s in bpairs if s >= theta_b]
+    bscore_of = {(a, b): s for a, b, s in bpairs}
+    asserted_b = set(links_b)
+    false_b = sorted(
+        {"|".join(sorted((a, b))) for a, b in links_b if ent_of[a] != ent_of[b]}
+    )
+    missed_b = sorted({"|".join(sorted(p)) for p in truth if p not in asserted_b})
+    comps_b, comp_of_b, comp_meta_b = comp_analysis(rids, links_b, ent_of)
+    net_base = build_open_network(
+        records=[{"rid": r["rid"], "entity": r["entity"]} for r in records],
+        links=links_b,
+        shadow_pairs=[tuple(p) for p in village["shadow_pairs"]],
+        seed=args.seed + 17,   # 与微调布局去相关（两套组件坐标独立成图）
+    )
+    if len(comps_b) != len(net_base["entities"]):
+        raise SystemExit("基线组件数与布局实体数不一致——数据管道损坏")
 
     payload = {
         "model": model_name,
@@ -295,6 +366,28 @@ def main() -> None:
         "comp_of": comp_of,
         "top3": {r: [[o, round(s, 6)] for o, s in v] for r, v in top3.items()},
         "explain": explain,
+        "baseline": {
+            "kind": "proxy",
+            "theta": round(theta_b, 6),
+            "stats": {
+                **{k: stats_b[k] for k in ("asserted", "tp", "precision", "recall", "f1")},
+                "truth_pairs": len(truth),
+                "false_links": len(false_b),
+                "missed_pairs": len(missed_b),
+                "components": len(comps_b),
+                "pure_components": sum(1 for c in comp_meta_b if c["pure"]),
+            },
+            "links": [{"a": a, "b": b, "s": round(bscore_of[(a, b)], 6)} for a, b in links_b],
+            "false_links": false_b,
+            "missed_pairs": missed_b,
+            "components": comp_meta_b,
+            "comp_of": comp_of_b,
+            "network": {
+                "nodes_after": net_base["nodes_after"],
+                "entities": net_base["entities"],
+                "comp_members": net_base["comp_members"],
+            },
+        },
         "network": network,
         "provenance": {
             **village["provenance"],
@@ -302,6 +395,9 @@ def main() -> None:
             "theta_rule": "案例村上 link-F1 最大化（平局：精度优先、再 θ 大者）",
             "truth": "Febrl3 rec_id 实体号（生成器 ground truth）",
             "model_role": f"微调后模型 {model_name} 的真实向量余弦；基线无法部署（平台仅支持已训练模型），逐条基线分数不可得",
+            "baseline_rule": "代理基线=经典字面相似度 ER 打分器：字段 Levenshtein 加权"
+                             f"（{_fmt_w()}），单侧缺失=0.5 中性；θ 与微调同规则 F1 扫描。"
+                             "非基模逐条分数——真实基线检索指标见记分牌（开源基准轨）",
         },
     }
     args.out.parent.mkdir(parents=True, exist_ok=True)
@@ -312,6 +408,9 @@ def main() -> None:
     print(f"  truth={len(truth)} asserted={stats['asserted']} tp={stats['tp']} "
           f"false={len(false_links)} missed={len(missed)}")
     print(f"  components={len(comps)} (pure={sum(1 for c in comp_meta if c['pure'])})")
+    print(f"  baseline(proxy) θ={theta_b:.4f} asserted={stats_b['asserted']} tp={stats_b['tp']} "
+          f"false={len(false_b)} missed={len(missed_b)} "
+          f"components={len(comps_b)} (pure={sum(1 for c in comp_meta_b if c['pure'])})")
 
 
 if __name__ == "__main__":

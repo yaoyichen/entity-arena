@@ -33,7 +33,8 @@ def make_fixture(tmp: Path) -> tuple[Path, Path]:
             # E1 两条：姓名全同，但生日一侧缺失、地址错字 —— Explain 极值规则应挑它做 R1
             (1, {"name": "aa", "dob": "1980-01-01", "address": "1 main st"}),
             (1, {"name": "aa", "address": "1 mani st"}),
-            (2, {"name": "bb"}), (2, {"name": "bb"}),
+            # E2 两条：与 E1 同名同生日的"影子人"（基线字面相似度的纠缠源）
+            (2, {"name": "aa", "dob": "1980-01-01"}), (2, {"name": "aa", "dob": "1980-01-01"}),
             # E3 两条：全同的干净对（分数更低 0.90 但零缺失）—— 不得抢走 R1
             (3, {"name": "cc"}), (3, {"name": "cc"}),
         ])
@@ -218,6 +219,51 @@ class TestOpenCases(unittest.TestCase):
         self.assertEqual(r2["verdicts"]["tuned"], "nonmatch")
         # fixture 里被拒的最高分是 0.50（0.93 那对是误连、不在被拒池）
         self.assertAlmostEqual(r2["scores"]["tuned"], 0.50, places=6)
+
+    # ---- 基线（字面相似度代理） ----
+
+    def test_baseline_payload_structure(self):
+        """基线代理与微调轨道同构：断言链/误连/漏连/组件全套，可被前端复用。"""
+        b = self.payload["baseline"]
+        self.assertEqual(b["kind"], "proxy")  # 诚实标注：不是真实基线模型
+        self.assertGreater(b["theta"], 0.0)
+        self.assertLessEqual(b["theta"], 1.0)
+        self.assertEqual(len(b["links"]), b["stats"]["asserted"])
+        for lk in b["links"]:
+            self.assertGreaterEqual(lk["s"], b["theta"])
+        recs = self.payload["records"]
+        for fl in b["false_links"]:
+            a, c = fl.split("|")
+            self.assertNotEqual(recs[a]["entity"], recs[c]["entity"], "误连必须跨实体")
+        for m in b["missed_pairs"]:
+            a, c = m.split("|")
+            self.assertEqual(recs[a]["entity"], recs[c]["entity"], "漏连必须同实体")
+        self.assertEqual(set(b["comp_of"]), set(recs))
+        self.assertEqual(len(b["components"]), b["stats"]["components"])
+        self.assertEqual(sum(1 for c in b["components"] if c["pure"]),
+                         b["stats"]["pure_components"])
+        for c in b["components"]:
+            ents = {recs[m]["entity"] for m in b["network"]["comp_members"][c["id"]]}
+            self.assertEqual(ents, set(c["entities"]))
+            self.assertEqual(c["pure"], len(ents) == 1)
+
+    def test_baseline_fixture_precision_collapse(self):
+        """影子人倒挂在 fixture 上的缩影：E1↔E2 同名同生日的跨实体对字面分
+        （0.875）压过 E1 内部真对（生日缺失 + 地址错字，<0.875），θ 扫描
+        在"误连换漏连"之间无解，只好退到 1.0 —— 只连逐字节全同的记录，
+        漏掉真对 rec-0|rec-1。"""
+        b = self.payload["baseline"]
+        self.assertEqual(b["theta"], 1.0)
+        self.assertEqual(b["false_links"], [])       # 宁可全不连，也不吸收影子人
+        self.assertEqual(b["missed_pairs"], ["rec-0|rec-1"])
+        self.assertEqual(b["stats"]["tp"], 2)
+        self.assertEqual(b["stats"]["truth_pairs"], 3)
+
+    def test_provenance_discloses_baseline_proxy(self):
+        """溯源必须声明基线是代理（诚实标注），不能冒充真实基线模型。"""
+        rule = self.payload["provenance"]["baseline_rule"]
+        self.assertIn("代理", rule)
+        self.assertIn("Levenshtein", rule)
 
 
 if __name__ == "__main__":
