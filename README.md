@@ -116,5 +116,6 @@ python3 scripts/build_demo.py --open         # ④ 构建 build/demo.html 并用
 ## 设计决策
 
 - `docs/talk-track.md` **客户讲述文稿**：问题背景 → 思考 → 实现 → 分视图逐句口播 → Q&A 备忘
+- `docs/live-demo.md` **现场演示剧本**：会前清单 + 8 场景动线（含 live 打分与客户出题环节）+ Q&A 弹药 + 风险预案
 - `docs/adr/0001` 网络视图：预计算坐标 + 手写 SVG，不引 sigma/d3（确定性、零外链）
 - `docs/adr/0002` 代理评分的诚实性：公式、剧本钉死范围、指标口径、换真模型接入点

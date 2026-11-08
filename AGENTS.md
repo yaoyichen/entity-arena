@@ -46,6 +46,9 @@ PYTHONPATH=src python3 -m unittest discover -s tests   # 测试（或装 pytest 
   **选村对模型分数盲**，规则写在 provenance 里，避免挑案例之嫌）→ `data_open/village.json`
 - `scripts/fetch_village_embeddings.py` 调平台已部署微调服务的 `/v1/embeddings`
   取真实向量（`EMB_TOKEN` 环境变量传令牌；向量只落 `.tmp/`，不入库）
+- `scripts/live_pair_score.py` 现场演示打分器：两条记录（案例村实体/rid/自由文本）
+  → 部署服务实时余弦 + θ 判定；演示剧本见 `docs/live-demo.md`（深链 `?q=`
+  直达 Arena 指定剧本查询）
 - `scripts/build_open_cases.py` 案例村 + 真实成对分数 → `data/open_cases.json`
   （θ 扫描 F1 最大化 → 断言链 → 组件纯度；溯源分数写 `data_open/village_scores.json`
   入库，`--scores` 模式离线复算）。网络视图第二轨道（Febrl3 实测）由它供数：

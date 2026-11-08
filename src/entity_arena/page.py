@@ -893,6 +893,9 @@ function init(){
   if (qs.get('track') === 'open' && OC) switchNetTrack('open');
   const f = qs.get('focus');
   if (f && netNodes[f]) netSide(f);
+  // ?q= 直达 Arena 指定剧本查询（与 ?view=arena 配套，现场演示一键到位）
+  const qsel = qs.get('q');
+  if (qsel && DATA.queries.some(x => x.query_id === qsel)) { arenaSel = qsel; renderArena(); }
   // ?resolve=1 直达"归并后"状态（跳过动画，供截图/分享）
   if (qs.get('resolve')) { netResolved = true; netT = 1; netApply(1); netSyncUI(); }
 }
