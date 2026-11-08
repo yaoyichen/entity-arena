@@ -1,0 +1,1953 @@
+{
+  "provenance": {
+    "source_csv": "data_open/febrl/febrl3.csv",
+    "split": "test only（seed 42 实体级 80/20，与训练包同款，零训练泄漏）",
+    "selection": "结构性挑选（影子对密度），在看到任何模型分数之前定稿",
+    "shadow_pair_rule": "异实体 + (同姓 或 同 suburb+postcode 或 同 DOB)——与训练硬负例同款",
+    "budget": 48
+  },
+  "records": [
+    {
+      "rid": "rec-1026-dup-0",
+      "entity": "1026",
+      "fields": {
+        "name": "xani green",
+        "dob": "1939-04-10",
+        "address": "phill ip avenue",
+        "locality": "armidale 5108 nsw",
+        "ssn": "9201057"
+      },
+      "text": "name: xani green | DOB: 1939-04-10 | address: phill ip avenue | locality: armidale 5108 nsw | SSN: 9201057"
+    },
+    {
+      "rid": "rec-1026-dup-1",
+      "entity": "1026",
+      "fields": {
+        "name": "xani green",
+        "dob": "1939-04-10",
+        "address": "2 phillip avenue abbey green",
+        "locality": "armidale 5108 nsw",
+        "ssn": "9201857"
+      },
+      "text": "name: xani green | DOB: 1939-04-10 | address: 2 phillip avenue abbey green | locality: armidale 5108 nsw | SSN: 9201857"
+    },
+    {
+      "rid": "rec-1026-org",
+      "entity": "1026",
+      "fields": {
+        "name": "xani green",
+        "dob": "1939-04-10",
+        "address": "2 phillip avenue abbey green",
+        "locality": "armidale 5108 nsw",
+        "ssn": "9201057"
+      },
+      "text": "name: xani green | DOB: 1939-04-10 | address: 2 phillip avenue abbey green | locality: armidale 5108 nsw | SSN: 9201057"
+    },
+    {
+      "rid": "rec-1076-dup-0",
+      "entity": "1076",
+      "fields": {
+        "name": "sarah clarke",
+        "dob": "1914-09-08",
+        "address": "37 kellewayavenue allandale",
+        "locality": "marleston 6014 qld",
+        "ssn": "9081739"
+      },
+      "text": "name: sarah clarke | DOB: 1914-09-08 | address: 37 kellewayavenue allandale | locality: marleston 6014 qld | SSN: 9081739"
+    },
+    {
+      "rid": "rec-1076-dup-1",
+      "entity": "1076",
+      "fields": {
+        "name": "sarah greenw",
+        "dob": "1914-09-08",
+        "address": "37 kelleway avenue allandale",
+        "locality": "marlesgon 6014 qld",
+        "ssn": "6213427"
+      },
+      "text": "name: sarah greenw | DOB: 1914-09-08 | address: 37 kelleway avenue allandale | locality: marlesgon 6014 qld | SSN: 6213427"
+    },
+    {
+      "rid": "rec-1076-org",
+      "entity": "1076",
+      "fields": {
+        "name": "sarah green",
+        "dob": "1914-09-08",
+        "address": "37 kelleway avenue allandale",
+        "locality": "marleston 6014 qld",
+        "ssn": "6213427"
+      },
+      "text": "name: sarah green | DOB: 1914-09-08 | address: 37 kelleway avenue allandale | locality: marleston 6014 qld | SSN: 6213427"
+    },
+    {
+      "rid": "rec-1138-dup-0",
+      "entity": "1138",
+      "fields": {
+        "name": "jaykob clarke",
+        "dob": "1900-09-19",
+        "address": "75 kimberley milehamstreet",
+        "locality": "dalby 2107 wa",
+        "ssn": "9245172"
+      },
+      "text": "name: jaykob clarke | DOB: 1900-09-19 | address: 75 kimberley milehamstreet | locality: dalby 2107 wa | SSN: 9245172"
+    },
+    {
+      "rid": "rec-1138-dup-1",
+      "entity": "1138",
+      "fields": {
+        "name": "jaykob clarke",
+        "dob": "1900-09-19",
+        "address": "75 mileham st reet kimbreley",
+        "locality": "daby 2107 wa",
+        "ssn": "9245272"
+      },
+      "text": "name: jaykob clarke | DOB: 1900-09-19 | address: 75 mileham st reet kimbreley | locality: daby 2107 wa | SSN: 9245272"
+    },
+    {
+      "rid": "rec-1138-org",
+      "entity": "1138",
+      "fields": {
+        "name": "jaykob clarke",
+        "dob": "1900-09-19",
+        "address": "75 mileham street kimberley",
+        "locality": "dalby 2170 wa",
+        "ssn": "9245172"
+      },
+      "text": "name: jaykob clarke | DOB: 1900-09-19 | address: 75 mileham street kimberley | locality: dalby 2170 wa | SSN: 9245172"
+    },
+    {
+      "rid": "rec-1191-dup-0",
+      "entity": "1191",
+      "fields": {
+        "name": "logan green",
+        "dob": "1944-05-14",
+        "address": "11 marloc k street kersley mews",
+        "locality": "anula 6233 nsw",
+        "ssn": "2837625"
+      },
+      "text": "name: logan green | DOB: 1944-05-14 | address: 11 marloc k street kersley mews | locality: anula 6233 nsw | SSN: 2837625"
+    },
+    {
+      "rid": "rec-1191-dup-1",
+      "entity": "1191",
+      "fields": {
+        "name": "logan green",
+        "dob": "1944-05-14",
+        "address": "7 marlockstreet kersley mews",
+        "locality": "kaniva 6233 nsw",
+        "ssn": "2837625"
+      },
+      "text": "name: logan green | DOB: 1944-05-14 | address: 7 marlockstreet kersley mews | locality: kaniva 6233 nsw | SSN: 2837625"
+    },
+    {
+      "rid": "rec-1191-dup-2",
+      "entity": "1191",
+      "fields": {
+        "name": "logan green",
+        "dob": "1944-05-14",
+        "address": "11 marlock street kersleymews",
+        "locality": "anula 6233 nsw",
+        "ssn": "2837625"
+      },
+      "text": "name: logan green | DOB: 1944-05-14 | address: 11 marlock street kersleymews | locality: anula 6233 nsw | SSN: 2837625"
+    },
+    {
+      "rid": "rec-1191-dup-3",
+      "entity": "1191",
+      "fields": {
+        "name": "loan green",
+        "dob": "1944-05-14",
+        "address": "11 marlock street kersley mews",
+        "locality": "an ula 6233 nsw",
+        "ssn": "2837625"
+      },
+      "text": "name: loan green | DOB: 1944-05-14 | address: 11 marlock street kersley mews | locality: an ula 6233 nsw | SSN: 2837625"
+    },
+    {
+      "rid": "rec-1191-org",
+      "entity": "1191",
+      "fields": {
+        "name": "logan green",
+        "dob": "1944-05-14",
+        "address": "11 marlock street kersley mews",
+        "locality": "anula 6233 nsw",
+        "ssn": "2837625"
+      },
+      "text": "name: logan green | DOB: 1944-05-14 | address: 11 marlock street kersley mews | locality: anula 6233 nsw | SSN: 2837625"
+    },
+    {
+      "rid": "rec-132-org",
+      "entity": "132",
+      "fields": {
+        "name": "lacey wilkins",
+        "dob": "1935-02-27",
+        "address": "19 yanda street",
+        "locality": "great mackerel beach 2500 vic",
+        "ssn": "8712619"
+      },
+      "text": "name: lacey wilkins | DOB: 1935-02-27 | address: 19 yanda street | locality: great mackerel beach 2500 vic | SSN: 8712619"
+    },
+    {
+      "rid": "rec-1357-dup-0",
+      "entity": "1357",
+      "fields": {
+        "name": "jordan green",
+        "dob": null,
+        "address": "21 gamburra street john flynn me dical centre",
+        "locality": "bomaderry 6055 nsw",
+        "ssn": "3646581"
+      },
+      "text": "name: jordan green | address: 21 gamburra street john flynn me dical centre | locality: bomaderry 6055 nsw | SSN: 3646581"
+    },
+    {
+      "rid": "rec-1357-org",
+      "entity": "1357",
+      "fields": {
+        "name": "jordan green",
+        "dob": null,
+        "address": "21 gamburra street john flynn medical centre",
+        "locality": "eden hills 6055 nsw",
+        "ssn": "3646581"
+      },
+      "text": "name: jordan green | address: 21 gamburra street john flynn medical centre | locality: eden hills 6055 nsw | SSN: 3646581"
+    },
+    {
+      "rid": "rec-1393-dup-0",
+      "entity": "1393",
+      "fields": {
+        "name": "jasper",
+        "dob": "1932-01-11",
+        "address": "glasgow fptreet barrcalear",
+        "locality": "broomd 4066 nsw",
+        "ssn": "7933243"
+      },
+      "text": "name: jasper | DOB: 1932-01-11 | address: glasgow fptreet barrcalear | locality: broomd 4066 nsw | SSN: 7933243"
+    },
+    {
+      "rid": "rec-1393-org",
+      "entity": "1393",
+      "fields": {
+        "name": "jasper green",
+        "dob": "1932-01-11",
+        "address": "glasgow street barraclear",
+        "locality": "broome 4066 nsw",
+        "ssn": "7933243"
+      },
+      "text": "name: jasper green | DOB: 1932-01-11 | address: glasgow street barraclear | locality: broome 4066 nsw | SSN: 7933243"
+    },
+    {
+      "rid": "rec-1414-org",
+      "entity": "1414",
+      "fields": {
+        "name": "amber green",
+        "dob": "1989-06-27",
+        "address": "6 sticht place belvedere",
+        "locality": "vincent 7030 vic",
+        "ssn": "7817990"
+      },
+      "text": "name: amber green | DOB: 1989-06-27 | address: 6 sticht place belvedere | locality: vincent 7030 vic | SSN: 7817990"
+    },
+    {
+      "rid": "rec-1490-dup-0",
+      "entity": "1490",
+      "fields": {
+        "name": "sonja wilknis",
+        "dob": "1974-12-05",
+        "address": "1024 alfred hill drive st john of god hospital",
+        "locality": "huonville 2768",
+        "ssn": "2867046"
+      },
+      "text": "name: sonja wilknis | DOB: 1974-12-05 | address: 1024 alfred hill drive st john of god hospital | locality: huonville 2768 | SSN: 2867046"
+    },
+    {
+      "rid": "rec-1490-dup-1",
+      "entity": "1490",
+      "fields": {
+        "name": "jake wilkins",
+        "dob": "1934-04-04",
+        "address": "1042 alfred hill drive st john of god hospital",
+        "locality": "hope valley 2760 vic",
+        "ssn": "2867046"
+      },
+      "text": "name: jake wilkins | DOB: 1934-04-04 | address: 1042 alfred hill drive st john of god hospital | locality: hope valley 2760 vic | SSN: 2867046"
+    },
+    {
+      "rid": "rec-1490-org",
+      "entity": "1490",
+      "fields": {
+        "name": "sonja wilkins",
+        "dob": "1934-04-04",
+        "address": "1024 alfred hill drive st john of god hospital",
+        "locality": "hope valley 2760 vic",
+        "ssn": "2867046"
+      },
+      "text": "name: sonja wilkins | DOB: 1934-04-04 | address: 1024 alfred hill drive st john of god hospital | locality: hope valley 2760 vic | SSN: 2867046"
+    },
+    {
+      "rid": "rec-1585-dup-0",
+      "entity": "1585",
+      "fields": {
+        "name": "camefon clarke",
+        "dob": "1982-12-18",
+        "address": "39 fihelly street",
+        "locality": "2200 nsw",
+        "ssn": "1553578"
+      },
+      "text": "name: camefon clarke | DOB: 1982-12-18 | address: 39 fihelly street | locality: 2200 nsw | SSN: 1553578"
+    },
+    {
+      "rid": "rec-1585-org",
+      "entity": "1585",
+      "fields": {
+        "name": "cameron clarke",
+        "dob": "1982-12-18",
+        "address": "450 fihelly street skerman chambers",
+        "locality": "2100 nsw",
+        "ssn": "1553578"
+      },
+      "text": "name: cameron clarke | DOB: 1982-12-18 | address: 450 fihelly street skerman chambers | locality: 2100 nsw | SSN: 1553578"
+    },
+    {
+      "rid": "rec-1654-dup-0",
+      "entity": "1654",
+      "fields": {
+        "name": "amy maie r",
+        "dob": "1904-05-10",
+        "address": "210 amagulacavenue villa 56",
+        "locality": "brisb ane 3189 wa",
+        "ssn": "2004573"
+      },
+      "text": "name: amy maie r | DOB: 1904-05-10 | address: 210 amagulacavenue villa 56 | locality: brisb ane 3189 wa | SSN: 2004573"
+    },
+    {
+      "rid": "rec-1654-org",
+      "entity": "1654",
+      "fields": {
+        "name": "amy clarke",
+        "dob": "1904-05-10",
+        "address": "210 amagula avenue villa 56",
+        "locality": "brisbane 3189 wa",
+        "ssn": "2004573"
+      },
+      "text": "name: amy clarke | DOB: 1904-05-10 | address: 210 amagula avenue villa 56 | locality: brisbane 3189 wa | SSN: 2004573"
+    },
+    {
+      "rid": "rec-190-dup-0",
+      "entity": "190",
+      "fields": {
+        "name": "zachary clarie",
+        "dob": "1930-01-02",
+        "address": "16 st john of god hospital",
+        "locality": "camiar 2120 qld",
+        "ssn": "3102291"
+      },
+      "text": "name: zachary clarie | DOB: 1930-01-02 | address: 16 st john of god hospital | locality: camiar 2120 qld | SSN: 3102291"
+    },
+    {
+      "rid": "rec-190-dup-1",
+      "entity": "190",
+      "fields": {
+        "name": "mason zachary",
+        "dob": "1930-01-02",
+        "address": "16 st john of g od hospital",
+        "locality": "camira 2120 qld",
+        "ssn": "1373543"
+      },
+      "text": "name: mason zachary | DOB: 1930-01-02 | address: 16 st john of g od hospital | locality: camira 2120 qld | SSN: 1373543"
+    },
+    {
+      "rid": "rec-190-dup-2",
+      "entity": "190",
+      "fields": {
+        "name": "zachary clarke",
+        "dob": "1930-01-02",
+        "address": "16 st john of god hospital",
+        "locality": "camita 2120 qld",
+        "ssn": "1373543"
+      },
+      "text": "name: zachary clarke | DOB: 1930-01-02 | address: 16 st john of god hospital | locality: camita 2120 qld | SSN: 1373543"
+    },
+    {
+      "rid": "rec-190-org",
+      "entity": "190",
+      "fields": {
+        "name": "zachary clarke",
+        "dob": "1930-01-02",
+        "address": "16 st john of god hospital",
+        "locality": "camira 2120 qld",
+        "ssn": "1373543"
+      },
+      "text": "name: zachary clarke | DOB: 1930-01-02 | address: 16 st john of god hospital | locality: camira 2120 qld | SSN: 1373543"
+    },
+    {
+      "rid": "rec-33-org",
+      "entity": "33",
+      "fields": {
+        "name": "samuel clarke",
+        "dob": "1949-12-05",
+        "address": "9 clint place",
+        "locality": "corrimal 2594 nsw",
+        "ssn": "1610220"
+      },
+      "text": "name: samuel clarke | DOB: 1949-12-05 | address: 9 clint place | locality: corrimal 2594 nsw | SSN: 1610220"
+    },
+    {
+      "rid": "rec-476-dup-0",
+      "entity": "476",
+      "fields": {
+        "name": "spencer green",
+        "dob": "1942-03-13",
+        "address": "24 yarra street katalina forrest",
+        "locality": "taret 3829 act",
+        "ssn": "8155837"
+      },
+      "text": "name: spencer green | DOB: 1942-03-13 | address: 24 yarra street katalina forrest | locality: taret 3829 act | SSN: 8155837"
+    },
+    {
+      "rid": "rec-476-dup-1",
+      "entity": "476",
+      "fields": {
+        "name": "spencxr royans",
+        "dob": null,
+        "address": "24 yarra srteet katalina f orrest",
+        "locality": "taree 3820 act",
+        "ssn": "8155837"
+      },
+      "text": "name: spencxr royans | address: 24 yarra srteet katalina f orrest | locality: taree 3820 act | SSN: 8155837"
+    },
+    {
+      "rid": "rec-476-dup-2",
+      "entity": "476",
+      "fields": {
+        "name": "royan s spencer",
+        "dob": "1942-03-13",
+        "address": "24 yarra street katalina forrest",
+        "locality": "taree 3820 vic",
+        "ssn": "8155837"
+      },
+      "text": "name: royan s spencer | DOB: 1942-03-13 | address: 24 yarra street katalina forrest | locality: taree 3820 vic | SSN: 8155837"
+    },
+    {
+      "rid": "rec-476-org",
+      "entity": "476",
+      "fields": {
+        "name": "spencer royans",
+        "dob": "1942-03-13",
+        "address": "24 yarra street katalina forrest",
+        "locality": "taree 3820 act",
+        "ssn": "8155837"
+      },
+      "text": "name: spencer royans | DOB: 1942-03-13 | address: 24 yarra street katalina forrest | locality: taree 3820 act | SSN: 8155837"
+    },
+    {
+      "rid": "rec-526-dup-0",
+      "entity": "526",
+      "fields": {
+        "name": "maya green",
+        "dob": "1979-02-28",
+        "address": "20 louisa lawson crescent",
+        "locality": "bligh park 4817 wa",
+        "ssn": "5349388"
+      },
+      "text": "name: maya green | DOB: 1979-02-28 | address: 20 louisa lawson crescent | locality: bligh park 4817 wa | SSN: 5349388"
+    },
+    {
+      "rid": "rec-526-dup-1",
+      "entity": "526",
+      "fields": {
+        "name": "harry gren",
+        "dob": "1979-02-28",
+        "address": "20 louisa lawsondcrescent",
+        "locality": "bligh park 2560 wa",
+        "ssn": "5349388"
+      },
+      "text": "name: harry gren | DOB: 1979-02-28 | address: 20 louisa lawsondcrescent | locality: bligh park 2560 wa | SSN: 5349388"
+    },
+    {
+      "rid": "rec-526-dup-2",
+      "entity": "526",
+      "fields": {
+        "name": "maya greqen",
+        "dob": "1979-02-28",
+        "address": "20 louisa laws on crescent cargo road",
+        "locality": "bligh park 2560 wa",
+        "ssn": "5349388"
+      },
+      "text": "name: maya greqen | DOB: 1979-02-28 | address: 20 louisa laws on crescent cargo road | locality: bligh park 2560 wa | SSN: 5349388"
+    },
+    {
+      "rid": "rec-526-org",
+      "entity": "526",
+      "fields": {
+        "name": "maya green",
+        "dob": "1979-02-28",
+        "address": "20 louisa lawson crescent cargo road",
+        "locality": "bligh park 2560 wa",
+        "ssn": "5349388"
+      },
+      "text": "name: maya green | DOB: 1979-02-28 | address: 20 louisa lawson crescent cargo road | locality: bligh park 2560 wa | SSN: 5349388"
+    },
+    {
+      "rid": "rec-620-dup-0",
+      "entity": "620",
+      "fields": {
+        "name": "finn clarke",
+        "dob": "1903-11-21",
+        "address": "330 murranjis treet the mount",
+        "locality": "primbee 4101 qld",
+        "ssn": "5509189"
+      },
+      "text": "name: finn clarke | DOB: 1903-11-21 | address: 330 murranjis treet the mount | locality: primbee 4101 qld | SSN: 5509189"
+    },
+    {
+      "rid": "rec-620-org",
+      "entity": "620",
+      "fields": {
+        "name": "finn clarke",
+        "dob": "1903-11-21",
+        "address": "15 murranji street the mount",
+        "locality": "primbee 4101 qld",
+        "ssn": "5509189"
+      },
+      "text": "name: finn clarke | DOB: 1903-11-21 | address: 15 murranji street the mount | locality: primbee 4101 qld | SSN: 5509189"
+    },
+    {
+      "rid": "rec-653-org",
+      "entity": "653",
+      "fields": {
+        "name": "samantha green",
+        "dob": "1920-03-28",
+        "address": "46 malindi place harbison vlge",
+        "locality": "dromana 3131 wa",
+        "ssn": "9704392"
+      },
+      "text": "name: samantha green | DOB: 1920-03-28 | address: 46 malindi place harbison vlge | locality: dromana 3131 wa | SSN: 9704392"
+    },
+    {
+      "rid": "rec-705-dup-0",
+      "entity": "705",
+      "fields": {
+        "name": "archie clarke",
+        "dob": "1978-09-09",
+        "address": "nangor street oma ru",
+        "locality": "westmead 2251 vic",
+        "ssn": "5273648"
+      },
+      "text": "name: archie clarke | DOB: 1978-09-09 | address: nangor street oma ru | locality: westmead 2251 vic | SSN: 5273648"
+    },
+    {
+      "rid": "rec-705-dup-1",
+      "entity": "705",
+      "fields": {
+        "name": "archie clake",
+        "dob": "1978-09-09",
+        "address": "162 nangor street oaru",
+        "locality": "westmead 2251 vic",
+        "ssn": "5273648"
+      },
+      "text": "name: archie clake | DOB: 1978-09-09 | address: 162 nangor street oaru | locality: westmead 2251 vic | SSN: 5273648"
+    },
+    {
+      "rid": "rec-705-org",
+      "entity": "705",
+      "fields": {
+        "name": "archie clarke",
+        "dob": "1978-09-09",
+        "address": "162 nangor street omaru",
+        "locality": "westmead 2251 vic",
+        "ssn": "5273648"
+      },
+      "text": "name: archie clarke | DOB: 1978-09-09 | address: 162 nangor street omaru | locality: westmead 2251 vic | SSN: 5273648"
+    },
+    {
+      "rid": "rec-711-dup-0",
+      "entity": "711",
+      "fields": {
+        "name": "clarek",
+        "dob": "1921-05-03",
+        "address": "merfield place",
+        "locality": "bull creek 2830 act",
+        "ssn": "2257500"
+      },
+      "text": "name: clarek | DOB: 1921-05-03 | address: merfield place | locality: bull creek 2830 act | SSN: 2257500"
+    },
+    {
+      "rid": "rec-711-dup-1",
+      "entity": "711",
+      "fields": {
+        "name": "clarke",
+        "dob": null,
+        "address": "97 merfieldplace the meadows",
+        "locality": "bull creek 2830 act",
+        "ssn": "2257500"
+      },
+      "text": "name: clarke | address: 97 merfieldplace the meadows | locality: bull creek 2830 act | SSN: 2257500"
+    },
+    {
+      "rid": "rec-711-dup-2",
+      "entity": "711",
+      "fields": {
+        "name": "clarke",
+        "dob": "1921-05-03",
+        "address": "97 merfield place the meardows",
+        "locality": "bull creek 2830 act",
+        "ssn": "2257500"
+      },
+      "text": "name: clarke | DOB: 1921-05-03 | address: 97 merfield place the meardows | locality: bull creek 2830 act | SSN: 2257500"
+    },
+    {
+      "rid": "rec-711-dup-3",
+      "entity": "711",
+      "fields": {
+        "name": "clyarje",
+        "dob": "1921-05-03",
+        "address": "97 merfieldplace the mea dows",
+        "locality": "bul lcreek 2803 act",
+        "ssn": "2257500"
+      },
+      "text": "name: clyarje | DOB: 1921-05-03 | address: 97 merfieldplace the mea dows | locality: bul lcreek 2803 act | SSN: 2257500"
+    },
+    {
+      "rid": "rec-711-dup-4",
+      "entity": "711",
+      "fields": {
+        "name": "alyssa clarke",
+        "dob": "1921-95-03",
+        "address": "97 merfieldplace the meadows",
+        "locality": "bull creek 2830 act",
+        "ssn": "2257500"
+      },
+      "text": "name: alyssa clarke | DOB: 1921-95-03 | address: 97 merfieldplace the meadows | locality: bull creek 2830 act | SSN: 2257500"
+    },
+    {
+      "rid": "rec-711-org",
+      "entity": "711",
+      "fields": {
+        "name": "clarke",
+        "dob": "1921-05-03",
+        "address": "97 merfield place the meadows",
+        "locality": "bull creek 2830 act",
+        "ssn": "2257500"
+      },
+      "text": "name: clarke | DOB: 1921-05-03 | address: 97 merfield place the meadows | locality: bull creek 2830 act | SSN: 2257500"
+    },
+    {
+      "rid": "rec-85-dup-0",
+      "entity": "85",
+      "fields": {
+        "name": "wilkins zanke",
+        "dob": "1947-10-17",
+        "address": "jervois street cerbrus",
+        "locality": "coolroo 6208 nsw",
+        "ssn": "7918563"
+      },
+      "text": "name: wilkins zanke | DOB: 1947-10-17 | address: jervois street cerbrus | locality: coolroo 6208 nsw | SSN: 7918563"
+    },
+    {
+      "rid": "rec-85-dup-1",
+      "entity": "85",
+      "fields": {
+        "name": "zane wilkids",
+        "dob": "1947-10-17",
+        "address": "britten-jones drive cerbrus",
+        "locality": "coolaroo 6208 nsw",
+        "ssn": "7918563"
+      },
+      "text": "name: zane wilkids | DOB: 1947-10-17 | address: britten-jones drive cerbrus | locality: coolaroo 6208 nsw | SSN: 7918563"
+    },
+    {
+      "rid": "rec-85-dup-2",
+      "entity": "85",
+      "fields": {
+        "name": "zane wilkins",
+        "dob": "1947-10-17",
+        "address": "jervois street cerbrus",
+        "locality": "coolaroo 6280 nsw",
+        "ssn": "7918563"
+      },
+      "text": "name: zane wilkins | DOB: 1947-10-17 | address: jervois street cerbrus | locality: coolaroo 6280 nsw | SSN: 7918563"
+    },
+    {
+      "rid": "rec-85-dup-3",
+      "entity": "85",
+      "fields": {
+        "name": "kiera green",
+        "dob": "1947-10-17",
+        "address": "jervoisstreet",
+        "locality": "coolar oo 6208 nsw",
+        "ssn": "7918563"
+      },
+      "text": "name: kiera green | DOB: 1947-10-17 | address: jervoisstreet | locality: coolar oo 6208 nsw | SSN: 7918563"
+    },
+    {
+      "rid": "rec-85-dup-4",
+      "entity": "85",
+      "fields": {
+        "name": "alka wilknis",
+        "dob": "1947-10-17",
+        "address": "jervois street cerbru",
+        "locality": "coolaroo 6298 nsw",
+        "ssn": "7918563"
+      },
+      "text": "name: alka wilknis | DOB: 1947-10-17 | address: jervois street cerbru | locality: coolaroo 6298 nsw | SSN: 7918563"
+    },
+    {
+      "rid": "rec-85-org",
+      "entity": "85",
+      "fields": {
+        "name": "zane wilkins",
+        "dob": "1947-10-17",
+        "address": "jervois street cerbrus",
+        "locality": "coolaroo 6208 nsw",
+        "ssn": "7918563"
+      },
+      "text": "name: zane wilkins | DOB: 1947-10-17 | address: jervois street cerbrus | locality: coolaroo 6208 nsw | SSN: 7918563"
+    },
+    {
+      "rid": "rec-936-dup-0",
+      "entity": "936",
+      "fields": {
+        "name": "hayely",
+        "dob": "1929-07-02",
+        "address": "anne clark avenue oxley's way",
+        "locality": "moorooka 4261 vic",
+        "ssn": "5785930"
+      },
+      "text": "name: hayely | DOB: 1929-07-02 | address: anne clark avenue oxley's way | locality: moorooka 4261 vic | SSN: 5785930"
+    },
+    {
+      "rid": "rec-936-org",
+      "entity": "936",
+      "fields": {
+        "name": "maddison clarke",
+        "dob": "1929-07-02",
+        "address": "11 anne clark avenue oxley's way",
+        "locality": "castlereagh 4216 vic",
+        "ssn": "5785930"
+      },
+      "text": "name: maddison clarke | DOB: 1929-07-02 | address: 11 anne clark avenue oxley's way | locality: castlereagh 4216 vic | SSN: 5785930"
+    }
+  ],
+  "shadow_pairs": [
+    [
+      "rec-1026-dup-0",
+      "rec-1076-org"
+    ],
+    [
+      "rec-1026-dup-0",
+      "rec-1191-dup-0"
+    ],
+    [
+      "rec-1026-dup-0",
+      "rec-1191-dup-1"
+    ],
+    [
+      "rec-1026-dup-0",
+      "rec-1191-dup-2"
+    ],
+    [
+      "rec-1026-dup-0",
+      "rec-1191-dup-3"
+    ],
+    [
+      "rec-1026-dup-0",
+      "rec-1191-org"
+    ],
+    [
+      "rec-1026-dup-0",
+      "rec-1357-dup-0"
+    ],
+    [
+      "rec-1026-dup-0",
+      "rec-1357-org"
+    ],
+    [
+      "rec-1026-dup-0",
+      "rec-1393-org"
+    ],
+    [
+      "rec-1026-dup-0",
+      "rec-1414-org"
+    ],
+    [
+      "rec-1026-dup-0",
+      "rec-476-dup-0"
+    ],
+    [
+      "rec-1026-dup-0",
+      "rec-526-dup-0"
+    ],
+    [
+      "rec-1026-dup-0",
+      "rec-526-org"
+    ],
+    [
+      "rec-1026-dup-0",
+      "rec-653-org"
+    ],
+    [
+      "rec-1026-dup-0",
+      "rec-85-dup-3"
+    ],
+    [
+      "rec-1026-dup-1",
+      "rec-1076-org"
+    ],
+    [
+      "rec-1026-dup-1",
+      "rec-1191-dup-0"
+    ],
+    [
+      "rec-1026-dup-1",
+      "rec-1191-dup-1"
+    ],
+    [
+      "rec-1026-dup-1",
+      "rec-1191-dup-2"
+    ],
+    [
+      "rec-1026-dup-1",
+      "rec-1191-dup-3"
+    ],
+    [
+      "rec-1026-dup-1",
+      "rec-1191-org"
+    ],
+    [
+      "rec-1026-dup-1",
+      "rec-1357-dup-0"
+    ],
+    [
+      "rec-1026-dup-1",
+      "rec-1357-org"
+    ],
+    [
+      "rec-1026-dup-1",
+      "rec-1393-org"
+    ],
+    [
+      "rec-1026-dup-1",
+      "rec-1414-org"
+    ],
+    [
+      "rec-1026-dup-1",
+      "rec-476-dup-0"
+    ],
+    [
+      "rec-1026-dup-1",
+      "rec-526-dup-0"
+    ],
+    [
+      "rec-1026-dup-1",
+      "rec-526-org"
+    ],
+    [
+      "rec-1026-dup-1",
+      "rec-653-org"
+    ],
+    [
+      "rec-1026-dup-1",
+      "rec-85-dup-3"
+    ],
+    [
+      "rec-1026-org",
+      "rec-1076-org"
+    ],
+    [
+      "rec-1026-org",
+      "rec-1191-dup-0"
+    ],
+    [
+      "rec-1026-org",
+      "rec-1191-dup-1"
+    ],
+    [
+      "rec-1026-org",
+      "rec-1191-dup-2"
+    ],
+    [
+      "rec-1026-org",
+      "rec-1191-dup-3"
+    ],
+    [
+      "rec-1026-org",
+      "rec-1191-org"
+    ],
+    [
+      "rec-1026-org",
+      "rec-1357-dup-0"
+    ],
+    [
+      "rec-1026-org",
+      "rec-1357-org"
+    ],
+    [
+      "rec-1026-org",
+      "rec-1393-org"
+    ],
+    [
+      "rec-1026-org",
+      "rec-1414-org"
+    ],
+    [
+      "rec-1026-org",
+      "rec-476-dup-0"
+    ],
+    [
+      "rec-1026-org",
+      "rec-526-dup-0"
+    ],
+    [
+      "rec-1026-org",
+      "rec-526-org"
+    ],
+    [
+      "rec-1026-org",
+      "rec-653-org"
+    ],
+    [
+      "rec-1026-org",
+      "rec-85-dup-3"
+    ],
+    [
+      "rec-1076-dup-0",
+      "rec-1138-dup-0"
+    ],
+    [
+      "rec-1076-dup-0",
+      "rec-1138-dup-1"
+    ],
+    [
+      "rec-1076-dup-0",
+      "rec-1138-org"
+    ],
+    [
+      "rec-1076-dup-0",
+      "rec-1585-dup-0"
+    ],
+    [
+      "rec-1076-dup-0",
+      "rec-1585-org"
+    ],
+    [
+      "rec-1076-dup-0",
+      "rec-1654-org"
+    ],
+    [
+      "rec-1076-dup-0",
+      "rec-190-dup-2"
+    ],
+    [
+      "rec-1076-dup-0",
+      "rec-190-org"
+    ],
+    [
+      "rec-1076-dup-0",
+      "rec-33-org"
+    ],
+    [
+      "rec-1076-dup-0",
+      "rec-620-dup-0"
+    ],
+    [
+      "rec-1076-dup-0",
+      "rec-620-org"
+    ],
+    [
+      "rec-1076-dup-0",
+      "rec-705-dup-0"
+    ],
+    [
+      "rec-1076-dup-0",
+      "rec-705-org"
+    ],
+    [
+      "rec-1076-dup-0",
+      "rec-711-dup-1"
+    ],
+    [
+      "rec-1076-dup-0",
+      "rec-711-dup-2"
+    ],
+    [
+      "rec-1076-dup-0",
+      "rec-711-dup-4"
+    ],
+    [
+      "rec-1076-dup-0",
+      "rec-711-org"
+    ],
+    [
+      "rec-1076-dup-0",
+      "rec-936-org"
+    ],
+    [
+      "rec-1076-org",
+      "rec-1191-dup-0"
+    ],
+    [
+      "rec-1076-org",
+      "rec-1191-dup-1"
+    ],
+    [
+      "rec-1076-org",
+      "rec-1191-dup-2"
+    ],
+    [
+      "rec-1076-org",
+      "rec-1191-dup-3"
+    ],
+    [
+      "rec-1076-org",
+      "rec-1191-org"
+    ],
+    [
+      "rec-1076-org",
+      "rec-1357-dup-0"
+    ],
+    [
+      "rec-1076-org",
+      "rec-1357-org"
+    ],
+    [
+      "rec-1076-org",
+      "rec-1393-org"
+    ],
+    [
+      "rec-1076-org",
+      "rec-1414-org"
+    ],
+    [
+      "rec-1076-org",
+      "rec-476-dup-0"
+    ],
+    [
+      "rec-1076-org",
+      "rec-526-dup-0"
+    ],
+    [
+      "rec-1076-org",
+      "rec-526-org"
+    ],
+    [
+      "rec-1076-org",
+      "rec-653-org"
+    ],
+    [
+      "rec-1076-org",
+      "rec-85-dup-3"
+    ],
+    [
+      "rec-1138-dup-0",
+      "rec-1585-dup-0"
+    ],
+    [
+      "rec-1138-dup-0",
+      "rec-1585-org"
+    ],
+    [
+      "rec-1138-dup-0",
+      "rec-1654-org"
+    ],
+    [
+      "rec-1138-dup-0",
+      "rec-190-dup-2"
+    ],
+    [
+      "rec-1138-dup-0",
+      "rec-190-org"
+    ],
+    [
+      "rec-1138-dup-0",
+      "rec-33-org"
+    ],
+    [
+      "rec-1138-dup-0",
+      "rec-620-dup-0"
+    ],
+    [
+      "rec-1138-dup-0",
+      "rec-620-org"
+    ],
+    [
+      "rec-1138-dup-0",
+      "rec-705-dup-0"
+    ],
+    [
+      "rec-1138-dup-0",
+      "rec-705-org"
+    ],
+    [
+      "rec-1138-dup-0",
+      "rec-711-dup-1"
+    ],
+    [
+      "rec-1138-dup-0",
+      "rec-711-dup-2"
+    ],
+    [
+      "rec-1138-dup-0",
+      "rec-711-dup-4"
+    ],
+    [
+      "rec-1138-dup-0",
+      "rec-711-org"
+    ],
+    [
+      "rec-1138-dup-0",
+      "rec-936-org"
+    ],
+    [
+      "rec-1138-dup-1",
+      "rec-1585-dup-0"
+    ],
+    [
+      "rec-1138-dup-1",
+      "rec-1585-org"
+    ],
+    [
+      "rec-1138-dup-1",
+      "rec-1654-org"
+    ],
+    [
+      "rec-1138-dup-1",
+      "rec-190-dup-2"
+    ],
+    [
+      "rec-1138-dup-1",
+      "rec-190-org"
+    ],
+    [
+      "rec-1138-dup-1",
+      "rec-33-org"
+    ],
+    [
+      "rec-1138-dup-1",
+      "rec-620-dup-0"
+    ],
+    [
+      "rec-1138-dup-1",
+      "rec-620-org"
+    ],
+    [
+      "rec-1138-dup-1",
+      "rec-705-dup-0"
+    ],
+    [
+      "rec-1138-dup-1",
+      "rec-705-org"
+    ],
+    [
+      "rec-1138-dup-1",
+      "rec-711-dup-1"
+    ],
+    [
+      "rec-1138-dup-1",
+      "rec-711-dup-2"
+    ],
+    [
+      "rec-1138-dup-1",
+      "rec-711-dup-4"
+    ],
+    [
+      "rec-1138-dup-1",
+      "rec-711-org"
+    ],
+    [
+      "rec-1138-dup-1",
+      "rec-936-org"
+    ],
+    [
+      "rec-1138-org",
+      "rec-1585-dup-0"
+    ],
+    [
+      "rec-1138-org",
+      "rec-1585-org"
+    ],
+    [
+      "rec-1138-org",
+      "rec-1654-org"
+    ],
+    [
+      "rec-1138-org",
+      "rec-190-dup-2"
+    ],
+    [
+      "rec-1138-org",
+      "rec-190-org"
+    ],
+    [
+      "rec-1138-org",
+      "rec-33-org"
+    ],
+    [
+      "rec-1138-org",
+      "rec-620-dup-0"
+    ],
+    [
+      "rec-1138-org",
+      "rec-620-org"
+    ],
+    [
+      "rec-1138-org",
+      "rec-705-dup-0"
+    ],
+    [
+      "rec-1138-org",
+      "rec-705-org"
+    ],
+    [
+      "rec-1138-org",
+      "rec-711-dup-1"
+    ],
+    [
+      "rec-1138-org",
+      "rec-711-dup-2"
+    ],
+    [
+      "rec-1138-org",
+      "rec-711-dup-4"
+    ],
+    [
+      "rec-1138-org",
+      "rec-711-org"
+    ],
+    [
+      "rec-1138-org",
+      "rec-936-org"
+    ],
+    [
+      "rec-1191-dup-0",
+      "rec-1357-dup-0"
+    ],
+    [
+      "rec-1191-dup-0",
+      "rec-1357-org"
+    ],
+    [
+      "rec-1191-dup-0",
+      "rec-1393-org"
+    ],
+    [
+      "rec-1191-dup-0",
+      "rec-1414-org"
+    ],
+    [
+      "rec-1191-dup-0",
+      "rec-476-dup-0"
+    ],
+    [
+      "rec-1191-dup-0",
+      "rec-526-dup-0"
+    ],
+    [
+      "rec-1191-dup-0",
+      "rec-526-org"
+    ],
+    [
+      "rec-1191-dup-0",
+      "rec-653-org"
+    ],
+    [
+      "rec-1191-dup-0",
+      "rec-85-dup-3"
+    ],
+    [
+      "rec-1191-dup-1",
+      "rec-1357-dup-0"
+    ],
+    [
+      "rec-1191-dup-1",
+      "rec-1357-org"
+    ],
+    [
+      "rec-1191-dup-1",
+      "rec-1393-org"
+    ],
+    [
+      "rec-1191-dup-1",
+      "rec-1414-org"
+    ],
+    [
+      "rec-1191-dup-1",
+      "rec-476-dup-0"
+    ],
+    [
+      "rec-1191-dup-1",
+      "rec-526-dup-0"
+    ],
+    [
+      "rec-1191-dup-1",
+      "rec-526-org"
+    ],
+    [
+      "rec-1191-dup-1",
+      "rec-653-org"
+    ],
+    [
+      "rec-1191-dup-1",
+      "rec-85-dup-3"
+    ],
+    [
+      "rec-1191-dup-2",
+      "rec-1357-dup-0"
+    ],
+    [
+      "rec-1191-dup-2",
+      "rec-1357-org"
+    ],
+    [
+      "rec-1191-dup-2",
+      "rec-1393-org"
+    ],
+    [
+      "rec-1191-dup-2",
+      "rec-1414-org"
+    ],
+    [
+      "rec-1191-dup-2",
+      "rec-476-dup-0"
+    ],
+    [
+      "rec-1191-dup-2",
+      "rec-526-dup-0"
+    ],
+    [
+      "rec-1191-dup-2",
+      "rec-526-org"
+    ],
+    [
+      "rec-1191-dup-2",
+      "rec-653-org"
+    ],
+    [
+      "rec-1191-dup-2",
+      "rec-85-dup-3"
+    ],
+    [
+      "rec-1191-dup-3",
+      "rec-1357-dup-0"
+    ],
+    [
+      "rec-1191-dup-3",
+      "rec-1357-org"
+    ],
+    [
+      "rec-1191-dup-3",
+      "rec-1393-org"
+    ],
+    [
+      "rec-1191-dup-3",
+      "rec-1414-org"
+    ],
+    [
+      "rec-1191-dup-3",
+      "rec-476-dup-0"
+    ],
+    [
+      "rec-1191-dup-3",
+      "rec-526-dup-0"
+    ],
+    [
+      "rec-1191-dup-3",
+      "rec-526-org"
+    ],
+    [
+      "rec-1191-dup-3",
+      "rec-653-org"
+    ],
+    [
+      "rec-1191-dup-3",
+      "rec-85-dup-3"
+    ],
+    [
+      "rec-1191-org",
+      "rec-1357-dup-0"
+    ],
+    [
+      "rec-1191-org",
+      "rec-1357-org"
+    ],
+    [
+      "rec-1191-org",
+      "rec-1393-org"
+    ],
+    [
+      "rec-1191-org",
+      "rec-1414-org"
+    ],
+    [
+      "rec-1191-org",
+      "rec-476-dup-0"
+    ],
+    [
+      "rec-1191-org",
+      "rec-526-dup-0"
+    ],
+    [
+      "rec-1191-org",
+      "rec-526-org"
+    ],
+    [
+      "rec-1191-org",
+      "rec-653-org"
+    ],
+    [
+      "rec-1191-org",
+      "rec-85-dup-3"
+    ],
+    [
+      "rec-132-org",
+      "rec-1490-dup-1"
+    ],
+    [
+      "rec-132-org",
+      "rec-1490-org"
+    ],
+    [
+      "rec-132-org",
+      "rec-85-dup-2"
+    ],
+    [
+      "rec-132-org",
+      "rec-85-org"
+    ],
+    [
+      "rec-1357-dup-0",
+      "rec-1393-org"
+    ],
+    [
+      "rec-1357-dup-0",
+      "rec-1414-org"
+    ],
+    [
+      "rec-1357-dup-0",
+      "rec-476-dup-0"
+    ],
+    [
+      "rec-1357-dup-0",
+      "rec-526-dup-0"
+    ],
+    [
+      "rec-1357-dup-0",
+      "rec-526-org"
+    ],
+    [
+      "rec-1357-dup-0",
+      "rec-653-org"
+    ],
+    [
+      "rec-1357-dup-0",
+      "rec-85-dup-3"
+    ],
+    [
+      "rec-1357-org",
+      "rec-1393-org"
+    ],
+    [
+      "rec-1357-org",
+      "rec-1414-org"
+    ],
+    [
+      "rec-1357-org",
+      "rec-476-dup-0"
+    ],
+    [
+      "rec-1357-org",
+      "rec-526-dup-0"
+    ],
+    [
+      "rec-1357-org",
+      "rec-526-org"
+    ],
+    [
+      "rec-1357-org",
+      "rec-653-org"
+    ],
+    [
+      "rec-1357-org",
+      "rec-85-dup-3"
+    ],
+    [
+      "rec-1393-org",
+      "rec-1414-org"
+    ],
+    [
+      "rec-1393-org",
+      "rec-476-dup-0"
+    ],
+    [
+      "rec-1393-org",
+      "rec-526-dup-0"
+    ],
+    [
+      "rec-1393-org",
+      "rec-526-org"
+    ],
+    [
+      "rec-1393-org",
+      "rec-653-org"
+    ],
+    [
+      "rec-1393-org",
+      "rec-85-dup-3"
+    ],
+    [
+      "rec-1414-org",
+      "rec-476-dup-0"
+    ],
+    [
+      "rec-1414-org",
+      "rec-526-dup-0"
+    ],
+    [
+      "rec-1414-org",
+      "rec-526-org"
+    ],
+    [
+      "rec-1414-org",
+      "rec-653-org"
+    ],
+    [
+      "rec-1414-org",
+      "rec-85-dup-3"
+    ],
+    [
+      "rec-1490-dup-0",
+      "rec-85-dup-4"
+    ],
+    [
+      "rec-1490-dup-1",
+      "rec-85-dup-2"
+    ],
+    [
+      "rec-1490-dup-1",
+      "rec-85-org"
+    ],
+    [
+      "rec-1490-org",
+      "rec-85-dup-2"
+    ],
+    [
+      "rec-1490-org",
+      "rec-85-org"
+    ],
+    [
+      "rec-1585-dup-0",
+      "rec-1654-org"
+    ],
+    [
+      "rec-1585-dup-0",
+      "rec-190-dup-2"
+    ],
+    [
+      "rec-1585-dup-0",
+      "rec-190-org"
+    ],
+    [
+      "rec-1585-dup-0",
+      "rec-33-org"
+    ],
+    [
+      "rec-1585-dup-0",
+      "rec-620-dup-0"
+    ],
+    [
+      "rec-1585-dup-0",
+      "rec-620-org"
+    ],
+    [
+      "rec-1585-dup-0",
+      "rec-705-dup-0"
+    ],
+    [
+      "rec-1585-dup-0",
+      "rec-705-org"
+    ],
+    [
+      "rec-1585-dup-0",
+      "rec-711-dup-1"
+    ],
+    [
+      "rec-1585-dup-0",
+      "rec-711-dup-2"
+    ],
+    [
+      "rec-1585-dup-0",
+      "rec-711-dup-4"
+    ],
+    [
+      "rec-1585-dup-0",
+      "rec-711-org"
+    ],
+    [
+      "rec-1585-dup-0",
+      "rec-936-org"
+    ],
+    [
+      "rec-1585-org",
+      "rec-1654-org"
+    ],
+    [
+      "rec-1585-org",
+      "rec-190-dup-2"
+    ],
+    [
+      "rec-1585-org",
+      "rec-190-org"
+    ],
+    [
+      "rec-1585-org",
+      "rec-33-org"
+    ],
+    [
+      "rec-1585-org",
+      "rec-620-dup-0"
+    ],
+    [
+      "rec-1585-org",
+      "rec-620-org"
+    ],
+    [
+      "rec-1585-org",
+      "rec-705-dup-0"
+    ],
+    [
+      "rec-1585-org",
+      "rec-705-org"
+    ],
+    [
+      "rec-1585-org",
+      "rec-711-dup-1"
+    ],
+    [
+      "rec-1585-org",
+      "rec-711-dup-2"
+    ],
+    [
+      "rec-1585-org",
+      "rec-711-dup-4"
+    ],
+    [
+      "rec-1585-org",
+      "rec-711-org"
+    ],
+    [
+      "rec-1585-org",
+      "rec-936-org"
+    ],
+    [
+      "rec-1654-org",
+      "rec-190-dup-2"
+    ],
+    [
+      "rec-1654-org",
+      "rec-190-org"
+    ],
+    [
+      "rec-1654-org",
+      "rec-33-org"
+    ],
+    [
+      "rec-1654-org",
+      "rec-620-dup-0"
+    ],
+    [
+      "rec-1654-org",
+      "rec-620-org"
+    ],
+    [
+      "rec-1654-org",
+      "rec-705-dup-0"
+    ],
+    [
+      "rec-1654-org",
+      "rec-705-org"
+    ],
+    [
+      "rec-1654-org",
+      "rec-711-dup-1"
+    ],
+    [
+      "rec-1654-org",
+      "rec-711-dup-2"
+    ],
+    [
+      "rec-1654-org",
+      "rec-711-dup-4"
+    ],
+    [
+      "rec-1654-org",
+      "rec-711-org"
+    ],
+    [
+      "rec-1654-org",
+      "rec-936-org"
+    ],
+    [
+      "rec-190-dup-2",
+      "rec-33-org"
+    ],
+    [
+      "rec-190-dup-2",
+      "rec-620-dup-0"
+    ],
+    [
+      "rec-190-dup-2",
+      "rec-620-org"
+    ],
+    [
+      "rec-190-dup-2",
+      "rec-705-dup-0"
+    ],
+    [
+      "rec-190-dup-2",
+      "rec-705-org"
+    ],
+    [
+      "rec-190-dup-2",
+      "rec-711-dup-1"
+    ],
+    [
+      "rec-190-dup-2",
+      "rec-711-dup-2"
+    ],
+    [
+      "rec-190-dup-2",
+      "rec-711-dup-4"
+    ],
+    [
+      "rec-190-dup-2",
+      "rec-711-org"
+    ],
+    [
+      "rec-190-dup-2",
+      "rec-936-org"
+    ],
+    [
+      "rec-190-org",
+      "rec-33-org"
+    ],
+    [
+      "rec-190-org",
+      "rec-620-dup-0"
+    ],
+    [
+      "rec-190-org",
+      "rec-620-org"
+    ],
+    [
+      "rec-190-org",
+      "rec-705-dup-0"
+    ],
+    [
+      "rec-190-org",
+      "rec-705-org"
+    ],
+    [
+      "rec-190-org",
+      "rec-711-dup-1"
+    ],
+    [
+      "rec-190-org",
+      "rec-711-dup-2"
+    ],
+    [
+      "rec-190-org",
+      "rec-711-dup-4"
+    ],
+    [
+      "rec-190-org",
+      "rec-711-org"
+    ],
+    [
+      "rec-190-org",
+      "rec-936-org"
+    ],
+    [
+      "rec-33-org",
+      "rec-620-dup-0"
+    ],
+    [
+      "rec-33-org",
+      "rec-620-org"
+    ],
+    [
+      "rec-33-org",
+      "rec-705-dup-0"
+    ],
+    [
+      "rec-33-org",
+      "rec-705-org"
+    ],
+    [
+      "rec-33-org",
+      "rec-711-dup-1"
+    ],
+    [
+      "rec-33-org",
+      "rec-711-dup-2"
+    ],
+    [
+      "rec-33-org",
+      "rec-711-dup-4"
+    ],
+    [
+      "rec-33-org",
+      "rec-711-org"
+    ],
+    [
+      "rec-33-org",
+      "rec-936-org"
+    ],
+    [
+      "rec-476-dup-0",
+      "rec-526-dup-0"
+    ],
+    [
+      "rec-476-dup-0",
+      "rec-526-org"
+    ],
+    [
+      "rec-476-dup-0",
+      "rec-653-org"
+    ],
+    [
+      "rec-476-dup-0",
+      "rec-85-dup-3"
+    ],
+    [
+      "rec-526-dup-0",
+      "rec-653-org"
+    ],
+    [
+      "rec-526-dup-0",
+      "rec-85-dup-3"
+    ],
+    [
+      "rec-526-org",
+      "rec-653-org"
+    ],
+    [
+      "rec-526-org",
+      "rec-85-dup-3"
+    ],
+    [
+      "rec-620-dup-0",
+      "rec-705-dup-0"
+    ],
+    [
+      "rec-620-dup-0",
+      "rec-705-org"
+    ],
+    [
+      "rec-620-dup-0",
+      "rec-711-dup-1"
+    ],
+    [
+      "rec-620-dup-0",
+      "rec-711-dup-2"
+    ],
+    [
+      "rec-620-dup-0",
+      "rec-711-dup-4"
+    ],
+    [
+      "rec-620-dup-0",
+      "rec-711-org"
+    ],
+    [
+      "rec-620-dup-0",
+      "rec-936-org"
+    ],
+    [
+      "rec-620-org",
+      "rec-705-dup-0"
+    ],
+    [
+      "rec-620-org",
+      "rec-705-org"
+    ],
+    [
+      "rec-620-org",
+      "rec-711-dup-1"
+    ],
+    [
+      "rec-620-org",
+      "rec-711-dup-2"
+    ],
+    [
+      "rec-620-org",
+      "rec-711-dup-4"
+    ],
+    [
+      "rec-620-org",
+      "rec-711-org"
+    ],
+    [
+      "rec-620-org",
+      "rec-936-org"
+    ],
+    [
+      "rec-653-org",
+      "rec-85-dup-3"
+    ],
+    [
+      "rec-705-dup-0",
+      "rec-711-dup-1"
+    ],
+    [
+      "rec-705-dup-0",
+      "rec-711-dup-2"
+    ],
+    [
+      "rec-705-dup-0",
+      "rec-711-dup-4"
+    ],
+    [
+      "rec-705-dup-0",
+      "rec-711-org"
+    ],
+    [
+      "rec-705-dup-0",
+      "rec-936-org"
+    ],
+    [
+      "rec-705-org",
+      "rec-711-dup-1"
+    ],
+    [
+      "rec-705-org",
+      "rec-711-dup-2"
+    ],
+    [
+      "rec-705-org",
+      "rec-711-dup-4"
+    ],
+    [
+      "rec-705-org",
+      "rec-711-org"
+    ],
+    [
+      "rec-705-org",
+      "rec-936-org"
+    ],
+    [
+      "rec-711-dup-1",
+      "rec-936-org"
+    ],
+    [
+      "rec-711-dup-2",
+      "rec-936-org"
+    ],
+    [
+      "rec-711-dup-4",
+      "rec-936-org"
+    ],
+    [
+      "rec-711-org",
+      "rec-936-org"
+    ]
+  ]
+}

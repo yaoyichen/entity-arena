@@ -12,6 +12,9 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 DATA_FILES = ("records.jsonl", "results.json", "metrics.json", "network.json",
               "queries.json", "pairs.json", "meta.json", "entities.json")
+# Febrl3 实测轨数据（平台部署修复后由 fetch 脚本写入入库溯源文件）
+VILLAGE_SCORES = ROOT / "data_open" / "village_scores.json"
+HAS_OPEN_CASES = VILLAGE_SCORES.exists()
 
 
 def run(*args: str) -> None:
@@ -29,6 +32,14 @@ class TestEndToEnd(unittest.TestCase):
         run("scripts/make_mock_data.py", "--seed", "42", "--out", str(cls.d2))
         # 开源基准轨数据不是 seed 生成的（真实实测）：由已入库的平台报告确定性重建
         run("scripts/update_open_benchmark.py", "--out", str(cls.d1 / "open_benchmark.json"))
+        # 网络视图 Febrl3 实测轨：由已入库的成对分数确定性重建（无需服务在线）。
+        # 数据未接入前（平台部署修复中）该步跳过，页面自动只出合成轨。
+        if HAS_OPEN_CASES:
+            for d in (cls.d1, cls.d2):
+                run("scripts/build_open_cases.py",
+                    "--village", str(ROOT / "data_open" / "village.json"),
+                    "--scores", str(VILLAGE_SCORES),
+                    "--out", str(d / "open_cases.json"))
         cls.out = Path(cls.tmp) / "demo.html"
         run("scripts/build_demo.py", "--data-dir", str(cls.d1), "--out", str(cls.out))
         cls.html = cls.out.read_text(encoding="utf-8")
@@ -43,9 +54,16 @@ class TestEndToEnd(unittest.TestCase):
         for name in DATA_FILES:
             self.assertTrue((self.d1 / name).exists(), f"缺 {name}")
 
+    @unittest.skipUnless(HAS_OPEN_CASES, "data_open/village_scores.json 未入库（平台部署修复后接入）")
+    def test_open_cases_deterministic(self):
+        """Febrl3 实测轨：同分数两次重建逐字节一致（--scores 只读复算）。"""
+        self.assertEqual((self.d1 / "open_cases.json").read_bytes(),
+                         (self.d2 / "open_cases.json").read_bytes())
+
     def test_page_markers_present(self):
         for marker in ('id="view-arena"', 'id="view-network"', 'id="view-explain"',
-                       'id="view-scoreboard"', "const DATA = {"):
+                       'id="view-scoreboard"', 'id="openBench"', 'id="netTrack"',
+                       "switchNetTrack", "openNetSide", "const DATA = {"):
             self.assertIn(marker, self.html)
 
     def test_zero_external_links(self):

@@ -18,11 +18,15 @@
 python3 scripts/make_mock_data.py            # 生成 data/ 合成轨（确定性）
 python3 scripts/update_open_benchmark.py     # 生成 data/open_benchmark.json（开源基准轨，从已入库报告解析）
 python3 scripts/build_demo.py --open         # 构建 build/demo.html 并打开（两个数据文件缺一即 raise）
-PYTHONPATH=src python3 -m unittest discover -s tests   # 60 项测试（或装 pytest 后 pytest）
+PYTHONPATH=src python3 -m unittest discover -s tests   # 测试（或装 pytest 后 pytest）
+# 可选（网络视图 Febrl3 实测轨；需要 data_open/village_scores.json 已入库）：
+python3 scripts/build_open_cases.py --scores # 生成 data/open_cases.json，重新构建即点亮
 ```
 
 改了 `synth/simulate/layout` → 必须重跑生成+构建；改了 `page/theme` → 重跑构建；
-重新评测了平台模型 → 重跑 `update_open_benchmark.py` + 构建。
+重新评测了平台模型 → 重跑 `update_open_benchmark.py` + 构建；
+重新取样了案例村向量 → 覆盖 `data_open/village_scores.json` 后重跑
+`build_open_cases.py --scores` + 构建（无该文件时构建显式提示，页面只出合成轨）。
 
 ## 代码地图
 
@@ -38,6 +42,20 @@ PYTHONPATH=src python3 -m unittest discover -s tests   # 60 项测试（或装 p
 - `scripts/update_open_benchmark.py` 平台评测报告（`data_open/eval_reports/`，随仓库
   提交作溯源）→ `data/open_benchmark.json`；基线口径漂移会 raise。指标板第二板块
   （开源基准轨：真实模型实测）由它供数，双轨 footer 各自诚实标注
+- `scripts/pick_open_village.py` 从 Febrl3 测试实体选"案例村"（60 条记录/影子对，
+  **选村对模型分数盲**，规则写在 provenance 里，避免挑案例之嫌）→ `data_open/village.json`
+- `scripts/fetch_village_embeddings.py` 调平台已部署微调服务的 `/v1/embeddings`
+  取真实向量（`EMB_TOKEN` 环境变量传令牌；向量只落 `.tmp/`，不入库）
+- `scripts/build_open_cases.py` 案例村 + 真实成对分数 → `data/open_cases.json`
+  （θ 扫描 F1 最大化 → 断言链 → 组件纯度；溯源分数写 `data_open/village_scores.json`
+  入库，`--scores` 模式离线复算）。网络视图第二轨道（Febrl3 实测）由它供数：
+  before=影子关系纠缠簇，after=微调模型断言组件（红光环=混入异实体）
+- `src/entity_arena/febrl.py` Febrl 数据共用工具（实体切分/序列化/索引）
+- **部署要点（2026-11-08 实测）**：平台部署当日整体故障——新产物（`train`/
+  `pipeline` 模式、含 pipeline 自动部署）与旧产物（11/2 训练、此前从未部署）
+  一律 ~4 分钟 FAILED；仅数日前部署成功的服务仍在运行。判定为平台 serving
+  侧故障，非产物问题。案例村向量等平台修复后接入：
+  `fetch_village_embeddings.py`（需在线服务）→ `build_open_cases.py --emb` → 构建。
 
 ## 视觉语言（继承 retrieval-forge ADR 0005）
 
@@ -52,3 +70,6 @@ PYTHONPATH=src python3 -m unittest discover -s tests   # 60 项测试（或装 p
 `metrics.json`：overall + by_scenario。替换这两个文件，页面零改动。
 开源基准轨：`open_benchmark.json`（由 `data_open/eval_reports/` 报告重建）——
 重新评测后用新报告覆盖该目录再跑 `update_open_benchmark.py` 即可。
+网络实测轨：`open_cases.json`（由 `data_open/village.json` + `village_scores.json`
+重建；**可选**，缺席时页面只出合成轨并显式提示）——平台部署修复、取样向量入库后
+再跑 `build_open_cases.py --scores`。

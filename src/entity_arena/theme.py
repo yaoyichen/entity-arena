@@ -157,14 +157,29 @@ main { max-width:1280px; margin:0 auto; padding:26px 22px 60px; }
 .resolve-btn.off { border-color:var(--line2); color:var(--t2); }
 .netstate { margin-left:auto; background:rgba(19,26,35,.85); backdrop-filter:blur(8px);
   border:1px solid var(--line); border-radius:8px; padding:5px 12px; font-size:11.5px; color:var(--t3); }
+.trackbar { display:flex; gap:8px; margin:0 0 12px; }
+.trackbar button { background:rgba(19,26,35,.85); border:1px solid var(--line); color:var(--t2);
+  padding:7px 16px; border-radius:9px; cursor:pointer; font-size:12.5px; font-family:inherit;
+  font-weight:600; letter-spacing:.03em; transition:all .2s; }
+.trackbar button:hover { border-color:var(--line2); color:var(--t1); }
+.trackbar button.active { color:var(--cyan-b); border-color:rgba(57,184,208,.5); background:rgba(57,184,208,.1); }
+#netTrackSub { display:flex; flex-wrap:wrap; gap:8px 18px; margin:-4px 0 12px; font-size:12px; color:var(--t2); }
+#netTrackSub:empty { display:none; }
+#netTrackSub .ob-sub { margin:0; font-size:11.5px; color:var(--t3); }
+#netTrackSub b { font-weight:650; }
+.num-bad { color:var(--red); }
+.lg-bad-halo { display:inline-block; width:14px; height:14px; border-radius:50%; vertical-align:-2px;
+  margin-right:6px; border:1.3px solid rgba(217,120,98,.9); background:rgba(217,120,98,.08); }
 
 .node { fill:#64717e; stroke:#0c1117; stroke-width:1.5; cursor:pointer; transition:fill .15s; }
 .node:hover { fill:#8a99a8; }
 .node.insame { fill:#3f6a7d; }
 .edge { stroke:#7aa7c9; stroke-opacity:.78; stroke-width:1.6; fill:none; }
 .halo { fill:rgba(57,184,208,.08); stroke:rgba(57,184,208,.9); stroke-width:1.3; }
+.halo.bad { fill:rgba(217,120,98,.07); stroke:rgba(217,120,98,.9); }
 .elabel { fill:#9adfe9; font-size:12.5px; text-anchor:middle; font-weight:600;
   paint-order:stroke; stroke:#0c1117; stroke-width:3px; stroke-linejoin:round; }
+.elabel.badlabel { fill:var(--red); }
 .dim { opacity:.13 !important; transition:opacity .2s; }
 .nolabel { fill:var(--t3); font-size:9.5px; text-anchor:middle; font-family:var(--mono);
   paint-order:stroke; stroke:#0c1117; stroke-width:2.5px; stroke-linejoin:round; }

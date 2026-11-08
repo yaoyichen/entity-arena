@@ -1,4 +1,4 @@
-"""网络视图布局：before（按来源散落）/ after（按实体聚合）两套坐标。
+"""网络视图布局：before / after 两套坐标（合成剧本轨 + Febrl3 实测案例村轨）。
 
 坑的清单（继承 retrieval-forge ADR 0005 的教训）：
 1. 力导向**不做硬 clamp**（clamp 会把节点钉在边界形成点带）；
@@ -118,6 +118,90 @@ def _separate_halos(pts: list[list[float]], sizes: list[int], iters: int = 240) 
             pts[i][1] = min(max(pts[i][1], MARGIN), CANVAS_H - MARGIN)
         if not moved:
             break
+
+
+def build_open_network(records: list[dict], links: list[tuple[str, str]],
+                       shadow_pairs: list[tuple[str, str]], seed: int = 42) -> dict:
+    """Febrl3 案例村两套坐标（shape 与 build_network 一致，前端直接复用）。
+
+    before：影子关系（同姓/同址/同生日的异实体纠缠 + 同实体的天然重复）作边跑 FR
+            ——呈现"这些人看起来像一伙的"诱惑态；
+    after：断言链（模型分数 ≥ θ）的连通分量为"模型声称的实体"，组件级 FR + 光环
+            防撞，成员绕组件中心排环。组件纯度由调用方标色（纯=青 / 混=红）。
+    """
+    rids = [r["rid"] for r in records]
+    idx_of = {rid: i for i, rid in enumerate(rids)}
+
+    # ---- before：影子关系聚簇
+    shadow_edges = [(idx_of[a], idx_of[b]) for a, b in shadow_pairs
+                    if a in idx_of and b in idx_of]
+    pts_before = _quantile_norm(_fr_layout(len(rids), shadow_edges, seed + 11))
+    # 松弛防重叠（同 build_network）
+    for _ in range(60):
+        for i in range(len(pts_before)):
+            for j in range(i + 1, len(pts_before)):
+                dx, dy = pts_before[j][0] - pts_before[i][0], pts_before[j][1] - pts_before[i][1]
+                d = math.hypot(dx, dy)
+                if d < 26:
+                    push = (26 - d) / 2
+                    ux, uy = (dx / (d + 1e-6)), (dy / (d + 1e-6))
+                    pts_before[i][0] -= ux * push
+                    pts_before[i][1] -= uy * push
+                    pts_before[j][0] += ux * push
+                    pts_before[j][1] += uy * push
+
+    # ---- after：断言组件光环
+    parent = list(range(len(rids)))
+
+    def find(x: int) -> int:
+        while parent[x] != x:
+            parent[x] = parent[parent[x]]
+            x = parent[x]
+        return x
+
+    for a, b in links:
+        ra, rb = find(idx_of[a]), find(idx_of[b])
+        if ra != rb:
+            parent[ra] = rb
+    comp_ids = sorted({find(i) for i in range(len(rids))})
+    comp_idx = {c: i for i, c in enumerate(comp_ids)}
+    members: list[list[str]] = [[] for _ in comp_ids]
+    for i, rid in enumerate(rids):
+        members[comp_idx[find(i)]].append(rid)
+
+    # 组件间无边：纯斥力散开 + 光环防撞
+    comp_pts = _quantile_norm(_fr_layout(len(comp_ids), [], seed + 13))
+    _separate_halos(comp_pts, [len(m) for m in members])
+
+    pts_after: list[list[float]] = [[0.0, 0.0] for _ in rids]
+    for ci, mems in enumerate(members):
+        cx, cy = comp_pts[ci]
+        mems_sorted = sorted(mems)
+        radius = 24 + 7 * len(mems_sorted)
+        for k, rid in enumerate(mems_sorted):
+            ang = -math.pi / 2 + 2 * math.pi * k / len(mems_sorted)
+            pts_after[idx_of[rid]] = [cx + radius * math.cos(ang), cy + radius * math.sin(ang)]
+
+    return {
+        "canvas": {"w": CANVAS_W, "h": CANVAS_H},
+        "nodes_before": [
+            {"r": rid, "x": round(x, 1), "y": round(y, 1)}
+            for rid, (x, y) in zip(rids, pts_before)
+        ],
+        "nodes_after": [
+            {"r": rid, "x": round(x, 1), "y": round(y, 1)}
+            for rid, (x, y) in zip(rids, pts_after)
+        ],
+        "entities": [
+            {"e": f"comp-{ci}", "x": round(c[0], 1), "y": round(c[1], 1), "size": len(members[ci])}
+            for ci, c in enumerate(comp_pts)
+        ],
+        "edges_before": [
+            {"a": rids[a], "b": rids[b], "rel": "lookalike"} for a, b in shadow_edges
+        ],
+        "edges_after": [],
+        "comp_members": {f"comp-{ci}": members[ci] for ci in range(len(members))},
+    }
 
 
 def build_network(world: World, seed: int = 42) -> dict:
