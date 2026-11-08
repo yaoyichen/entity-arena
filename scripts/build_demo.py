@@ -42,7 +42,21 @@ def load(data_dir: Path) -> dict:
         "network": json.loads((data_dir / "network.json").read_text(encoding="utf-8")),
         "queries": json.loads((data_dir / "queries.json").read_text(encoding="utf-8")),
         "pairs": json.loads((data_dir / "pairs.json").read_text(encoding="utf-8")),
+        "open_bench": _load_open_bench(data_dir),
     }
+
+
+def _load_open_bench(data_dir: Path) -> dict:
+    """开源基准轨数据（真实模型实测）。缺文件直接 raise，不带静默降级。"""
+    p = data_dir / "open_benchmark.json"
+    if not p.exists():
+        raise SystemExit(
+            f"缺少 {p}（开源基准轨数据）。先运行：python3 scripts/update_open_benchmark.py"
+        )
+    payload = json.loads(p.read_text(encoding="utf-8"))
+    if not payload.get("models"):
+        raise SystemExit(f"{p}: models 为空，拒绝构建")
+    return payload
 
 
 def main() -> None:
@@ -62,7 +76,8 @@ def main() -> None:
 
     # 自检：关键标记齐全（失败不静默）
     for marker in ('id="view-arena"', 'id="view-network"', 'id="view-explain"',
-                   'id="view-scoreboard"', "const DATA = {", "netToggle", "renderScoreboard"):
+                   'id="view-scoreboard"', 'id="openBench"', "const DATA = {",
+                   "netToggle", "renderScoreboard", "renderOpenBench"):
         if marker not in html:
             raise SystemExit(f"self-check failed: marker missing: {marker}")
     assert "</script><script" not in html.split("<body>")[0]  # 数据未破坏脚本结构

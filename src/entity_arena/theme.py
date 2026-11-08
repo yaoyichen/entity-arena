@@ -229,6 +229,14 @@ table.mtable { width:100%; border-collapse:collapse; font-size:12.5px; }
 .protocol { margin-top:14px; font-size:11.5px; color:var(--t3); line-height:1.8;
   border-top:1px dashed var(--line2); padding-top:10px; }
 
+/* ---------- 开源基准轨（真实模型实测，Febrl3） ---------- */
+.ob-wrap { margin-top:34px; padding-top:22px; border-top:1px solid var(--line); }
+.ob-h2 { font-size:16px; font-weight:650; color:var(--t1); margin:0 0 4px;
+  display:flex; align-items:center; gap:12px; }
+.ob-sub { font-size:12.5px; color:var(--t2); margin:0 0 16px; max-width:880px; line-height:1.65; }
+.ob-num-b { color:var(--violet-b); font-family:var(--mono); }
+.ob-num-t { color:var(--cyan-b); font-family:var(--mono); }
+
 /* ---------- 页脚 ---------- */
 footer { border-top:1px solid var(--line); margin-top:34px; padding:16px 0 26px; }
 footer .fin { max-width:1280px; margin:0 auto; padding:0 22px; font-size:11.5px; color:var(--t3);

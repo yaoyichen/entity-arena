@@ -10,12 +10,13 @@ shall…" 的全部用例场景。
 ## 60 秒跑起来
 
 ```bash
-python3 scripts/make_mock_data.py     # ① 合成数据：19 实体 / 47 记录 / 5 数据源
-python3 scripts/build_demo.py --open  # ② 构建 build/demo.html 并用浏览器打开
+python3 scripts/make_mock_data.py            # ① 合成数据：19 实体 / 47 记录 / 5 数据源
+python3 scripts/update_open_benchmark.py     # ② 开源基准轨：从已入库平台报告重建实测数字
+python3 scripts/build_demo.py --open         # ③ 构建 build/demo.html 并用浏览器打开
 ```
 
 - 零第三方依赖（Python ≥3.11 纯标准库）；产物**单文件、零外链、断网可开**，可直接发给客户。
-- 测试（49 项）：`PYTHONPATH=src python3 -m unittest discover -s tests`
+- 测试（60 项）：`PYTHONPATH=src python3 -m unittest discover -s tests`
 
 ## 四个视图（给客户讲的动线）
 
@@ -24,7 +25,7 @@ python3 scripts/build_demo.py --open  # ② 构建 build/demo.html 并用浏览�
 | **Arena 对决台** | 6 个剧本查询，左右双栏 baseline vs 微调 | 切查询；判定线 θ=0.55，误连标红、真身标青、候选虚线 |
 | **Network 关系网** | 归并前（按来源孤岛）→ 归并后（按实体聚合 halo）的形变 | 「执行归并」动画；点节点看档案+关系；影子人/双胞胎肉眼可分 |
 | **Explain 为什么** | 4 张案例卡逐字段拆解：✓ 全同 / ≈ 近似 / ✗ 冲突 / — 缺失 | 切案例；两个模型的判决 vs 地面真值 |
-| **Scoreboard 记分牌** | 三大指标 + 分场景柱状图 + 指标口径脚注 | — |
+| **Scoreboard 记分牌** | 三大指标 + 分场景柱状图 + 指标口径脚注；下接**开源基准轨**（三个真实基模微调前后实测 × Febrl3） | — |
 
 深链（截图/分享直达状态）：`?view=arena|network|explain|scoreboard`、
 `?focus=R101`（自动开档案）、`?resolve=1`（直达归并后）、`?lang=zh|en`。

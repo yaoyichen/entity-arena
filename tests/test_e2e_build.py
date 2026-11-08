@@ -27,6 +27,8 @@ class TestEndToEnd(unittest.TestCase):
         cls.d2 = Path(cls.tmp) / "run2"
         run("scripts/make_mock_data.py", "--seed", "42", "--out", str(cls.d1))
         run("scripts/make_mock_data.py", "--seed", "42", "--out", str(cls.d2))
+        # 开源基准轨数据不是 seed 生成的（真实实测）：由已入库的平台报告确定性重建
+        run("scripts/update_open_benchmark.py", "--out", str(cls.d1 / "open_benchmark.json"))
         cls.out = Path(cls.tmp) / "demo.html"
         run("scripts/build_demo.py", "--data-dir", str(cls.d1), "--out", str(cls.out))
         cls.html = cls.out.read_text(encoding="utf-8")

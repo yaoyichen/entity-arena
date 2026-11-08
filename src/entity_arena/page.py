@@ -79,6 +79,7 @@ __CSS__
       <p data-i18n="sb.sub"></p>
     </div>
     <div id="scoreMain"></div>
+    <div id="openBench"></div>
   </section>
 </main>
 <footer>
@@ -175,8 +176,18 @@ const I18N = {
   'sb.col.fl':     {en:'False-link', zh:'误连率'},
   'sb.proto':      {en:'Protocol — each of 47 records queries the other 46; models return top-5 with scores; a hit = same ground-truth entity. Link recall = true links asserted (score ≥ θ) ÷ all true links. Link precision = asserted links that are true ÷ all asserted. False-link rate = share of look-alike queries (same name / twins) where a look-alike record was asserted. All data and scores are synthetic (seed 42); swap in real model outputs via the data contract (results.json) and every number on this page updates.',
                    zh:'口径——47 条记录两两检索，各取 top-5 及分数；命中 = 真同一实体。断言召回 = 被断言（分数≥θ）的真链路 ÷ 全部真链路；断言精度 = 断言中为真的比例；误连率 = 相似实体（同名/双胞胎）查询中断言了影子记录的比例。全部数据与分数均为合成（seed 42）；按数据契约替换 results.json 为真实模型输出，本页所有数字随之更新。'},
-  'footer.note':   {en:'All records, relations and scores are synthetic, generated deterministically from seed. Single-file build — opens offline.',
-                   zh:'所有记录、关系与分数均为合成数据，由种子确定性生成。单文件构建，可离线打开。'},
+  'ob.h':          {en:'Open-benchmark track — real models × Febrl3', zh:'开源基准轨——真实模型 × Febrl3'},
+  'ob.badge':      {en:'REAL MEASUREMENT', zh:'真实实测'},
+  'ob.sub':        {en:'Three base embedding models, each fine-tuned on Febrl3 (5,000 person records / 2,000 identities, OCR & transliteration noise) with hard negatives on. Every number below is a real measurement on the held-out test split — the board above stays the scripted synthetic demo.',
+                   zh:'三个基座检索模型各自在 Febrl3（5000 条个人记录 / 2000 个身份，含 OCR 错与音译错）上微调，硬负例开启。本板块所有数字均为留出测试集上的真实实测——上方板块仍是剧本合成演示。'},
+  'ob.chart':      {en:'NDCG@10 before ⟶ after (axis 90–100)', zh:'NDCG@10 前 ⟶ 后（轴 90–100）'},
+  'ob.table':      {en:'All metrics before ⟶ after', zh:'各指标 前 ⟶ 后'},
+  'ob.col.model':  {en:'Model', zh:'模型'},
+  'ob.col.wtl':    {en:'win/tie/loss · 850 queries', zh:'胜/平/负 · 850 查询'},
+  'ob.proto':      {en:'Protocol — queries and documents share one pool (every record both queries and is retrieved), so top-1 usually hits the record itself: read absolute values as effective k−1; identical terms for all six runs, so before/after comparisons are fair. After fine-tuning all three models converge to Recall@1 = 0.444 ≈ 1/2.25 — the theoretical ceiling when top-1 is always relevant (on average 2.25 relevant records per query). Fixed test split (400 identities / 850 queries), pytrec_eval, hard negatives on. nemotron starts near-perfect (Recall@10 = 1.000) so its fine-tuning gain is necessarily tiny — shown as measured. Reports verbatim: data_open/eval_reports/.',
+                   zh:'口径——查询与文档同池（每条记录既查也被查），top-1 常命中自身：绝对值按"有效 k−1"解读；六个运行同口径，前后对比公平。微调后三个模型的 Recall@1 一致收敛到 0.444 ≈ 1/2.25，即 top-1 必中相关文档时的理论上限（平均每查询 2.25 个相关记录）。固定 test split（400 实体 / 850 查询），pytrec_eval，硬负例开启。nemotron 基线已近满分（Recall@10 = 1.000），微调增益必然微小——如实呈现。报告原文：data_open/eval_reports/。'},
+  'footer.note':   {en:'Scripted track: records, relations and scores are synthetic, generated deterministically from seed. Open-benchmark track: real measurements of fine-tuned models on Febrl3. Single-file build — opens offline.',
+                   zh:'剧本轨：记录、关系与分数均为种子确定性生成的合成数据；开源基准轨：微调模型在 Febrl3 上的真实实测。单文件构建，可离线打开。'},
 };
 
 let LANG = localStorage.getItem('ea_lang')
@@ -227,7 +238,7 @@ function setLang(l){
   document.getElementById('seed-pill').textContent = t('badge.synthetic') + ' · seed ' + DATA.meta.seed;
   document.getElementById('buildInfo').textContent = DATA.meta.generated_at +
     ' · ' + DATA.meta.n_records + ' rec / ' + DATA.meta.n_entities + ' ent';
-  renderArena(); renderNetLegend(); netLabels(); renderExplain(); renderScoreboard();
+  renderArena(); renderNetLegend(); netLabels(); renderExplain(); renderScoreboard(); renderOpenBench();
 }
 
 /* ============================ Arena ============================ */
@@ -623,6 +634,65 @@ function renderScoreboard(){
     '<div class="card"><div style="font-size:12.5px;color:var(--t2);margin-bottom:8px">' + t('sb.table') + '</div>' +
     table + '</div></div>';
   document.getElementById('scoreMain').innerHTML = html;
+}
+
+/* ============== 开源基准轨（真实模型 × Febrl3，实测数字） ============== */
+function renderOpenBench(){
+  const ms = DATA.open_bench.models;
+  // 柱状图：NDCG@10 前(violet)/后(cyan)；轴 90–100（图题已声明截断，柱上标精确值）
+  const W = 560, H = 240, padL = 40, padB = 40, padT = 16, Y0 = 0.9, Y1 = 1.0;
+  const yv = v => padT + (H - padT - padB) * (1 - (v - Y0) / (Y1 - Y0));
+  let chart = '<svg viewBox="0 0 ' + W + ' ' + H + '" style="width:100%">';
+  [0.9, 0.95, 1.0].forEach(gy => {
+    chart += '<line x1="' + padL + '" y1="' + yv(gy) + '" x2="' + (W-8) + '" y2="' + yv(gy) +
+      '" stroke="rgba(125,148,166,.18)" stroke-width="1"/>' +
+      '<text x="' + (padL-6) + '" y="' + (yv(gy)+3) + '" fill="#8496a5" font-size="9" text-anchor="end" font-family="ui-monospace">' + (gy*100) + '</text>';
+  });
+  const bw = 26, gapIn = 6, groupW = (W - padL - 8) / ms.length;
+  ms.forEach((m, i) => {
+    const cx = padL + groupW * i + groupW / 2;
+    [[m.before.ndcg10, 0], [m.after.ndcg10, 1]].forEach(pair => {
+      const v = pair[0], j = pair[1];
+      const x = cx - bw - gapIn/2 + j * (bw + gapIn), top = yv(v);
+      chart += '<rect x="' + x + '" y="' + top + '" width="' + bw + '" height="' + (H - padB - top) +
+        '" rx="2" fill="' + (j ? '#39b8d0' : '#9d93e8') + '" opacity="' + (j ? .95 : .8) + '"/>' +
+        '<text x="' + (x + bw/2) + '" y="' + (top - 4) + '" fill="' + (j ? '#54cade' : '#b3aaef') +
+        '" font-size="8.5" text-anchor="middle" font-family="ui-monospace">' + (v*100).toFixed(1) + '</text>';
+    });
+    chart += '<text x="' + cx + '" y="' + (H - padB + 14) + '" fill="#a9b8c4" font-size="9.5" text-anchor="middle" font-family="ui-monospace">' + esc(m.key) + '</text>';
+  });
+  chart += '</svg>';
+
+  const mcols = [['ndcg10','NDCG@10'], ['ndcg5','NDCG@5'], ['recall5','Recall@5'],
+                 ['recall10','Recall@10'], ['map10','MAP@10']];
+  let table = '<table class="mtable"><tr><th>' + t('ob.col.model') + '</th>';
+  mcols.forEach(c => table += '<th>' + c[1] + '</th>');
+  table += '<th>' + t('ob.col.wtl') + '</th></tr>';
+  ms.forEach(m => {
+    table += '<tr><td><span class="mono" style="font-size:11px">' + esc(m.base_model) + '</span><br>' +
+      '<span style="color:var(--cyan-b);font-size:11px">⟶ ' + esc(m.tuned_model) + '</span></td>';
+    mcols.forEach((c, ci) => {
+      const d = m.after[c[0]] - m.before[c[0]];
+      table += '<td class="num"><span class="ob-num-b">' + m.before[c[0]].toFixed(3) + '</span> ⟶ <span class="ob-num-t">' +
+        m.after[c[0]].toFixed(3) + '</span>' +
+        (ci === 0 ? ' <span style="color:var(--cyan);font-size:10.5px">(' + (d>=0?'+':'') + (d*100).toFixed(1) + ')</span>' : '') +
+        '</td>';
+    });
+    const w = m.win_tie_loss;
+    table += '<td class="num" style="font-size:11px">' + w[0] + '<span style="color:var(--t3)">/</span>' + w[1] +
+      '<span style="color:var(--t3)">/</span>' + w[2] + '</td></tr>';
+  });
+  table += '</table>';
+
+  const html = '<div class="ob-wrap">' +
+    '<div class="ob-h2">' + t('ob.h') + '<span class="pill">' + t('ob.badge') + '</span></div>' +
+    '<p class="ob-sub">' + t('ob.sub') + '</p>' +
+    '<div class="sb-grid"><div class="card"><div style="font-size:12.5px;color:var(--t2);margin-bottom:8px">' +
+    t('ob.chart') + '</div>' + chart + '</div>' +
+    '<div class="card"><div style="font-size:12.5px;color:var(--t2);margin-bottom:8px">' +
+    t('ob.table') + '</div>' + table + '</div></div>' +
+    '<div class="protocol">' + t('ob.proto') + '</div></div>';
+  document.getElementById('openBench').innerHTML = html;
 }
 
 /* ============================ init ============================ */

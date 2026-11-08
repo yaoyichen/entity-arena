@@ -15,12 +15,14 @@
 ## 常用命令
 
 ```bash
-python3 scripts/make_mock_data.py            # 生成 data/（8 个 JSON，确定性）
-python3 scripts/build_demo.py --open         # 构建 build/demo.html 并打开
-PYTHONPATH=src python3 -m unittest discover -s tests   # 49 项测试（或装 pytest 后 pytest）
+python3 scripts/make_mock_data.py            # 生成 data/ 合成轨（确定性）
+python3 scripts/update_open_benchmark.py     # 生成 data/open_benchmark.json（开源基准轨，从已入库报告解析）
+python3 scripts/build_demo.py --open         # 构建 build/demo.html 并打开（两个数据文件缺一即 raise）
+PYTHONPATH=src python3 -m unittest discover -s tests   # 60 项测试（或装 pytest 后 pytest）
 ```
 
-改了 `synth/simulate/layout` → 必须重跑生成+构建；改了 `page/theme` → 重跑构建。
+改了 `synth/simulate/layout` → 必须重跑生成+构建；改了 `page/theme` → 重跑构建；
+重新评测了平台模型 → 重跑 `update_open_benchmark.py` + 构建。
 
 ## 代码地图
 
@@ -33,6 +35,9 @@ PYTHONPATH=src python3 -m unittest discover -s tests   # 49 项测试（或装 p
 - `scripts/make_open_dataset.py` 开源基准（Febrl）→ inf-retriever 训练平台上传包；
   源数据在 `data_open/`（随仓库提交）；训练/评测走 MCP `inf-retriever`（token 在
   `~/.claude.json`，不进仓库），流程见 skill `inf-retriever-finetune`
+- `scripts/update_open_benchmark.py` 平台评测报告（`data_open/eval_reports/`，随仓库
+  提交作溯源）→ `data/open_benchmark.json`；基线口径漂移会 raise。指标板第二板块
+  （开源基准轨：真实模型实测）由它供数，双轨 footer 各自诚实标注
 
 ## 视觉语言（继承 retrieval-forge ADR 0005）
 
@@ -45,3 +50,5 @@ PYTHONPATH=src python3 -m unittest discover -s tests   # 49 项测试（或装 p
 
 `results.json`：`{models: {baseline: {qid: [{r, s}×5]}, tuned: …}}`；
 `metrics.json`：overall + by_scenario。替换这两个文件，页面零改动。
+开源基准轨：`open_benchmark.json`（由 `data_open/eval_reports/` 报告重建）——
+重新评测后用新报告覆盖该目录再跑 `update_open_benchmark.py` 即可。
