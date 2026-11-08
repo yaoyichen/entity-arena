@@ -134,6 +134,28 @@ class TestOpenCases(unittest.TestCase):
         b = json.dumps(again, sort_keys=True)
         self.assertEqual(a, b)
 
+    def test_entity_label_anchors(self):
+        """组件标签锚点：单记录放光环内、多记录放光环上方（软墙内可上移）；
+        且多记录标签两两纵向防撞（横向投影重叠时 dy ≥ 15px）。"""
+        p = self.payload
+        ents = p["network"]["entities"]
+        self.assertTrue(any(e["size"] == 1 for e in ents))  # fixture 覆盖两种形态
+        self.assertTrue(any(e["size"] > 1 for e in ents))
+        for e in ents:
+            self.assertIn("lx", e)
+            self.assertIn("ly", e)
+            if e["size"] == 1:  # 单记录：光环内（文本基线 ≈ 环心 + 4.5）
+                self.assertAlmostEqual(e["ly"], e["y"] + 4.5, delta=0.11)
+            else:  # 多记录：光环上方（自然位 y-R-8；顶行被软墙压到 26 时仍须在环心之上）
+                self.assertLessEqual(e["ly"], e["y"] - 8)
+                self.assertGreaterEqual(e["ly"], 0)
+        multi = [e for e in ents if e["size"] > 1]
+        for i in range(len(multi)):
+            for j in range(i + 1, len(multi)):
+                a, b = multi[i], multi[j]
+                if abs(a["lx"] - b["lx"]) < 64:  # 标签宽度估计
+                    self.assertGreaterEqual(abs(a["ly"] - b["ly"]), 15)
+
     def test_scores_file_unchanged_by_scores_mode(self):
         # --scores 模式不得回写溯源文件
         before = self.scores.read_text(encoding="utf-8")

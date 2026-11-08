@@ -42,7 +42,7 @@ PYTHONPATH=src python3 -m unittest discover -s tests   # 测试（或装 pytest 
 - `scripts/update_open_benchmark.py` 平台评测报告（`data_open/eval_reports/`，随仓库
   提交作溯源）→ `data/open_benchmark.json`；基线口径漂移会 raise。指标板第二板块
   （开源基准轨：真实模型实测）由它供数，双轨 footer 各自诚实标注
-- `scripts/pick_open_village.py` 从 Febrl3 测试实体选"案例村"（60 条记录/影子对，
+- `scripts/pick_open_village.py` 从 Febrl3 测试实体选"案例村"（102 条记录/影子对，
   **选村对模型分数盲**，规则写在 provenance 里，避免挑案例之嫌）→ `data_open/village.json`
 - `scripts/fetch_village_embeddings.py` 调平台已部署微调服务的 `/v1/embeddings`
   取真实向量（`EMB_TOKEN` 环境变量传令牌；向量只落 `.tmp/`，不入库）

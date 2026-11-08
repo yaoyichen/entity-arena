@@ -182,6 +182,30 @@ def build_open_network(records: list[dict], links: list[tuple[str, str]],
             ang = -math.pi / 2 + 2 * math.pi * k / len(mems_sorted)
             pts_after[idx_of[rid]] = [cx + radius * math.cos(ang), cy + radius * math.sin(ang)]
 
+    # 组件标签锚点：单记录组件放光环内（不与邻标碰撞），多记录放光环上方；
+    # 上方标签横向投影重叠时纵向推开（与 _separate_halos 同款松弛）。
+    label_pts: list[list[float]] = []
+    for ci, (cx, cy) in enumerate(comp_pts):
+        r = _halo_radius(len(members[ci]))
+        label_pts.append([cx, cy + 4.5] if len(members[ci]) == 1 else [cx, cy - r - 8])
+    _LW = 64  # 标签宽度估计（"E1191 ×5" 级别，12.5px 字号）
+    for _ in range(80):
+        moved = False
+        for i in range(len(label_pts)):
+            for j in range(i + 1, len(label_pts)):
+                xi, yi = label_pts[i]
+                xj, yj = label_pts[j]
+                if abs(xi - xj) < _LW and abs(yi - yj) < 15:
+                    push = (15 - abs(yi - yj)) / 2
+                    uy = -push if yi <= yj else push
+                    label_pts[i][1] = yi + uy
+                    label_pts[j][1] = yj - uy
+                    moved = True
+        for p in label_pts:  # 软墙：标签留在画布内
+            p[1] = min(max(p[1], 26.0), CANVAS_H - 26.0)
+        if not moved:
+            break
+
     return {
         "canvas": {"w": CANVAS_W, "h": CANVAS_H},
         "nodes_before": [
@@ -193,7 +217,9 @@ def build_open_network(records: list[dict], links: list[tuple[str, str]],
             for rid, (x, y) in zip(rids, pts_after)
         ],
         "entities": [
-            {"e": f"comp-{ci}", "x": round(c[0], 1), "y": round(c[1], 1), "size": len(members[ci])}
+            {"e": f"comp-{ci}", "x": round(c[0], 1), "y": round(c[1], 1),
+             "lx": round(label_pts[ci][0], 1), "ly": round(label_pts[ci][1], 1),
+             "size": len(members[ci])}
             for ci, c in enumerate(comp_pts)
         ],
         "edges_before": [

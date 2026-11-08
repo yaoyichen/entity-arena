@@ -17,7 +17,7 @@ python3 scripts/build_demo.py --open         # ④ 构建 build/demo.html 并用
 ```
 
 - 零第三方依赖（Python ≥3.11 纯标准库）；产物**单文件、零外链、断网可开**，可直接发给客户。
-- 测试（68 项）：`PYTHONPATH=src python3 -m unittest discover -s tests`
+- 测试（69 项）：`PYTHONPATH=src python3 -m unittest discover -s tests`
 
 ## 四个视图（给客户讲的动线）
 
@@ -89,7 +89,7 @@ python3 scripts/build_demo.py --open         # ④ 构建 build/demo.html 并用
 页面只出合成轨）：
 
 - `scripts/pick_open_village.py` 从 Febrl3 测试实体按结构性规则选"案例村"
-  （60 条记录 / 影子对规则与训练硬负例同源；**选村对模型分数盲**，防挑案例）；
+  （102 条记录 / 影子对规则与训练硬负例同源；**选村对模型分数盲**，防挑案例）；
 - 微调后模型经平台 pipeline 部署成 embeddings 服务，`fetch_village_embeddings.py`
   取全量真实向量，余弦成对分数入库 `data_open/village_scores.json`（溯源）；
 - `build_open_cases.py` 做 θ 扫描（案例村上 link-F1 最大化）→ 断言链 →
@@ -103,7 +103,7 @@ python3 scripts/build_demo.py --open         # ④ 构建 build/demo.html 并用
   （新/旧产物部署一律 ~4min FAILED，诊断实验留档），后经手动创建服务
   `embedding-febrl3-er-gemma` 恢复，真实向量已取样入库
   （`data_open/village_scores.json`）。**实测结果：微调 gemma 在案例村上
-  79 真值对全部正确断言，零误连零漏连，21 组件全纯**——before 态的
+  147 真值对全部正确断言，零误连零漏连，33 组件全纯**——before 态的
   影子纠缠被完美拆解。注意：平台网关需 TLS1.2（脚本已内置强制与重试）。
 
 ## 下一步（通往真演示）

@@ -353,8 +353,9 @@ function trackAdapter() {
       entLabel: function(eid) {
         const c = this.ent[eid];
         if (!c) return eid;
-        return c.pure ? 'E' + c.entities[0] + ' ×' + c.members.length
-                      : 'MIXED ×' + c.members.length;
+        const n = c.members.length;
+        const suffix = n > 1 ? ' ×' + n : '';
+        return c.pure ? 'E' + c.entities[0] + suffix : 'MIXED' + suffix;
       },
       islandName: k => k.toUpperCase(),
       rels: OPEN_RELS,
@@ -468,7 +469,9 @@ function buildNet(){
     const halo = svgEl('circle', {'class': bad ? 'halo bad' : 'halo', r: 4, opacity: 0});
     halo.dataset.eid = en.e; halo.dataset.R = R; halo.dataset.cx = en.x; halo.dataset.cy = en.y;
     gHalo.appendChild(halo);
-    const lab = svgEl('text', {'class': bad ? 'elabel badlabel' : 'elabel', x: en.x, y: en.y - R - 8, opacity: 0});
+    const lab = svgEl('text', {'class': bad ? 'elabel badlabel' : 'elabel',
+                                x: en.lx != null ? en.lx : en.x,
+                                y: en.ly != null ? en.ly : en.y - R - 8, opacity: 0});
     lab.dataset.eid = en.e; gELabel.appendChild(lab);
   });
   // 记录节点
