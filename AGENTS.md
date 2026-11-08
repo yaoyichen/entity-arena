@@ -17,16 +17,16 @@
 ```bash
 python3 scripts/make_mock_data.py            # 生成 data/ 合成轨（确定性）
 python3 scripts/update_open_benchmark.py     # 生成 data/open_benchmark.json（开源基准轨，从已入库报告解析）
-python3 scripts/build_demo.py --open         # 构建 build/demo.html 并打开（两个数据文件缺一即 raise）
+python3 scripts/build_open_cases.py --scores # 生成 data/open_cases.json（网络实测轨，从已入库分数重建）
+python3 scripts/build_demo.py --open         # 构建 build/demo.html 并打开（三个数据文件缺一即 raise）
 PYTHONPATH=src python3 -m unittest discover -s tests   # 测试（或装 pytest 后 pytest）
-# 可选（网络视图 Febrl3 实测轨；需要 data_open/village_scores.json 已入库）：
-python3 scripts/build_open_cases.py --scores # 生成 data/open_cases.json，重新构建即点亮
 ```
 
 改了 `synth/simulate/layout` → 必须重跑生成+构建；改了 `page/theme` → 重跑构建；
 重新评测了平台模型 → 重跑 `update_open_benchmark.py` + 构建；
 重新取样了案例村向量 → 覆盖 `data_open/village_scores.json` 后重跑
-`build_open_cases.py --scores` + 构建（无该文件时构建显式提示，页面只出合成轨）。
+`build_open_cases.py --scores` + 构建（village_scores 缺席时构建显式提示，
+页面只出合成轨——优雅降级路径保留，平台再故障时用）。
 
 ## 代码地图
 
@@ -51,11 +51,13 @@ python3 scripts/build_open_cases.py --scores # 生成 data/open_cases.json，重
   入库，`--scores` 模式离线复算）。网络视图第二轨道（Febrl3 实测）由它供数：
   before=影子关系纠缠簇，after=微调模型断言组件（红光环=混入异实体）
 - `src/entity_arena/febrl.py` Febrl 数据共用工具（实体切分/序列化/索引）
-- **部署要点（2026-11-08 实测）**：平台部署当日整体故障——新产物（`train`/
-  `pipeline` 模式、含 pipeline 自动部署）与旧产物（11/2 训练、此前从未部署）
-  一律 ~4 分钟 FAILED；仅数日前部署成功的服务仍在运行。判定为平台 serving
-  侧故障，非产物问题。案例村向量等平台修复后接入：
-  `fetch_village_embeddings.py`（需在线服务）→ `build_open_cases.py --emb` → 构建。
+- **部署要点（2026-11-08 实测）**：平台 serving 当日整体故障过一轮（新产物
+  `train`/`pipeline`、旧产物一律 ~4min FAILED；`deploy_model` 起的服务全挂），
+  后经**手动在控制台创建服务**（`embedding-febrl3-er-gemma`）恢复并完成取样。
+  再遇部署故障：先查 Deployed Services 有没有现成可用服务，别急着重训。
+  另两个坑：FAILED 部署留僵尸 serving 名（重试换新名）；平台网关掐 OpenSSL 3.x
+  默认 ClientHello（后量子密钥共享），`fetch_village_embeddings.py` 已强制
+  TLS1.2 + 重试，别改回去。
 
 ## 视觉语言（继承 retrieval-forge ADR 0005）
 
@@ -71,5 +73,5 @@ python3 scripts/build_open_cases.py --scores # 生成 data/open_cases.json，重
 开源基准轨：`open_benchmark.json`（由 `data_open/eval_reports/` 报告重建）——
 重新评测后用新报告覆盖该目录再跑 `update_open_benchmark.py` 即可。
 网络实测轨：`open_cases.json`（由 `data_open/village.json` + `village_scores.json`
-重建；**可选**，缺席时页面只出合成轨并显式提示）——平台部署修复、取样向量入库后
-再跑 `build_open_cases.py --scores`。
+重建；village_scores 缺席时优雅降级为仅合成轨）——重新取样向量后覆盖
+`village_scores.json` 再跑 `build_open_cases.py --scores` 即可。

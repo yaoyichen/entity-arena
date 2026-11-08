@@ -12,8 +12,8 @@ shall…" 的全部用例场景。
 ```bash
 python3 scripts/make_mock_data.py            # ① 合成数据：19 实体 / 47 记录 / 5 数据源
 python3 scripts/update_open_benchmark.py     # ② 开源基准轨：从已入库平台报告重建实测数字
-python3 scripts/build_demo.py --open         # ③ 构建 build/demo.html 并用浏览器打开
-# 可选：python3 scripts/build_open_cases.py --scores   # ④ 网络实测轨（见下，需已入库真实分数）
+python3 scripts/build_open_cases.py --scores # ③ 网络实测轨：从已入库真实分数重建 Febrl3 案例村
+python3 scripts/build_demo.py --open         # ④ 构建 build/demo.html 并用浏览器打开
 ```
 
 - 零第三方依赖（Python ≥3.11 纯标准库）；产物**单文件、零外链、断网可开**，可直接发给客户。
@@ -83,10 +83,10 @@ python3 scripts/build_demo.py --open         # ③ 构建 build/demo.html 并用
 - 口径注意：查询与文档同池，top-1 自命中对所有模型是同口径均匀代价，
   前后对比公平，绝对值按"有效 k−1"解读。
 
-### 网络视图的实测轨道（Febrl3 案例村，代码就绪、数据待平台修复）
+### 网络视图的实测轨道（Febrl3 案例村，已接入真实模型向量）
 
-合成剧本轨之外，Network 视图预置了**真实模型行为**轨道（数据接入后自动点亮，
-未接入时轨道条隐藏、页面只出合成轨）：
+合成剧本轨之外，Network 视图另有**真实模型行为**轨道（数据缺席时轨道条隐藏、
+页面只出合成轨）：
 
 - `scripts/pick_open_village.py` 从 Febrl3 测试实体按结构性规则选"案例村"
   （60 条记录 / 影子对规则与训练硬负例同源；**选村对模型分数盲**，防挑案例）；
@@ -99,13 +99,12 @@ python3 scripts/build_demo.py --open         # ③ 构建 build/demo.html 并用
   点节点看真实分数 top-3 与 θ 判定；
 - 诚实口径：基线模型平台无法部署（`deploy_model` 仅支持已训练模型），网络轨
   只展示微调模型的真实行为；训练前后对比见记分牌（真实评测数字）。
-- **当前状态（2026-11-08）**：平台部署当日整体故障（诊断实验：新产物
-  train/pipeline、旧产物——11/2 训练、从未部署——一律 ~4 分钟 FAILED；
-  仅数日前部署的服务仍在运行。判定 serving 侧故障，非产物问题），
-  真实向量暂时取不到。修复后接入路径：
-  `fetch_village_embeddings.py`（需在线服务）→ `build_open_cases.py --emb`
-  （分数入库 `data_open/village_scores.json`）→ `build_open_cases.py --scores`
-  → 重新构建。UI/测试/构建链路均已就绪并有占位验证。
+- **当前状态（2026-11-08 深夜已接入）**：平台 serving 当日曾整体故障
+  （新/旧产物部署一律 ~4min FAILED，诊断实验留档），后经手动创建服务
+  `embedding-febrl3-er-gemma` 恢复，真实向量已取样入库
+  （`data_open/village_scores.json`）。**实测结果：微调 gemma 在案例村上
+  79 真值对全部正确断言，零误连零漏连，21 组件全纯**——before 态的
+  影子纠缠被完美拆解。注意：平台网关需 TLS1.2（脚本已内置强制与重试）。
 
 ## 下一步（通往真演示）
 

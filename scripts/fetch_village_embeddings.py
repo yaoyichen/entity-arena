@@ -19,12 +19,24 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import ssl
 import sys
+import time
 import urllib.request
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 BATCH = 32
+RETRIES = 3
+
+
+def _ssl_ctx() -> ssl.SSLContext:
+    """强制 TLS1.2：平台网关会掐 OpenSSL 3.x 默认 ClientHello（含后量子
+    密钥共享，握手即 UNEXPECTED_EOF）；curl/LibreSSL 与 TLS1.2 均正常。"""
+    ctx = ssl.create_default_context()
+    ctx.minimum_version = ssl.TLSVersion.TLSv1_2
+    ctx.maximum_version = ssl.TLSVersion.TLSv1_2
+    return ctx
 
 
 def main() -> None:
@@ -60,8 +72,18 @@ def main() -> None:
                      "Content-Type": "application/json"},
             method="POST",
         )
-        with urllib.request.urlopen(req, timeout=300) as resp:
-            body = json.loads(resp.read().decode("utf-8"))
+        body = None
+        for attempt in range(1, RETRIES + 1):
+            try:
+                with urllib.request.urlopen(req, timeout=300, context=_ssl_ctx()) as resp:
+                    body = json.loads(resp.read().decode("utf-8"))
+                break
+            except (urllib.error.URLError, ssl.SSLError, OSError) as e:
+                print(f"  batch {start // BATCH + 1}: attempt {attempt}/{RETRIES} failed: {e}",
+                      file=sys.stderr)
+                if attempt == RETRIES:
+                    raise SystemExit(f" embeddings 请求连续 {RETRIES} 次失败")
+                time.sleep(5 * attempt)
         if "data" not in body:
             raise SystemExit(f"API 响应异常：{json.dumps(body)[:300]}")
         for item in body["data"]:
