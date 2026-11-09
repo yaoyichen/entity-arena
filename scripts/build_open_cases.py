@@ -10,7 +10,7 @@
 处理链（全部确定性）：
   余弦相似度（record×record，去自身）→ θ 扫描（F1 最大，平局取精度高、再取 θ 大）
   → 断言链 = 分数 ≥ θ 的记录对 → 并查集成"模型声称的实体"（组件）
-  → 组件纯度 = 是否只含一个真实体 → 误连（混入异实体）/ 漏连（真对未过线）
+  → 组件纯度 = 是否只含一个真实体 → 误连（跨实体断言对）/ 漏连（真对落在不同组件）
   → layout.build_open_network 出 before（影子关系聚簇）/ after（断言组件光环）两套坐标
   → Arena 六查询（类别规则挑选，微调真实分数 vs 字面代理基线，双模型 top-5）
   → 检索指标（口径对齐合成轨 simulate.py：方向性计数、各模型各自 θ、分桶）
@@ -722,7 +722,6 @@ def main() -> None:
     theta, stats = pick_theta(pairs, truth)
 
     links = [(a, b) for a, b, s in pairs if s >= theta]
-    asserted = set(links)
     score_of = {(a, b): s for a, b, s in pairs}
     # 每条记录的 top-3 相似（去掉自身；给档案卡展示真实分数与判定）
     by_rec: dict[str, list[tuple[str, float]]] = {r: [] for r in rids}
@@ -733,7 +732,12 @@ def main() -> None:
     false_links = sorted(
         {"|".join(sorted((a, b))) for a, b in links if ent_of[a] != ent_of[b]}
     )
-    missed = sorted({"|".join(sorted(p)) for p in truth if p not in asserted})
+    # 漏连 = 真对落在不同组件（组件级漏并，与图上红虚线 ⊘ 1:1）。直接断言层面
+    # 漏掉、但被链式合并进同一组件的真对不算——虚线画在光环内部会与"已归并"
+    # 的视觉自相矛盾；对级漏连口径由记分牌（top-5 断言指标）覆盖。
+    comps_t, comp_of_t, _ = comp_analysis(rids, links, ent_of)
+    missed = sorted("|".join(sorted(p)) for p in truth
+                    if comp_of_t[p[0]] != comp_of_t[p[1]])
 
     comps, comp_of, comp_meta = comp_analysis(rids, links, ent_of)
 
@@ -750,12 +754,12 @@ def main() -> None:
     theta_b, stats_b = pick_theta(bpairs, truth)
     links_b = [(a, b) for a, b, s in bpairs if s >= theta_b]
     bscore_of = {(a, b): s for a, b, s in bpairs}
-    asserted_b = set(links_b)
     false_b = sorted(
         {"|".join(sorted((a, b))) for a, b in links_b if ent_of[a] != ent_of[b]}
     )
-    missed_b = sorted({"|".join(sorted(p)) for p in truth if p not in asserted_b})
     comps_b, comp_of_b, comp_meta_b = comp_analysis(rids, links_b, ent_of)
+    missed_b = sorted("|".join(sorted(p)) for p in truth
+                      if comp_of_b[p[0]] != comp_of_b[p[1]])
     net_base = build_open_network(
         records=[{"rid": r["rid"], "entity": r["entity"]} for r in records],
         links=links_b,
@@ -825,6 +829,9 @@ def main() -> None:
             **village["provenance"],
             "scores_file": "data_open/village_scores.json",
             "theta_rule": "案例村上 link-F1 最大化（平局：精度优先、再 θ 大者）",
+            "missed_rule": "漏连=真对落在不同组件（组件级漏并，与图上红虚线 ⊘ 一一对应）；"
+                           "直接断言层面漏掉但被链式合并进同一组件的真对不计——"
+                           "对级漏连口径由记分牌 top-5 断言指标覆盖",
             "truth": "Febrl3 rec_id 实体号（生成器 ground truth）",
             "model_role": f"微调后模型 {model_name} 的真实向量余弦；基线无法部署（平台仅支持已训练模型），逐条基线分数不可得",
             "baseline_rule": "代理基线=经典字面相似度 ER 打分器：字段 Levenshtein 加权"

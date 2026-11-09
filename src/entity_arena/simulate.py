@@ -171,25 +171,124 @@ def _pair_scores(a: Record, b: Record, w: World, rng: random.Random) -> tuple[fl
 
 # ---------------------------------------------------------------- 检索与指标
 
-def retrieve_all(world: World, seed: int = 42) -> dict[str, dict[str, list[dict]]]:
-    """每条记录作为查询，两个模型各取 top-K。返回 {model: {qid: [{r, s}, ...]}}。"""
+def pair_matrix(world: World, seed: int = 42) -> dict[str, dict[str, dict[str, float]]]:
+    """全量有向成对分数：{model: {qid: {rid: score}}}。
+
+    与 retrieve_all 共用同一条 rng 流（seed+1、同遍历序），因此这里算出的
+    分数与 results.json 里 top-5 展示的分数逐对一致——网络视图的断言链、
+    Arena 的分数条永远不可能互相矛盾。"""
     rng = random.Random(seed + 1)
     records = world.all_records()
-    out: dict[str, dict[str, list[dict]]] = {"baseline": {}, "tuned": {}}
+    out: dict[str, dict[str, dict[str, float]]] = {"baseline": {}, "tuned": {}}
     for q in records:
-        bl: list[dict] = []
-        tu: list[dict] = []
+        bl: dict[str, float] = {}
+        tu: dict[str, float] = {}
         for c in records:
             if c.record_id == q.record_id:
                 continue
             b, t = _pair_scores(q, c, world, rng)
-            bl.append({"r": c.record_id, "s": round(b, 4)})
-            tu.append({"r": c.record_id, "s": round(t, 4)})
-        bl.sort(key=lambda x: (-x["s"], x["r"]))
-        tu.sort(key=lambda x: (-x["s"], x["r"]))
-        out["baseline"][q.record_id] = bl[:K]
-        out["tuned"][q.record_id] = tu[:K]
+            bl[c.record_id] = b
+            tu[c.record_id] = t
+        out["baseline"][q.record_id] = bl
+        out["tuned"][q.record_id] = tu
     return out
+
+
+def retrieve_all(world: World, seed: int = 42) -> dict[str, dict[str, list[dict]]]:
+    """每条记录作为查询，两个模型各取 top-K。返回 {model: {qid: [{r, s}, ...]}}。"""
+    mat = pair_matrix(world, seed)
+    out: dict[str, dict[str, list[dict]]] = {"baseline": {}, "tuned": {}}
+    for model in ("baseline", "tuned"):
+        for q, scored in mat[model].items():
+            ranked = sorted(({"r": r, "s": round(s, 4)} for r, s in scored.items()),
+                            key=lambda x: (-x["s"], x["r"]))
+            out[model][q] = ranked[:K]
+    return out
+
+
+# ---------------------------------------------------------------- 断言链 → 组件（网络三态用）
+
+def undirected_scores(world: World, seed: int = 42) -> dict[str, dict[tuple[str, str], float]]:
+    """无向成对分数：{model: {(a, b): s}}（a < b）。
+
+    一对记录两个检索方向各有一个分数（tuned 带独立 jitter），取 max 作为该对
+    分数——语义是"较强的那次检索断言"：任一方向把对方捞回并过了 θ 就算连。"""
+    mat = pair_matrix(world, seed)
+    out: dict[str, dict[tuple[str, str], float]] = {"baseline": {}, "tuned": {}}
+    rids = sorted(r.record_id for r in world.all_records())
+    for model in ("baseline", "tuned"):
+        for i, a in enumerate(rids):
+            for b in rids[i + 1:]:
+                out[model][(a, b)] = max(mat[model][a][b], mat[model][b][a])
+    return out
+
+
+def link_components(world: World, scores: dict[tuple[str, str], float], theta: float
+                    ) -> tuple[list[dict], dict[str, str], list[dict]]:
+    """断言链（分数 ≥ θ）→ 并查集组件。返回 (links, comp_of, comp_meta)：
+    links = [{a, b, s}]（按 rid 排序）；comp_of = rid → comp_id；
+    comp_meta = [{id, size, members, entities, pure}]（与 open_cases 基线块同 shape）。"""
+    rids = sorted(r.record_id for r in world.all_records())
+    ent_of = {r.record_id: r.entity_id for r in world.all_records()}
+    links = [{"a": a, "b": b, "s": round(s, 6)}
+             for (a, b), s in sorted(scores.items()) if s >= theta]
+    parent = {r: r for r in rids}
+
+    def find(x: str) -> str:
+        while parent[x] != x:
+            parent[x] = parent[parent[x]]
+            x = parent[x]
+        return x
+
+    for l in links:
+        ra, rb = find(l["a"]), find(l["b"])
+        if ra != rb:
+            parent[ra] = rb
+    groups: dict[str, list[str]] = {}
+    for r in rids:
+        groups.setdefault(find(r), []).append(r)
+    comp_of: dict[str, str] = {}
+    comp_meta: list[dict] = []
+    for ci, root in enumerate(sorted(groups)):
+        members = sorted(groups[root])
+        cid = f"comp-{ci}"
+        for m in members:
+            comp_of[m] = cid
+        ents = sorted({ent_of[m] for m in members})
+        comp_meta.append({"id": cid, "size": len(members), "members": members,
+                          "entities": ents, "pure": len(ents) == 1})
+    return links, comp_of, comp_meta
+
+
+def link_stats(world: World, links: list[dict], comp_of: dict[str, str],
+               comp_meta: list[dict]) -> tuple[dict, list[str], list[str]]:
+    """网络三态统计条口径（与 build_open_cases.py 对齐，其中漏连为组件级）：
+    断言/误连 = 直接断言对（与图上红线 1:1）；漏连 = 真对落在不同组件
+    （与图上红虚线 ⊘ 1:1——直接断言层面漏掉但被链式合并的真对不算漏，
+    否则虚线会画在光环内部、与"已归并"的视觉自相矛盾）。"""
+    ent_of = {r.record_id: r.entity_id for r in world.all_records()}
+    rids = sorted(ent_of)
+    truth = {(a, b) for i, a in enumerate(rids) for b in rids[i + 1:]
+             if ent_of[a] == ent_of[b]}
+    asserted = {(l["a"], l["b"]) for l in links}
+    false_links = sorted("|".join(p) for p in asserted if ent_of[p[0]] != ent_of[p[1]])
+    missed = sorted("|".join(p) for p in truth if comp_of[p[0]] != comp_of[p[1]])
+    tp = len(asserted & truth)
+    prec = tp / len(asserted) if asserted else 0.0
+    rec = tp / len(truth) if truth else 0.0
+    f1 = 2 * prec * rec / (prec + rec) if prec + rec else 0.0
+    return {
+        "asserted": len(asserted),
+        "tp": tp,
+        "precision": round(prec, 4),
+        "recall": round(rec, 4),
+        "f1": round(f1, 4),
+        "truth_pairs": len(truth),
+        "false_links": len(false_links),
+        "missed_pairs": len(missed),
+        "components": len(comp_meta),
+        "pure_components": sum(1 for c in comp_meta if c["pure"]),
+    }, false_links, missed
 
 
 def _scenario_of(q: Record, world: World) -> str:

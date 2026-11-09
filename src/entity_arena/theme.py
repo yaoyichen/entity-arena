@@ -218,10 +218,12 @@ main { max-width:1280px; margin:0 auto; padding:24px 24px 60px; }
 .node:hover { fill:#8a99a8; }
 .node.insame { fill:#3f6a7d; }
 .edge { stroke:var(--edge); stroke-opacity:.78; stroke-width:1.6; fill:none; }
-/* 漏连真对：红虚线桥 + 中点 ⊘ 断口标记（"该连而没连"的缺失画成断线；红=错误专用） */
-.missline { stroke:var(--red); stroke-opacity:.95; stroke-width:1.8; stroke-dasharray:5 4; fill:none; }
-.missmark circle { fill:var(--panel); stroke:var(--red); stroke-width:1.6; }
-.missmark line { stroke:var(--red); stroke-width:1.6; }
+/* 漏连真对：红虚线桥 + 中点 ⊘ 断口标记（"该连而没连"的缺失画成断线；红=错误专用）。
+   权重低于误连红线一档：漏连是"缺失"的批注层，实测轨 8 条、合成轨 25 条，
+   同权重会盖过标签与光环（误连 2.4/.95 vs 这里 1.4/.68） */
+.missline { stroke:var(--red); stroke-opacity:.68; stroke-width:1.4; stroke-dasharray:5 4; fill:none; }
+.missmark circle { fill:var(--panel); stroke:var(--red); stroke-width:1.4; }
+.missmark line { stroke:var(--red); stroke-width:1.4; }
 .halo { fill:rgba(16,166,173,.08); stroke:rgba(16,166,173,.9); stroke-width:1.3; }
 .halo.bad { fill:rgba(207,109,88,.07); stroke:rgba(207,109,88,.9); }
 .elabel { fill:var(--cyan-l); font-size:12.5px; text-anchor:middle; font-weight:600;

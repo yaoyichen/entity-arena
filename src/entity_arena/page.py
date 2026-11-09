@@ -182,6 +182,10 @@ const I18N = {
   'net.open.lg.blink':   {en:'baseline asserted link', zh:'基线断言连线'},
   'net.open.lg.blink.bad': {en:'false merge (baseline)', zh:'误连（红线）'},
   'net.open.lg.blink.miss': {en:'missed true link — same person, unlinked (baseline)', zh:'漏连（红虚线 ⊘）'},
+  'net.syn.state.baseline': {en:'BASELINE · literal-similarity proxy · red = false merge, dashed red ⊘ = missed link, red halo = mixed', zh:'基线打分（字面相似度代理）· 红线 = 误连，红虚线 ⊘ = 漏连，红光环 = 混入异实体'},
+  'net.syn.state.after':  {en:'RESOLVED by the tuned model · dashed ⊘ = honest miss (scripted on purpose)', zh:'微调模型归并完成 · 红虚线 ⊘ = 剧本注定的漏连（诚实失手）'},
+  'net.syn.base.note':  {en:'Scripted track: both scorers are deterministic proxy formulas (seed 42), not real model outputs. Baseline = weighted literal similarity; tuned = literal + learned equivalences, with honest blind spots. Real model measurements are on the Febrl3 track.', zh:'剧本轨：两个打分器都是种子确定性的代理公式（非真实模型输出）。基线 = 字面相似度加权；微调 = 字面 + 学到的等价（保留诚实盲区）。真实模型实测见 Febrl3 轨。'},
+  'ob.syn.tuned.tag':   {en:'TUNED · proxy score', zh:'微调 · 代理评分'},
   'ob.baseline.tag':     {en:'BASELINE · literal-similarity proxy', zh:'基线 · 字面相似度代理'},
   'ob.shadow':           {en:'look-alike ties', zh:'影子对'},
   'ob.shadow.note':      {en:'same surname / address / DOB — different people', zh:'同姓 / 同址 / 同生日的异实体，不是一伙的'},
@@ -519,7 +523,8 @@ let netT = 0, netResolved = false, netAnim = null, netMax = 1;
 const netNodes = {}, netPos = {};
 let svg = null, gSrc, gEB, gEA, gHalo, gNode, gELabel;
 let gBL = null, gHaloB = null, gELabelB = null, BASE_ENTS = null;
-let gMiss = null, missLinks = [];   // 漏连真对：红虚线 + 中点断口标记（基线态）
+let gMiss = null, missLinks = [];   // 基线态漏连真对：红虚线 + 中点断口标记
+let gMissT = null, missLinksT = []; // 微调态漏连（合成轨的诚实失手；实测轨恒空）
 
 function openComps() {
   const comps = {};
@@ -529,12 +534,19 @@ function openComps() {
   });
   return comps;
 }
-function baselineEnts() {
+function baselineEnts(bl) {
   /* 基线代理组件表（"微调前"态）：结构与 openComps 一致，坐标/成员来自 baseline.network */
   const m = {};
-  (OC.baseline ? OC.baseline.components : []).forEach(c => {
-    m[c.id] = {members: OC.baseline.network.comp_members[c.id] || [],
+  (bl ? bl.components : []).forEach(c => {
+    m[c.id] = {members: bl.network.comp_members[c.id] || [],
                pure: c.pure, entities: c.entities};
+  });
+  return m;
+}
+function compTable(components, comp_members) {
+  const m = {};
+  (components || []).forEach(c => {
+    m[c.id] = {members: comp_members[c.id] || [], pure: c.pure, entities: c.entities};
   });
   return m;
 }
@@ -545,25 +557,36 @@ function trackAdapter() {
       name: rid => (OC.records[rid].fields.name || rid),
       eid: rid => OC.comp_of[rid],
       ent: openComps(),
-      entLabel: function(eid) {
-        const c = this.ent[eid];
-        if (!c) return eid;
-        const n = c.members.length;
-        const suffix = n > 1 ? ' ×' + n : '';
+      fmtComp: c => {
+        if (!c) return '?';
+        const suffix = c.members.length > 1 ? ' ×' + c.members.length : '';
         return c.pure ? 'E' + c.entities[0] + suffix : 'MIXED' + suffix;
       },
+      entLabel: function(eid) { return this.ent[eid] ? this.fmtComp(this.ent[eid]) : eid; },
       islandName: k => k.toUpperCase(),
       rels: OPEN_RELS,
+      baseline: OC.baseline || null,          // 三态第二阶段（基线代理）数据块
+      stats: OC.stats, theta: OC.theta,       // 微调态统计（真实模型）
+      missed: OC.missed_pairs || [],          // 微调态漏连（实测轨=空，渲染自然缺席）
     };
   }
+  const NB = DATA.network.baseline || null;
   return {
     net: DATA.network,
     name: rid => REC[rid].name,
-    eid: (rid, beforeNode) => beforeNode.e,
-    ent: ENT,
-    entLabel: eid => entName(eid),
+    eid: rid => DATA.network.comp_of[rid],
+    ent: compTable(DATA.network.components, DATA.network.comp_members),
+    fmtComp: c => {
+      if (!c) return '?';
+      const suffix = c.members.length > 1 ? ' ×' + c.members.length : '';
+      return c.pure ? entName(c.entities[0]) + suffix : 'MIXED' + suffix;
+    },
+    entLabel: function(eid) { return this.ent[eid] ? this.fmtComp(this.ent[eid]) : eid; },
     islandName: k => srcName(k).toUpperCase(),
     rels: DATA.rels || {},
+    baseline: NB,                            // 三态第二阶段（基线代理）数据块
+    stats: DATA.network.stats, theta: DATA.network.theta,
+    missed: DATA.network.missed_pairs || [], // 微调态漏连（P4/Q6 型诚实失手）
   };
 }
 function switchNetTrack(track) {
@@ -599,6 +622,23 @@ function svgEl(tag, attrs){
 function dashFor(rel){
   return {family:'', co_address:'7 4', co_travel:'3 4', shared_phone:'9 3 2 3'}[rel] || '';
 }
+function buildMissGroup(group, pairs){
+  /* 漏连真对组：红虚线跨在缺口上，中点 ⊘ 断口标记。"该连而没连"本是看不见的
+     缺失，画成断线让它直接可见；数量与统计条 漏连 严格一致（组件级口径）。 */
+  const out = [];
+  (pairs || []).forEach(p => {
+    const w = p.split('|');
+    const g = svgEl('g', {});
+    const ln = svgEl('line', {'class': 'missline'});
+    const mk = svgEl('g', {'class': 'missmark'});
+    mk.appendChild(svgEl('circle', {r: 6}));
+    mk.appendChild(svgEl('line', {x1: -3.8, y1: 3.8, x2: 3.8, y2: -3.8}));
+    g.append(ln, mk);
+    group.appendChild(g);
+    out.push({g: g, ln: ln, mk: mk, a: w[0], b: w[1]});
+  });
+  return out;
+}
 function lerp(a, b, u){ return a + (b - a) * u; }
 function easeIO(u){ return u < .5 ? 4*u*u*u : 1 - Math.pow(-2*u + 2, 3) / 2; }
 function smooth(u, a, b){ return Math.max(0, Math.min(1, (u - a) / (b - a))); }
@@ -633,22 +673,24 @@ function buildNet(){
   const box = document.getElementById('netbox');
   const A = trackAdapter();
   const openIsl = TRACK === 'open' ? openIslands() : null;
-  const hasBase = TRACK === 'open' && !!OC.baseline;   // 三态：原始 → 基线(代理) → 微调
+  const BL = A.baseline;                // 三态：原始 → 基线(代理) → 微调（双轨同构）
+  const hasBase = !!BL;
   netMax = hasBase ? 2 : 1;
-  BASE_ENTS = hasBase ? baselineEnts() : null;
+  BASE_ENTS = hasBase ? baselineEnts(BL) : null;
   svg = svgEl('svg', {viewBox: '0 0 ' + NET.canvas.w + ' ' + NET.canvas.h, 'aria-label': 'network'});
   box.appendChild(svg);
   gSrc = svgEl('g', {}); gEB = svgEl('g', {});
   gBL = hasBase ? svgEl('g', {}) : null;               // 基线断言连线
-  gMiss = hasBase ? svgEl('g', {}) : null;             // 漏连真对（红虚线桥）
+  gMiss = hasBase ? svgEl('g', {}) : null;             // 基线态漏连真对（红虚线桥）
   gEA = svgEl('g', {});
   gHaloB = hasBase ? svgEl('g', {}) : null;            // 基线组件光环
   gHalo = svgEl('g', {}); gNode = svgEl('g', {});
+  gMissT = svgEl('g', {});                             // 微调态漏连（诚实失手；可空）
   gELabelB = hasBase ? svgEl('g', {}) : null;
   gELabel = svgEl('g', {});
   const layers = [gSrc, gEB];
-  layers.push.apply(layers, hasBase ? [gBL, gMiss, gEA, gHaloB, gHalo, gNode, gELabelB, gELabel]
-                                    : [gEA, gHalo, gNode, gELabel]);
+  layers.push.apply(layers, hasBase ? [gBL, gMiss, gEA, gHaloB, gHalo, gNode, gMissT, gELabelB, gELabel]
+                                    : [gEA, gHalo, gNode, gMissT, gELabel]);
   svg.append.apply(svg, layers);
 
   // 来源孤岛标签：取各孤岛的质心 x / 最高点 y，落在孤岛正上方（避免撞节点）
@@ -673,10 +715,10 @@ function buildNet(){
     el.dataset.a = e.a; el.dataset.b = e.b; el.dataset.kind = 'before';
     gEB.appendChild(el);
   });
-  // 基线层（仅开源轨）：断言连线（红线=误连）+ 组件光环（红=混入异实体）+ 标签
+  // 基线层（双轨同构）：断言连线（红线=误连）+ 组件光环（红=混入异实体）+ 标签
   if (hasBase) {
-    const badSet = new Set(OC.baseline.false_links);
-    OC.baseline.links.forEach(l => {
+    const badSet = new Set(BL.false_links);
+    BL.links.forEach(l => {
       const isBad = badSet.has([l.a, l.b].sort().join('|'));
       const el = svgEl('line', {'class': 'edge'});
       if (isBad) { el.style.stroke = 'var(--red)'; el.style.strokeWidth = '2.4'; el.style.strokeOpacity = '.95'; }
@@ -686,33 +728,24 @@ function buildNet(){
     });
     // 漏连真对：基线没敢连的同一人——红虚线跨在缺口上，中点 ⊘ 断口标记。
     // "该连而没连"本是看不见的缺失，画成断线让它直接可见；数量与统计条 漏连 严格一致。
-    missLinks = [];
-    OC.baseline.missed_pairs.forEach(p => {
-      const w = p.split('|');
-      const g = svgEl('g', {});
-      const ln = svgEl('line', {'class': 'missline'});
-      const mk = svgEl('g', {'class': 'missmark'});
-      mk.appendChild(svgEl('circle', {r: 6}));
-      mk.appendChild(svgEl('line', {x1: -3.8, y1: 3.8, x2: 3.8, y2: -3.8}));
-      g.append(ln, mk);
-      gMiss.appendChild(g);
-      missLinks.push({g: g, ln: ln, mk: mk, a: w[0], b: w[1]});
-    });
-    OC.baseline.network.entities.forEach(en => {
+    missLinks = buildMissGroup(gMiss, BL.missed_pairs);
+    BL.network.entities.forEach(en => {
       const meta = BASE_ENTS[en.e];
       const bad = meta && !meta.pure;
       const R = 30 + 4 * en.size;   // 与 layout._halo_radius 保持一致
       const halo = svgEl('circle', {'class': bad ? 'halo bad' : 'halo', r: 4, opacity: 0});
       halo.dataset.R = R; halo.dataset.cx = en.x; halo.dataset.cy = en.y;
       gHaloB.appendChild(halo);
-      const n = meta ? meta.members.length : en.size;
       const lab = svgEl('text', {'class': bad ? 'elabel badlabel' : 'elabel',
                                   x: en.lx != null ? en.lx : en.x,
                                   y: en.ly != null ? en.ly : en.y - R - 8, opacity: 0});
-      lab.textContent = (bad ? 'MIXED' : 'E' + (meta ? meta.entities[0] : '?')) + (n > 1 ? ' ×' + n : '');
+      lab.textContent = meta ? A.fmtComp(meta) : '?';
+      lab.dataset.cid = en.e;
       gELabelB.appendChild(lab);
     });
   }
+  // 微调态漏连（合成轨 P4/Q6 型诚实失手；实测轨 A.missed 恒空 → 组空，零开销）
+  missLinksT = buildMissGroup(gMissT, A.missed);
   // after 边（实体中心之间）
   NET.edges_after.forEach(e => {
     const el = svgEl('line', {'class': 'edge', 'stroke-width': 2, 'stroke-opacity': .6,
@@ -720,11 +753,11 @@ function buildNet(){
     el.dataset.ea = e.a; el.dataset.eb = e.b; el.dataset.kind = 'after';
     gEA.appendChild(el);
   });
-  // 实体光环 + 标签（开源轨：混入异实体的组件标红）
+  // 实体光环 + 标签（混入异实体的组件标红——合成轨微调态理论恒纯，实测轨有混合）
   NET.entities.forEach(en => {
     const R = 30 + 4 * en.size;   // 与 layout._halo_radius 保持一致
     const meta = A.ent[en.e];
-    const bad = TRACK === 'open' && meta && !meta.pure;
+    const bad = meta && !meta.pure;
     const halo = svgEl('circle', {'class': bad ? 'halo bad' : 'halo', r: 4, opacity: 0});
     halo.dataset.eid = en.e; halo.dataset.R = R; halo.dataset.cx = en.x; halo.dataset.cy = en.y;
     gHalo.appendChild(halo);
@@ -733,11 +766,11 @@ function buildNet(){
                                 y: en.ly != null ? en.ly : en.y - R - 8, opacity: 0});
     lab.dataset.eid = en.e; gELabel.appendChild(lab);
   });
-  // 记录节点（开源轨三态：bx/by 原始 → cx/cy 基线组件 → ax/ay 微调组件）
+  // 记录节点（双轨三态：bx/by 原始 → cx/cy 基线组件 → ax/ay 微调组件）
   const before = {}, after = {}, basePos = {};
   NET.nodes_before.forEach(n => before[n.r] = n);
   NET.nodes_after.forEach(n => after[n.r] = n);
-  if (hasBase) OC.baseline.network.nodes_after.forEach(n => basePos[n.r] = n);
+  if (hasBase) BL.network.nodes_after.forEach(n => basePos[n.r] = n);
   Object.keys(before).forEach(rid => {
     const g = svgEl('g', {});
     const c = svgEl('circle', {'class': 'node', r: 7});
@@ -753,7 +786,7 @@ function buildNet(){
                      cx: basePos[rid] ? basePos[rid].x : null,
                      cy: basePos[rid] ? basePos[rid].y : null,
                      eid: A.eid(rid, before[rid]),
-                     bid: hasBase ? OC.baseline.comp_of[rid] : null};
+                     bid: hasBase ? BL.comp_of[rid] : null};
   });
   netApply(0);
   netSide(null);
@@ -795,7 +828,7 @@ function netApply(u){
     }
     el.setAttribute('opacity', oHB);
   });
-  if (gMiss) missLinks.forEach(m => {       // 漏连虚线：端点跟随节点，⊘ 钉在中点
+  if (gMiss) missLinks.forEach(m => {       // 基线态漏连虚线：端点跟随节点，⊘ 钉在中点
     const pa = netPos[m.a], pb = netPos[m.b];
     if (pa && pb) {
       m.ln.setAttribute('x1', pa[0]); m.ln.setAttribute('y1', pa[1]);
@@ -803,6 +836,15 @@ function netApply(u){
       m.mk.setAttribute('transform', 'translate(' + (pa[0] + pb[0]) / 2 + ',' + (pa[1] + pb[1]) / 2 + ')');
     }
     m.g.setAttribute('opacity', oHB);
+  });
+  missLinksT.forEach(m => {                 // 微调态漏连（诚实失手）：随微调光环淡入
+    const pa = netPos[m.a], pb = netPos[m.b];
+    if (pa && pb) {
+      m.ln.setAttribute('x1', pa[0]); m.ln.setAttribute('y1', pa[1]);
+      m.ln.setAttribute('x2', pb[0]); m.ln.setAttribute('y2', pb[1]);
+      m.mk.setAttribute('transform', 'translate(' + (pa[0] + pb[0]) / 2 + ',' + (pa[1] + pb[1]) / 2 + ')');
+    }
+    m.g.setAttribute('opacity', oH);
   });
   gEA.childNodes.forEach(el => {
     const a = NET.entities.find(x => x.e === el.dataset.ea), b = NET.entities.find(x => x.e === el.dataset.eb);
@@ -833,56 +875,88 @@ function netSyncUI(stage){
   const btn = document.getElementById('resolveBtn');
   const st = document.getElementById('netState');
   st.title = '';
-  if (TRACK === 'open' && netMax === 2) {
+  if (netMax === 2) {   // 三态（双轨同构）：原始 → 基线(代理) → 微调
     btn.textContent = t(['net.open.btn.base', 'net.open.btn.tuned', 'net.unresolve'][s]);
     btn.classList.toggle('off', s === 2);
-    st.textContent = t(['net.open.state.before', 'net.open.state.baseline', 'net.open.state.after'][s]);
-    if (s === 1) st.title = t('net.open.base.note');   // 诚实口径挂 tooltip
-    renderOpenStats(s);
+    if (TRACK === 'open') {
+      st.textContent = t(['net.open.state.before', 'net.open.state.baseline', 'net.open.state.after'][s]);
+      if (s === 1) st.title = t('net.open.base.note');   // 诚实口径挂 tooltip
+    } else {
+      st.textContent = t(['net.state.before', 'net.syn.state.baseline', 'net.syn.state.after'][s]);
+      if (s === 1) st.title = t('net.syn.base.note');    // 剧本轨代理口径挂 tooltip
+    }
+    renderNetStats(s);
     return;
   }
   btn.textContent = s ? t('net.unresolve') : t('net.resolve');
   btn.classList.toggle('off', !!s);
   if (TRACK === 'open') {
     st.textContent = t(s ? 'net.open.state.after' : 'net.open.state.before');
-    renderOpenStats(s);
+    renderNetStats(s);
   } else {
     st.textContent = t(s ? 'net.state.after' : 'net.state.before');
     const sub = document.getElementById('netTrackSub');
     if (sub) sub.innerHTML = '';
   }
 }
-function renderOpenStats(stage){
-  /* 开源轨统计条：按阶段显示真实数字（0 影子对 / 1 基线代理 / 2 微调模型） */
+function renderNetStats(stage){
+  /* 网络统计条（双轨同构）：按阶段显示真实数字（0 原始 / 1 基线代理 / 2 微调）。
+     实测轨：0 影子对数、2 真实模型；合成轨：0 不设条、2 代理评分（口径随轨诚实）。 */
   const sub = document.getElementById('netTrackSub');
   if (!sub) return;
+  const A = trackAdapter();
   const cell = (v, cls) => '<b class="mono ' + (cls || '') + '">' + v + '</b>';
-  if (stage === 1 && OC.baseline) {
-    const b = OC.baseline.stats;
+  if (TRACK === 'open') {
+    if (stage === 1 && A.baseline) {
+      const b = A.baseline.stats;
+      sub.innerHTML =
+        '<span class="ob-sub mono">' + t('ob.baseline.tag') + '</span>' +
+        '<span>θ ' + cell(A.baseline.theta.toFixed(3)) + '</span>' +
+        '<span>' + t('ob.asserted') + ' ' + cell(b.asserted) + '</span>' +
+        '<span>' + t('ob.false') + ' ' + cell(b.false_links, 'num-bad') + '</span>' +
+        '<span>' + t('ob.missed') + ' ' + cell(b.missed_pairs, 'num-bad') + '</span>' +
+        '<span>' + t('ob.comps') + ' ' + cell(b.components + '/' + b.pure_components) + '</span>';
+      return;
+    }
+    if (stage === 0) {
+      sub.innerHTML =
+        '<span>' + t('ob.shadow') + ' ' + cell(NET.edges_before.length) + '</span>' +
+        '<span style="opacity:.6">' + t('ob.shadow.note') + '</span>';
+      return;
+    }
+    const s = A.stats;
+    sub.innerHTML =
+      '<span class="ob-sub mono">' + esc(OC.model) + '</span>' +
+      '<span>' + t('ob.truth') + ' ' + cell(s.truth_pairs) + '</span>' +
+      '<span>' + t('ob.asserted') + ' ' + cell(s.asserted) + '</span>' +
+      '<span>' + t('ob.false') + ' ' + cell(s.false_links, 'num-bad') + '</span>' +
+      '<span>' + t('ob.missed') + ' ' + cell(s.missed_pairs, 'num-bad') + '</span>' +
+      '<span>' + t('ob.comps') + ' ' + cell(s.components + '/' + s.pure_components) + '</span>' +
+      '<span>θ ' + cell(A.theta.toFixed(3)) + '</span>';
+    return;
+  }
+  // 合成轨三态统计条
+  if (stage <= 0 || !A.baseline) { sub.innerHTML = ''; return; }
+  if (stage === 1) {
+    const b = A.baseline.stats;
     sub.innerHTML =
       '<span class="ob-sub mono">' + t('ob.baseline.tag') + '</span>' +
-      '<span>θ ' + cell(OC.baseline.theta.toFixed(3)) + '</span>' +
+      '<span>θ ' + cell(A.baseline.theta.toFixed(2)) + '</span>' +
       '<span>' + t('ob.asserted') + ' ' + cell(b.asserted) + '</span>' +
       '<span>' + t('ob.false') + ' ' + cell(b.false_links, 'num-bad') + '</span>' +
       '<span>' + t('ob.missed') + ' ' + cell(b.missed_pairs, 'num-bad') + '</span>' +
       '<span>' + t('ob.comps') + ' ' + cell(b.components + '/' + b.pure_components) + '</span>';
     return;
   }
-  if (stage === 0) {
-    sub.innerHTML =
-      '<span>' + t('ob.shadow') + ' ' + cell(NET.edges_before.length) + '</span>' +
-      '<span style="opacity:.6">' + t('ob.shadow.note') + '</span>';
-    return;
-  }
-  const s = OC.stats;
+  const s = A.stats;
   sub.innerHTML =
-    '<span class="ob-sub mono">' + esc(OC.model) + '</span>' +
+    '<span class="ob-sub mono">' + t('ob.syn.tuned.tag') + '</span>' +
     '<span>' + t('ob.truth') + ' ' + cell(s.truth_pairs) + '</span>' +
     '<span>' + t('ob.asserted') + ' ' + cell(s.asserted) + '</span>' +
     '<span>' + t('ob.false') + ' ' + cell(s.false_links, 'num-bad') + '</span>' +
     '<span>' + t('ob.missed') + ' ' + cell(s.missed_pairs, 'num-bad') + '</span>' +
     '<span>' + t('ob.comps') + ' ' + cell(s.components + '/' + s.pure_components) + '</span>' +
-    '<span>θ ' + cell(OC.theta.toFixed(3)) + '</span>';
+    '<span>θ ' + cell(A.theta.toFixed(2)) + '</span>';
 }
 function netToggle(){
   const target = netMax === 2 ? (netStage() >= 2 ? 0 : netStage() + 1)
@@ -907,14 +981,20 @@ function netFocus(rid, on){
   const eid = netNodes[rid].eid;
   const A = trackAdapter();
   const neigh = new Set([rid]);
-  if (TRACK === 'open' && netMax === 2) {
+  if (netMax === 2) {
     const stage = netStage();
     if (stage === 1 && BASE_ENTS) {          // 基线态：聚焦基线组件成员
       const ent = BASE_ENTS[netNodes[rid].bid];
       if (ent) ent.members.forEach(m => neigh.add(m));
-    } else if (stage === 2) {                // 微调态：聚焦微调组件成员
+    } else if (stage === 2) {                // 微调态：聚焦微调组件成员（合成轨再外扩关系邻居）
       (A.ent[eid] ? A.ent[eid].members : []).forEach(m => neigh.add(m));
-    } else {                                 // 原始态：影子关系邻居
+      if (TRACK !== 'open') {
+        NET.edges_after.forEach(e => {
+          if (e.a === eid && A.ent[e.b]) A.ent[e.b].members.forEach(m => neigh.add(m));
+          if (e.b === eid && A.ent[e.a]) A.ent[e.a].members.forEach(m => neigh.add(m));
+        });
+      }
+    } else {                                 // 原始态：影子/关系边邻居
       NET.edges_before.forEach(e => { if (e.a === rid) neigh.add(e.b); if (e.b === rid) neigh.add(e.a); });
     }
   } else {
@@ -989,13 +1069,14 @@ function openNetSide(rid){
 }
 function renderNetLegend(){
   const lg = document.getElementById('netLegend');
-  const rels = trackAdapter().rels;
+  const A = trackAdapter();
+  const rels = A.rels;
   let html = '';
   html += '<span class="k">' + t('net.lg.record') + '</span>';
   html += '<span class="k">' + t('net.lg.halo') + '</span>';
-  if (TRACK === 'open' && OC.baseline) html += '<span class="k"><svg width="26" height="8"><line x1="1" y1="4" x2="25" y2="4" style="stroke:var(--red)" stroke-width="2"/></svg>' + t('net.open.lg.blink.bad') + '</span>';
-  if (TRACK === 'open' && OC.baseline) html += '<span class="k"><svg width="26" height="8"><line x1="1" y1="4" x2="25" y2="4" class="missline"/></svg>' + t('net.open.lg.blink.miss') + '</span>';
-  if (TRACK === 'open') html += '<span class="k"><span class="lg-bad-halo"></span>' + t('net.open.lg.mixed') + '</span>';
+  if (A.baseline) html += '<span class="k"><svg width="26" height="8"><line x1="1" y1="4" x2="25" y2="4" style="stroke:var(--red)" stroke-width="2"/></svg>' + t('net.open.lg.blink.bad') + '</span>';
+  if (A.baseline) html += '<span class="k"><svg width="26" height="8"><line x1="1" y1="4" x2="25" y2="4" class="missline"/></svg>' + t('net.open.lg.blink.miss') + '</span>';
+  if (A.baseline) html += '<span class="k"><span class="lg-bad-halo"></span>' + t('net.open.lg.mixed') + '</span>';
   html += '<span class="k">' + t(TRACK === 'open' ? 'net.open.lg.island' : 'net.lg.src') + '</span>';
   for (const rel in rels) {
     html += '<span class="k"><svg width="26" height="8"><line x1="1" y1="4" x2="25" y2="4" ' +
@@ -1010,6 +1091,11 @@ function netLabels(){
   const A = trackAdapter();
   gELabel.childNodes.forEach(l => { l.textContent = A.entLabel(l.dataset.eid); });
   gSrc.childNodes.forEach(l => { l.textContent = A.islandName(l.dataset.srcLabel); });
+  // 基线态组件标签随语言刷新（合成轨是人名，中英不同；实测轨 E 号恒定，刷新无害）
+  if (gELabelB) gELabelB.childNodes.forEach(l => {
+    const meta = BASE_ENTS ? BASE_ENTS[l.dataset.cid] : null;
+    if (meta) l.textContent = A.fmtComp(meta);
+  });
 }
 function renderTrackBar(){
   /* 全局数据集切换器（header 内）：合成剧本 | Febrl3 实测。
@@ -1652,9 +1738,9 @@ function init(){
   }
   // ?resolve=1 直达"归并后"状态（跳过动画，供截图/分享；三态开源轨直达微调态）
   if (qs.get('resolve')) { netResolved = true; netT = netMax; netApply(netMax); netSyncUI(netMax); }
-  // ?stage=0|1|2 直达开源轨三态（原始/基线/微调——截图与现场剧本直达基线态）
+  // ?stage=0|1|2 直达网络三态（原始/基线/微调，双轨通用——截图与现场剧本直达基线态）
   const nst = qs.get('stage');
-  if (nst !== null && TRACK === 'open' && +nst >= 0 && +nst <= netMax) {
+  if (nst !== null && +nst >= 0 && +nst <= netMax) {
     netT = +nst; netApply(+nst); netSyncUI(+nst);
   }
 }

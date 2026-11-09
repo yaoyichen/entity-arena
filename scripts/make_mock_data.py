@@ -172,6 +172,17 @@ def main() -> None:
     results = retrieve_all(world, args.seed)
     metrics = compute_metrics(world, results)
     network = build_network(world, args.seed)
+    # 网络三态的剧本契约（失败不静默）：基线必须"又误连又漏连"（微调前的混乱态），
+    # 微调必须零误连、且保留 ≥1 处漏连（P4/Q6 型诚实失手——演示不装完美）。
+    tu, bl = network["stats"], network["baseline"]["stats"]
+    if bl["false_links"] < 1 or bl["missed_pairs"] < 1:
+        raise SystemExit(f"基线态剧本崩坏（误连 {bl['false_links']} / 漏连 {bl['missed_pairs']}）"
+                         "——三态叙事要求基线既有误连又有漏连，检查 simulate.SCRIPTED_OVERRIDES")
+    if tu["false_links"] != 0:
+        raise SystemExit(f"微调态出现误连 {tu['false_links']} 处——叙事是'微调零误连'，"
+                         "检查 tuned_score 的 lookalike 抑制")
+    if tu["missed_pairs"] < 1:
+        raise SystemExit("微调态零漏连——'诚实失手'（P4/Q6）不见了，演示会显得超自然")
     queries = scripted_queries()
     pairs = scripted_pairs(world)
 
@@ -229,6 +240,11 @@ def main() -> None:
         bb = f"{b:.2f}" if b is not None else " n/a"
         tt = f"{t:.2f}" if t is not None else " n/a"
         print(f"  {s['scenario']:<15} n={s['n']:<3} {bb} → {tt}{extra}")
+    print("--- network three-stage (θ=%.2f, component-level missed) ---" % network["theta"])
+    for name, st in (("baseline(proxy)", network["baseline"]["stats"]),
+                     ("tuned(proxy)", network["stats"])):
+        print(f"  {name:<16} asserted={st['asserted']} false={st['false_links']} "
+              f"missed={st['missed_pairs']} comps={st['components']}/{st['pure_components']} pure")
     print(f"data written to {args.out}/")
 
 

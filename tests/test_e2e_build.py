@@ -73,8 +73,18 @@ class TestEndToEnd(unittest.TestCase):
                        "net.open.btn.base", "qs.get('stage')"):
             self.assertIn(marker, self.html)
         # 漏连可视化：红虚线桥 + ⊘ 断口标记 + 图例词条（误连/漏连在图上可分辨）
-        for marker in ("missmark", "missed_pairs.forEach", "net.open.lg.blink.miss"):
+        for marker in ("missmark", "buildMissGroup", "net.open.lg.blink.miss"):
             self.assertIn(marker, self.html)
+
+    def test_synth_three_stage_in_page(self):
+        """合成轨三态必须打进页面：network.json 基线块（双模型断言组件）+
+        轨内状态文案 + 微调态诚实漏连渲染路径。"""
+        for marker in ('"baseline":{"kind":"proxy"', "net.syn.state.baseline",
+                       "net.syn.state.after", "net.syn.base.note", "renderNetStats"):
+            self.assertIn(marker, self.html)
+        # 剧本契约：基线又误连又漏连、微调零误连 + ≥1 诚实漏连（数据层已锁定，
+        # 这里锁"这些数字真的进页面"）
+        self.assertIn('"false_links":4', self.html)   # 合成基线误连（seed 42）
 
     @unittest.skipUnless(HAS_OPEN_CASES, "data_open/village_scores.json 未入库（平台部署修复后接入）")
     def test_dual_track_switch_in_page(self):

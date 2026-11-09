@@ -1,4 +1,7 @@
-"""网络视图布局：before / after 两套坐标（合成剧本轨 + Febrl3 实测案例村轨）。
+"""网络视图布局（合成剧本轨 + Febrl3 实测案例村轨）。
+
+合成轨三态：原始（来源孤岛）→ 基线组件 → 微调组件，三套坐标两套边
+（微调态组件由断言链并查集而来——画的是模型所为，不是剧本真值）。
 
 坑的清单（继承 retrieval-forge ADR 0005 的教训）：
 1. 力导向**不做硬 clamp**（clamp 会把节点钉在边界形成点带）；
@@ -232,13 +235,88 @@ def build_open_network(records: list[dict], links: list[tuple[str, str]],
     }
 
 
+def _relax_points(pts: list[list[float]], min_d: float = 26, iters: int = 60) -> None:
+    """松弛：推开过近的点对（原地修改）。"""
+    for _ in range(iters):
+        for i in range(len(pts)):
+            for j in range(i + 1, len(pts)):
+                dx = pts[j][0] - pts[i][0]
+                dy = pts[j][1] - pts[i][1]
+                d = math.hypot(dx, dy)
+                if d < min_d:
+                    push = (min_d - d) / 2
+                    ux, uy = (dx / (d + 1e-6)), (dy / (d + 1e-6))
+                    pts[i][0] -= ux * push
+                    pts[i][1] -= uy * push
+                    pts[j][0] += ux * push
+                    pts[j][1] += uy * push
+
+
+def _comp_layout(comp_meta: list[dict], seed: int,
+                 edges: list[tuple[str, str]] | None = None
+                 ) -> tuple[list[dict], dict[str, list[list[float]]]]:
+    """组件级布局：FR（可带组件间关系边）→ 分位归一 → 光环防撞 → 标签防撞。
+
+    返回 (entities, member_pos)：entities 与 build_open_network 同 shape
+    （e/x/y/lx/ly/size）；member_pos = comp_id → [[x, y], ...]（成员环，rid 排序序）。"""
+    ids = [c["id"] for c in comp_meta]
+    idx_of = {cid: i for i, cid in enumerate(ids)}
+    ent_edges = [(idx_of[a], idx_of[b]) for a, b in (edges or []) if a in idx_of and b in idx_of]
+    pts = _quantile_norm(_fr_layout(len(ids), ent_edges, seed))
+    _separate_halos(pts, [c["size"] for c in comp_meta])
+
+    label_pts: list[list[float]] = []
+    for ci, (cx, cy) in enumerate(pts):
+        r = _halo_radius(comp_meta[ci]["size"])
+        label_pts.append([cx, cy + 4.5] if comp_meta[ci]["size"] == 1 else [cx, cy - r - 8])
+    _LW = 72  # 标签宽度估计（"MIXED ×5" / 姓名 ×n 级别，12.5px 字号）
+    for _ in range(80):
+        moved = False
+        for i in range(len(label_pts)):
+            for j in range(i + 1, len(label_pts)):
+                xi, yi = label_pts[i]
+                xj, yj = label_pts[j]
+                if abs(xi - xj) < _LW and abs(yi - yj) < 15:
+                    push = (15 - abs(yi - yj)) / 2
+                    uy = -push if yi <= yj else push
+                    label_pts[i][1] = yi + uy
+                    label_pts[j][1] = yj - uy
+                    moved = True
+        for p in label_pts:  # 软墙：标签留在画布内、避开顶部 .netbar 浮层
+            p[1] = min(max(p[1], 54.0), CANVAS_H - 26.0)
+        if not moved:
+            break
+
+    member_pos: dict[str, list[list[float]]] = {}
+    for ci, c in enumerate(comp_meta):
+        cx, cy = pts[ci]
+        n = max(c["size"], 1)
+        radius = 12 + 4 * n   # 成员环：节点外缘 19+4n，稳落光环 30+4n 内
+        member_pos[c["id"]] = [
+            [cx + radius * math.cos(-math.pi / 2 + 2 * math.pi * k / n),
+             cy + radius * math.sin(-math.pi / 2 + 2 * math.pi * k / n)]
+            for k in range(n)
+        ]
+    entities = [
+        {"e": c["id"], "x": round(pts[ci][0], 1), "y": round(pts[ci][1], 1),
+         "lx": round(label_pts[ci][0], 1), "ly": round(label_pts[ci][1], 1),
+         "size": c["size"]}
+        for ci, c in enumerate(comp_meta)
+    ]
+    return entities, member_pos
+
+
 def build_network(world: World, seed: int = 42) -> dict:
-    """产出 before/after 两套节点坐标 + 两套边。"""
+    """合成剧本轨网络：原始（来源孤岛）→ 基线打分 → 微调打分，三套坐标两套边。
+
+    after 态不再是"剧本真值"而是**微调模型断言出的组件**（诚实口径：图上画的是
+    模型所为，不是作者所知——微调漏连的真对以红虚线 ⊘ 亮出）；基线态 = 字面
+    相似度代理的断言组件（误连红线 / 漏连红虚线 / 混合组件红光环，与实测轨同语言）。
+    """
+    from . import simulate  # 局部导入：simulate 只依赖 synth，无循环依赖
+
     rng = random.Random(seed + 2)
     records = sorted(world.all_records(), key=lambda r: r.record_id)
-    entities = sorted(world.entities, key=lambda e: e.entity_id)
-    rid_to_idx = {r.record_id: i for i, r in enumerate(records)}
-    eid_to_idx = {e.entity_id: i for i, e in enumerate(entities)}
 
     # ---- before：按来源聚簇（每个系统各自一份"孤岛"记录）
     n_src = 5
@@ -260,82 +338,83 @@ def build_network(world: World, seed: int = 42) -> dict:
         j = jitter_by_src[si][counters[si]]
         counters[si] += 1
         pts_before.append([anchors[si][0] + j[0], anchors[si][1] + j[1]])
-    # 松弛：推开过近的点对
-    for _ in range(60):
-        for i in range(len(pts_before)):
-            for j in range(i + 1, len(pts_before)):
-                dx = pts_before[j][0] - pts_before[i][0]
-                dy = pts_before[j][1] - pts_before[i][1]
-                d = math.hypot(dx, dy)
-                if d < 26:
-                    push = (26 - d) / 2
-                    ux, uy = (dx / (d + 1e-6)), (dy / (d + 1e-6))
-                    pts_before[i][0] -= ux * push
-                    pts_before[i][1] -= uy * push
-                    pts_before[j][0] += ux * push
-                    pts_before[j][1] += uy * push
+    _relax_points(pts_before)
 
-    # ---- after：实体级 FR 布局，成员绕实体中心排环
-    agg: dict[tuple[str, str], list[str]] = {}
+    # ---- 双模型断言组件（分数与 results.json 同源：pair_matrix 共用同 rng 流）
+    theta = simulate.THRESHOLD
+    und = simulate.undirected_scores(world, seed)
+    blocks: dict[str, dict] = {}
+    for model in ("baseline", "tuned"):
+        links, comp_of, comp_meta = simulate.link_components(world, und[model], theta)
+        stats, false_links, missed = simulate.link_stats(world, links, comp_of, comp_meta)
+        blocks[model] = {"links": links, "comp_of": comp_of, "comp_meta": comp_meta,
+                         "stats": stats, "false_links": false_links, "missed_pairs": missed}
+
+    # 关系证据聚合到微调组件对（微调态组件间连线；基线态不画关系线，只看断言/光环）
+    rel_agg: dict[tuple[str, str], list[str]] = {}
     for rel in world.relations:
-        ea = world.record_map()[rel.a].entity_id
-        eb = world.record_map()[rel.b].entity_id
-        if ea == eb:
+        ca = blocks["tuned"]["comp_of"][rel.a]
+        cb = blocks["tuned"]["comp_of"][rel.b]
+        if ca == cb:
             continue
-        key = tuple(sorted((ea, eb)))
-        agg.setdefault(key, []).append(rel.rel)
-    ent_edges = [(eid_to_idx[a], eid_to_idx[b]) for a, b in agg]
-    ent_pts = _quantile_norm(_fr_layout(len(entities), ent_edges, seed + 3))
-    _separate_halos(ent_pts, [len(e.records) for e in entities])
+        key = tuple(sorted((ca, cb)))
+        rel_agg.setdefault(key, []).append(rel.rel)
 
-    pts_after: list[list[float]] = []
-    ent_members: dict[str, list[str]] = {e.entity_id: [] for e in entities}
-    for r in records:
-        ent_members[r.entity_id].append(r.record_id)
-    member_ring: dict[str, list[str]] = {}
-    for eid, mems in ent_members.items():
-        member_ring[eid] = sorted(mems)
-    used = {eid: 0 for eid in ent_members}
-    for r in records:
-        eid = r.entity_id
-        mems = member_ring[eid]
-        i = used[eid]
-        used[eid] += 1
-        cx, cy = ent_pts[eid_to_idx[eid]]
-        radius = 12 + 4 * len(mems)   # 与 build_open_network 成员环同公式，稳落光环内
-        ang = -math.pi / 2 + 2 * math.pi * i / max(len(mems), 1)
-        pts_after.append([cx + radius * math.cos(ang), cy + radius * math.sin(ang)])
+    # ---- 布局：微调组件带关系边（家族相邻），基线组件纯斥力（与实测轨同式样）
+    tu_ents, tu_pos = _comp_layout(blocks["tuned"]["comp_meta"], seed + 3,
+                                   edges=list(rel_agg))
+    bl_ents, bl_pos = _comp_layout(blocks["baseline"]["comp_meta"], seed + 17)
 
-    nodes_before = [
-        {"r": r.record_id, "e": r.entity_id, "x": round(x, 1), "y": round(y, 1)}
-        for r, (x, y) in zip(records, pts_before)
-    ]
-    nodes_after = [
-        {"r": r.record_id, "e": r.entity_id, "x": round(x, 1), "y": round(y, 1)}
-        for r, (x, y) in zip(records, pts_after)
-    ]
-    ent_nodes = [
-        {
-            "e": e.entity_id,
-            "x": round(ent_pts[eid_to_idx[e.entity_id]][0], 1),
-            "y": round(ent_pts[eid_to_idx[e.entity_id]][1], 1),
-            "size": len(e.records),
-        }
-        for e in entities
-    ]
-    edges_before = [
-        {"a": rel.a, "b": rel.b, "rel": rel.rel, "note": rel.note}
-        for rel in world.relations
-    ]
-    edges_after = [
-        {"a": a, "b": b, "rels": sorted(set(v)), "evidence": len(v)}
-        for (a, b), v in sorted(agg.items())
-    ]
+    def node_rows(model: str, pos: dict[str, list[list[float]]]) -> list[dict]:
+        b = blocks[model]
+        rows = []
+        for c in b["comp_meta"]:
+            for k, rid in enumerate(sorted(c["members"])):
+                x, y = pos[c["id"]][k]
+                rows.append({"r": rid, "x": round(x, 1), "y": round(y, 1)})
+        return rows
+
+    tu = blocks["tuned"]
+    bl = blocks["baseline"]
     return {
         "canvas": {"w": CANVAS_W, "h": CANVAS_H},
-        "nodes_before": nodes_before,
-        "nodes_after": nodes_after,
-        "entities": ent_nodes,
-        "edges_before": edges_before,
-        "edges_after": edges_after,
+        "theta": theta,
+        "nodes_before": [
+            {"r": r.record_id, "e": r.entity_id, "x": round(x, 1), "y": round(y, 1)}
+            for r, (x, y) in zip(records, pts_before)
+        ],
+        # after（微调态）坐标 = 微调组件成员环
+        "nodes_after": node_rows("tuned", tu_pos),
+        "entities": tu_ents,
+        "comp_members": {c["id"]: c["members"] for c in tu["comp_meta"]},
+        "components": tu["comp_meta"],
+        "comp_of": tu["comp_of"],
+        "stats": tu["stats"],
+        "links": tu["links"],
+        "false_links": tu["false_links"],
+        "missed_pairs": tu["missed_pairs"],
+        "edges_before": [
+            {"a": rel.a, "b": rel.b, "rel": rel.rel, "note": rel.note}
+            for rel in world.relations
+        ],
+        "edges_after": [
+            {"a": a, "b": b, "rels": sorted(set(v)), "evidence": len(v)}
+            for (a, b), v in sorted(rel_agg.items())
+        ],
+        # 基线态（"微调前"）：shape 与 open_cases.baseline 逐字段一致，前端共用一套渲染
+        "baseline": {
+            "kind": "proxy",
+            "theta": theta,
+            "stats": bl["stats"],
+            "links": bl["links"],
+            "false_links": bl["false_links"],
+            "missed_pairs": bl["missed_pairs"],
+            "components": bl["comp_meta"],
+            "comp_of": bl["comp_of"],
+            "network": {
+                "nodes_after": node_rows("baseline", bl_pos),
+                "entities": bl_ents,
+                "comp_members": {c["id"]: c["members"] for c in bl["comp_meta"]},
+            },
+        },
     }

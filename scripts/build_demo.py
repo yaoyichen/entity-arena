@@ -113,7 +113,10 @@ def main() -> None:
                "const DATA = {", "netToggle", "renderScoreboard", "renderOpenBench",
                "renderConnect", "er_score_pair", "renderPlay", "playScore",
                'id="trackBar"', "switchNetTrack", "openNetSide",
-               "renderTrackBar", "applyTrackChrome"]
+               "renderTrackBar", "applyTrackChrome",
+               # 合成轨三态：network.json 必须带基线块（旧数据契约 → 构建即失败，不静默）
+               '"baseline":{"kind":"proxy"', "net.syn.state.baseline",
+               "buildMissGroup", "renderNetStats"]
     if bundle["open_cases"] is not None:
         markers.append('"open_cases":{')  # 数据就绪时必须真的打进页面
         markers += ['"query_id":"F1"', '"pair_id":"R3"', 'missmark']  # 新 payload 与漏连标记必须真的进页面
