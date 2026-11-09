@@ -81,10 +81,18 @@ class TestEndToEnd(unittest.TestCase):
                        "badge.open", "sb.proto.open"):
             self.assertIn(marker, self.html)
 
+    @unittest.skipUnless(HAS_OPEN_CASES, "data_open/village_scores.json 未入库（平台部署修复后接入）")
+    def test_playground_matrix_in_page(self):
+        """试玩台离线矩阵必须打进页面（b64 全量对 + 量程下限）。"""
+        for marker in ('"play":{"n":', '"order":["rec-', '"lo":', "playRevealed"):
+            self.assertIn(marker, self.html)
+
     def test_page_markers_present(self):
         for marker in ('id="view-arena"', 'id="view-network"', 'id="view-explain"',
-                       'id="view-scoreboard"', 'id="openBench"',
-                       "switchNetTrack", "openNetSide", "const DATA = {"):
+                       'id="view-scoreboard"', 'id="view-play"', 'id="view-connect"',
+                       'id="openBench"',
+                       "switchNetTrack", "openNetSide", "const DATA = {",
+                       "renderConnect", "er_score_pair", "renderPlay", "playScore"):
             self.assertIn(marker, self.html)
 
     def test_zero_external_links(self):
@@ -114,7 +122,8 @@ class TestEndToEnd(unittest.TestCase):
     def test_build_is_single_file_reasonable_size(self):
         kb = self.out.stat().st_size / 1024
         self.assertGreater(kb, 50, "页面异常地小 —— 数据可能没打进去")
-        self.assertLess(kb, 500, "页面异常地大")
+        # 上限 650：试玩台嵌入 25,878 对量化真实分数矩阵（b64 ~67KB）
+        self.assertLess(kb, 650, "页面异常地大")
 
 
 if __name__ == "__main__":

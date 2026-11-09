@@ -23,8 +23,10 @@
 from __future__ import annotations
 
 import argparse
+import base64
 import json
 import math
+import struct
 import sys
 from pathlib import Path
 
@@ -117,6 +119,34 @@ def _field_state(va: str | None, vb: str | None) -> tuple[str, float | None]:
         return "exact", 1.0
     sim = round(_lev_ratio(va, vb), 2)
     return ("fuzzy" if sim >= 0.7 else "conflict"), sim
+
+
+def build_play_matrix(rids: list[str], pairs: list[tuple[str, str, float]],
+                      theta: float) -> dict:
+    """试玩台（页面内 playground）离线分数矩阵：全量对 1e-4 量化 → u16 小端 → base64。
+
+    rid 排序后上三角行主序索引（i<j：k = i*(2n-i-1)/2 + j-i-1），前端同公式解码。
+    量化后判定（q ≥ θ）必须与全精度判定逐对一致，否则 raise——页面试玩台的
+    LINKED/REFUSED 不允许与网络视图断言链出现任何不一致（失败不静默）。
+    """
+    order = sorted(rids)
+    pos = {r: i for i, r in enumerate(order)}
+    n = len(order)
+    vals = [-1] * (n * (n - 1) // 2)
+    for a, b, s in pairs:
+        i, j = sorted((pos[a], pos[b]))
+        k = i * (2 * n - i - 1) // 2 + (j - i - 1)
+        q = math.floor(s * 10000 + 0.5)   # round-half-up，0≤q≤10000 恒在 u16 内
+        if (q / 10000 >= theta) != (s >= theta):
+            raise SystemExit(
+                f"play matrix: 量化翻转判定 {a} × {b}（s={s:.6f} q={q / 10000:.4f} "
+                f"θ={theta:.6f}）——收紧量化网格或全精度入库")
+        vals[k] = q
+    if -1 in vals:
+        raise SystemExit("play matrix: pairs 未覆盖全量两两组合（数据管道损坏）")
+    b64 = base64.b64encode(struct.pack(f"<{len(vals)}H", *vals)).decode("ascii")
+    lo = (min(vals) // 100) / 100 - 0.01   # 量程下限（刻度条只画有效区间）
+    return {"n": n, "order": order, "b64": b64, "lo": round(lo, 2)}
 
 
 def build_explain_cards(records: list[dict], pairs: list[tuple[str, str, float]],
@@ -742,6 +772,7 @@ def main() -> None:
                                 [tuple(p) for p in village["shadow_pairs"]])
     metrics = build_open_metrics(records, pairs, bpairs, ent_of, theta, theta_b,
                                  [tuple(p) for p in village["shadow_pairs"]])
+    play = build_play_matrix(rids, pairs, theta)
 
     payload = {
         "model": model_name,
@@ -766,6 +797,7 @@ def main() -> None:
         "explain": explain,
         "arena": arena,
         "metrics": metrics,
+        "play": play,
         "baseline": {
             "kind": "proxy",
             "theta": round(theta_b, 6),
@@ -820,6 +852,11 @@ def main() -> None:
                             "R6 基线误连异实体对中最自信。全部要求微调侧距 θ ≥0.01"
                             "（GPU 抖动 ~0.005 不翻判定）；R5/R6 的基线分数为字面代理，"
                             "只出现在 note 文本",
+            "play_rule": "试玩台（页面内 playground）分数 = village_scores 全量两两对"
+                         "按 1e-4 网格量化的真实余弦（u16 打包嵌入页面，排序 rid 上三角"
+                         "行主序索引）；构建期逐对断言量化判定与全精度判定一致，"
+                         "不一致即 raise。页内任意挑对打分与 MCP er_score_pair 离线模式"
+                         "同源同值",
         },
     }
     args.out.parent.mkdir(parents=True, exist_ok=True)
@@ -841,6 +878,8 @@ def main() -> None:
           f"tuned link_recall={ov['tuned']['link_recall']} "
           f"link_precision={ov['tuned']['link_precision']}")
     print(f"  explain cards: {[c['pair_id'] for c in explain['pairs']]}")
+    print(f"  play matrix: {play['n']} rids, {play['n'] * (play['n'] - 1) // 2} pairs "
+          f"(b64 {len(play['b64']) / 1024:.0f} KB)")
 
 
 if __name__ == "__main__":

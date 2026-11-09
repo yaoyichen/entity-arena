@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "entity-er": {
+      "command": "python3",
+      "args": ["scripts/er_mcp_server.py"]
+    }
+  }
+}

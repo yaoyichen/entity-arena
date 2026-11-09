@@ -109,8 +109,9 @@ def main() -> None:
 
     # 自检：关键标记齐全（失败不静默）
     markers = ['id="view-arena"', 'id="view-network"', 'id="view-explain"',
-               'id="view-scoreboard"', 'id="openBench"', "const DATA = {",
-               "netToggle", "renderScoreboard", "renderOpenBench",
+               'id="view-scoreboard"', 'id="view-play"', 'id="view-connect"', 'id="openBench"',
+               "const DATA = {", "netToggle", "renderScoreboard", "renderOpenBench",
+               "renderConnect", "er_score_pair", "renderPlay", "playScore",
                'id="trackBar"', "switchNetTrack", "openNetSide",
                "renderTrackBar", "applyTrackChrome"]
     if bundle["open_cases"] is not None:
@@ -120,7 +121,7 @@ def main() -> None:
         if marker not in html:
             raise SystemExit(f"self-check failed: marker missing: {marker}")
     assert "</script><script" not in html.split("<body>")[0]  # 数据未破坏脚本结构
-    print("self-check: 4 views + data blob + interactions ✓")
+    print("self-check: 6 views + data blob + interactions ✓")
 
     if args.open:
         import subprocess

@@ -19,7 +19,7 @@ python3 scripts/build_demo.py --open         # ④ 构建 build/demo.html 并用
 ```
 
 - 零第三方依赖（Python ≥3.11 纯标准库）；产物**单文件、零外链、断网可开**，可直接发给客户。
-- 测试（83 项）：`PYTHONPATH=src python3 -m unittest discover -s tests`
+- 测试（107 项）：`PYTHONPATH=src python3 -m unittest discover -s tests`
 
 ## 双轨数据集（页面顶部一键切换）
 
@@ -32,7 +32,7 @@ python3 scripts/build_demo.py --open         # ④ 构建 build/demo.html 并用
 
 四个视图全部跟随切换（数据缺席时切换器隐藏、仅合成轨——降级路径保留）。
 
-## 四个视图（给客户讲的动线）
+## 五个视图（给客户讲的动线）
 
 | 视图 | 讲什么 | 关键交互 |
 |---|---|---|
@@ -40,12 +40,30 @@ python3 scripts/build_demo.py --open         # ④ 构建 build/demo.html 并用
 | **Network 关系网** | 双轨：**合成剧本**（按来源孤岛 → 实体 halo 形变）与 **Febrl3 实测三态**（228 条真实记录：影子纠缠簇 → 基线打分·字面相似度代理·误连 9 漏连 17 → 微调模型断言·零误连零漏连） | 实测轨按钮三段推进（原始 → 基线 → 微调）；点节点看档案（实测轨含真实分数 top-3 与 θ 判定）；红线/红光环 = 误连与混合组件 |
 | **Explain 为什么** | 按轨过滤：合成轨 P 卡（✓ 全同 / ≈ 近似 / ✗ 冲突 / — 缺失，两模型对比）+ 实测轨 **R1–R6 六张卡**（R1 错字风暴仍连对 0.946 / R2 最像的陌生人仍拒 0.911 / R3 贴线惊险连对 / R4 双 exact 仍拒 / R5 基线漏连·微调补上 / R6 基线误连·微调拒），全部真实模型分数 + 该轨真实 θ，极值规则挑选 | 切案例；实测卡=微调单行 + 真值芯片 + live 复打命令 |
 | **Scoreboard 记分牌** | 第一板块按轨切换：实测轨=案例村方向性口径（link_recall 0.947→**1.000**、link_precision 0.973→**1.000**、false_link_rate 0.044→**0.000**，recall@5 双 1.000 属数据性质、口径文本如实说明）+ 五分桶柱图；合成轨=口径完全一致的方向性指标（θ=0.55）。下接全轨共有的**开源基准轨**（三个真实基模微调前后实测 × Febrl3） | — |
+| **Playground 试玩台** | 228 条村记录**任意挑两条**（搜索/名场面 R1–R3/随机真对/最像的陌生人/随便来一对），敢的话先盲猜 LINK/REFUSE，再看真实余弦对 θ 判定 + 字段四态对照 + Febrl3 真值核验；页面内嵌全量 25,878 对预取样真实矩阵（构建期断言量化不翻判定），**断网可玩、与线上服务同值** | 搜索挑记录；盲猜记分（你 vs 模型）；Explain 实测卡一键「去试玩台打这对」 |
 
-深链（截图/分享直达状态）：`?view=arena|network|explain|scoreboard`、
+深链（截图/分享直达状态）：`?view=arena|network|explain|scoreboard|play|connect`、
 `?track=open|synth`（全局双轨直达，双向同步）、`?stage=0|1|2`（网络实测轨直达
 原始/基线/微调三态）、`?focus=R101`（自动开档案）、`?resolve=1`（直达归并后）、
 `?q=F1|Q2`（Arena 直达查询，按前缀自动切轨）、`?case=R3|P2`（Explain 直达
-案例卡，同理）、`?lang=zh|en`。
+案例卡，同理）、`?pair=ridA,ridB`（试玩台直达指定对，不带 view 时自动切过去）、
+`?lang=zh|en`。
+
+## 试用：MCP 接入（第六视图「接入」）
+
+不想只看页面？把同一套判定能力直接交给你的 AI 客户端（Claude Code /
+Claude Desktop / 任意 MCP 客户端）：
+
+```bash
+claude mcp add entity-er -- python3 scripts/er_mcp_server.py   # 或直接用仓库自带 .mcp.json
+```
+
+之后自然语言提问即可："搜村里叫 morrison 的记录，挑两条打分是不是同一个人"。
+三个工具：`er_score_pair`（真实余弦 + θ 判定 + 字段对照 + 真值核验）、
+`er_find_records`（案例村检索）、`er_about`（口径卡）。两种模式：**离线 rid 对打分
+零配置**（25,878 对预取样真实矩阵，确定性=实时输出）；自由文本实时打分配
+`EMB_TOKEN` 即可。页面「接入」视图（`?view=connect`）内嵌全部命令与示例、
+一键复制；完整文档见 **`docs/mcp.md`**。
 
 ## 指标（seed=42 实测，测试锁定）
 

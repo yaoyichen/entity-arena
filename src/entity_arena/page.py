@@ -29,6 +29,8 @@ __CSS__
       <button data-view="network" data-i18n="nav.network"></button>
       <button data-view="explain" data-i18n="nav.explain"></button>
       <button data-view="scoreboard" data-i18n="nav.scoreboard"></button>
+      <button data-view="play" data-i18n="nav.play"></button>
+      <button data-view="connect" data-i18n="nav.connect"></button>
     </nav>
     <button class="lang" id="langBtn">中文</button>
   </div>
@@ -83,6 +85,22 @@ __CSS__
     <div id="scoreMain"></div>
     <div id="openBench"></div>
   </section>
+
+  <section id="view-play" class="view">
+    <div class="vhead">
+      <h1 data-i18n="play.h"></h1>
+      <p id="playSub"></p>
+    </div>
+    <div id="playMain"></div>
+  </section>
+
+  <section id="view-connect" class="view">
+    <div class="vhead">
+      <h1 data-i18n="conn.h"></h1>
+      <p data-i18n="conn.sub"></p>
+    </div>
+    <div id="connectMain"></div>
+  </section>
 </main>
 <footer>
   <div class="fin">
@@ -110,6 +128,8 @@ const I18N = {
   'nav.network':   {en:'Network', zh:'关系网络'},
   'nav.explain':   {en:'Explain', zh:'匹配解释'},
   'nav.scoreboard':{en:'Scoreboard', zh:'指标板'},
+  'nav.play':      {en:'Playground', zh:'试玩台'},
+  'nav.connect':   {en:'Connect', zh:'接入'},
   'lg.tuned':      {en:'Fine-tuned', zh:'微调模型'},
   'lg.baseline':   {en:'Baseline', zh:'基线模型'},
   'lg.false':      {en:'False link', zh:'误连'},
@@ -224,8 +244,81 @@ const I18N = {
                    zh:'口径——查询与文档同池（每条记录既查也被查），top-1 常命中自身：绝对值按"有效 k−1"解读；六个运行同口径，前后对比公平。微调后三个模型的 Recall@1 一致收敛到 0.444 ≈ 1/2.25，即 top-1 必中相关文档时的理论上限（平均每查询 2.25 个相关记录）。固定 test split（400 实体 / 850 查询），pytrec_eval，硬负例开启。nemotron 基线已近满分（Recall@10 = 1.000），微调增益必然微小——如实呈现。报告原文：data_open/eval_reports/。'},
   'sb.proto.open': {en:'Protocol — each of the 228 village records queries the other 227; models return top-5 with scores; a hit = same ground-truth identity; links asserted at each model\'s own F1-optimal θ (tuned 0.921, baseline proxy 0.560). Directional counting, identical to the scripted track. recall@5 = 1.00 for BOTH models here — ranking true pairs into the top-5 is easy on this village; the difference is in the assertion metrics (dare-to-link, link-precision, false-link rate), where the tuned model is perfect and the proxy is not. Fine-tuned scores are real model outputs; pairwise baseline is a literal-similarity proxy (weights in provenance) — real base-model numbers are in the open-benchmark board below. Buckets classify each query by its field profile against true siblings (missing > conflict > typo-storm > typo > look-alike).',
                    zh:'口径——228 条村记录两两检索，各取 top-5 及分数；命中 = 真同一身份；断言 = 分数 ≥ 各模型自己的 F1 最优 θ（微调 0.921、基线代理 0.560）。方向性计数，与合成轨完全同口径。本村两模型 recall@5 均为 1.00——把真对排进前五不难，差距在断言指标（敢连、连得对、不误连）：微调模型全对，字面代理不是。微调分数为真实模型输出；逐对基线是字面相似度代理（权重见 provenance）——真实基线数字在下方开源基准板块。分桶按每条查询对其真身兄弟的字段形态分类（缺失 > 冲突 > 错字风暴 > 零星错字 > 影子相似）。'},
-  'footer.note':   {en:'Scripted track: records, relations and scores are synthetic, generated deterministically from seed. Open-benchmark track: real measurements of fine-tuned models on Febrl3. Single-file build — opens offline.',
-                   zh:'剧本轨：记录、关系与分数均为种子确定性生成的合成数据；开源基准轨：微调模型在 Febrl3 上的真实实测。单文件构建，可离线打开。'},
+  'conn.h':        {en:'Take the scorer into your own AI', zh:'把打分器装进你的 AI 助手'},
+  'conn.sub':      {en:'This page tells the story offline; the MCP server ships the same scorer — real model scores, θ verdict, field-by-field evidence — into any MCP client (Claude Code, Claude Desktop, any agent). Pure standard library, zero dependencies; village-rid pairs score offline with zero config.',
+                   zh:'本页负责离线讲故事；MCP 服务器把同一个打分器——真实模型分数、θ 判定、逐字段证据——装进任意 MCP 客户端（Claude Code、Claude Desktop、任何 agent）。纯标准库、零第三方依赖；案例村 rid 对零配置即可离线打分。'},
+  'conn.s1.h':     {en:'1 · Register once', zh:'① 一次注册'},
+  'conn.s1.t':     {en:'One command (or the repo\'s bundled .mcp.json) — approve once and done.', zh:'一行命令（或用仓库自带的 .mcp.json），点一次允许即可。'},
+  'conn.s2.h':     {en:'2 · Ask in your own words', zh:'② 自然语言提问'},
+  'conn.s2.t':     {en:'"Are these two records the same person?" — your agent picks the right tool.', zh:'“这两条记录是同一个人吗？”——agent 自己会选对工具。'},
+  'conn.s3.h':     {en:'3 · Get verdict + evidence', zh:'③ 拿到判定与证据'},
+  'conn.s3.t':     {en:'Real cosine, θ decision line, field diff, ground-truth check.', zh:'真实余弦、θ 判定线、字段对照、真值核验。'},
+  'conn.install.h':{en:'Register the server', zh:'注册服务器'},
+  'conn.install.cc':{en:'Claude Code — one command', zh:'Claude Code —— 一行命令'},
+  'conn.install.repo':{en:'…or simply open this repo in Claude Code: the bundled .mcp.json offers the server — approve when prompted. Rid-pair scoring works immediately, no token, no network.',
+                   zh:'……或者直接用 Claude Code 打开本仓库：自带的 .mcp.json 会提示启用，点允许即可。rid 对打分立即可用——不要令牌、不要联网。'},
+  'conn.install.any':{en:'Claude Desktop / any MCP client — server entry', zh:'Claude Desktop / 任意 MCP 客户端 —— 服务器配置'},
+  'conn.tools.h':  {en:'Three tools', zh:'三个工具'},
+  'conn.tools.name':{en:'Tool', zh:'工具'},
+  'conn.tools.args':{en:'Arguments', zh:'参数'},
+  'conn.tools.does':{en:'What it does', zh:'做什么'},
+  'conn.t1.d':     {en:'Two records → real cosine + θ verdict + field diff + truth check. rid×rid offline; free text needs EMB_TOKEN.', zh:'两条记录 → 真实余弦 + θ 判定 + 字段对照 + 真值核验。rid×rid 离线可用；自由文本需 EMB_TOKEN。'},
+  'conn.t2.d':     {en:'Search the 228-record village (name / dob / ssn / address substring) → rids for scoring.', zh:'检索 228 条村记录（姓名/生日/SSN/地址子串）→ 供打分用的 rid。'},
+  'conn.t3.d':     {en:'Provenance & config: model, θ origin, mode status, honesty statement.', zh:'口径与配置：模型、θ 来源、模式状态、诚实声明。'},
+  'conn.ex.h':     {en:'Try asking (copy into your AI)', zh:'示例提问（复制给你的 AI）'},
+  'conn.ex1':      {en:'Find records named morrison in the village, then score the two most alike — same person?', zh:'在案例村找姓 morrison 的记录，挑最像的两条打分：是同一个人吗？'},
+  'conn.ex2':      {en:'Score rec-476-dup-0 vs rec-476-dup-1: cosine, above θ or not, and what does Febrl3 truth say?', zh:'给 rec-476-dup-0 和 rec-476-dup-1 打分：余弦多少？过没过 θ？Febrl3 真值怎么说？'},
+  'conn.ex3':      {en:'(live mode, needs EMB_TOKEN) Same person? A: "name: spencer green | DOB: 1963-08-13" B: "name: spencxr green | DOB: 1963-08-13"',
+                   zh:'（在线模式，需 EMB_TOKEN）这两条是同一个人吗？A：“name: spencer green | DOB: 1963-08-13” B：“name: spencxr green | DOB: 1963-08-13”'},
+  'conn.ex4':      {en:'What exactly am I looking at — are the scores real? How was θ chosen?', zh:'我看到的分数是真的吗？θ 是怎么选的？口径是什么？'},
+  'conn.mode.h':   {en:'Two scoring modes', zh:'两种打分模式'},
+  'conn.mode.off.h':{en:'Offline · village rid pairs', zh:'离线 · 案例村 rid 对'},
+  'conn.mode.off.t':{en:'Zero config. Scores come from the pre-sampled real matrix — all 25,878 pairs of the 228-record village. The deployed model is deterministic, so offline equals live; and it never breaks on stage.',
+                   zh:'零配置。分数取自已入库的真实分数矩阵——228 条记录两两全量 25,878 对。部署模型输出确定，离线 = 实时；且现场永不掉链子。'},
+  'conn.mode.on.h':{en:'Live · free text', zh:'在线 · 自由文本'},
+  'conn.mode.on.t':{en:'Set the EMB_TOKEN environment variable, then any two free-text records (mixing in village rids is fine) are scored live by the deployed fine-tuned model — bring your own data, same θ ruler.',
+                   zh:'设置 EMB_TOKEN 环境变量后，任意两条自由文本记录（可与 rid 混搭）由部署的微调模型实时打分——出你自己的题，θ 同一把尺子。'},
+  'conn.proto':    {en:'Honesty — every score is the fine-tuned model\'s real output (offline: pre-sampled deterministic matrix; live: deployed service). θ = {TH} was picked by link-F1 scan on this village, entity selection blind to scores; a verdict is the model\'s assertion, checked against Febrl3 truth (public benchmark, programmatically generated, no real PII). Village: 228 records / 78 identities / 1,223 look-alike shadow pairs. Full guide: docs/mcp.md.',
+                   zh:'诚实口径——所有分数均为微调模型真实输出（离线 = 预取样确定性矩阵；在线 = 部署服务实时）。θ = {TH} 由本村 link-F1 扫描选出，选村对分数盲；判定是模型断言，与 Febrl3 真值核验（公开基准、程序生成、无真实隐私）。案例村：228 条记录 / 78 个身份 / 1,223 对影子相似。完整指南：docs/mcp.md。'},
+  'conn.copy':     {en:'copy', zh:'复制'},
+  'conn.copied':   {en:'copied ✓', zh:'已复制 ✓'},
+  'play.h':        {en:'Playground — pick a pair, call the verdict', zh:'试玩台 · 挑一对，亲手下判定'},
+  'play.sub':      {en:'All 25,878 pairs of the 228-record village, scored by the fine-tuned model — pick any two records (or draw a classic), guess first if you dare, then see the real cosine against θ. Fully offline: this page embeds the pre-sampled real matrix, identical to the live service output.',
+                   zh:'228 条村记录两两全量 25,878 对，分数全部来自微调模型——任意挑两条（或抽一对名场面），敢的话先盲猜，再看真实余弦对着 θ 的判定。全程离线：页面内嵌预取样真实矩阵，与线上服务输出一致。'},
+  'play.none':     {en:'Febrl3 village data is not bundled in this build — the playground needs it. Rebuild after village scores land.', zh:'本构建未打入 Febrl3 案例村数据——试玩台需要它。案例村分数入库后重新构建即可。'},
+  'play.preset.h': {en:'Or start from a classic', zh:'名场面一键开打'},
+  'play.preset.t': {en:'random true pair', zh:'随机真对'},
+  'play.preset.n': {en:'closest stranger', zh:'最像的陌生人'},
+  'play.preset.r': {en:'surprise me', zh:'随便来一对'},
+  'play.pick.h':   {en:'Pick two records', zh:'挑两条记录'},
+  'play.search':   {en:'search name / dob / ssn / address / rid…', zh:'搜姓名 / 生日 / 证件号 / 地址 / rid…'},
+  'play.nomatch':  {en:'no match', zh:'没有匹配'},
+  'play.empty':    {en:'Pick two records (or hit a preset above) — scoring works offline, no token, no network.', zh:'挑两条记录（或点上面的名场面）——离线即可打分，不要令牌、不要联网。'},
+  'play.same':     {en:'That\'s the same record twice — pick two different ones.', zh:'这是同一条记录——换一条吧。'},
+  'play.guess.h':  {en:'Your call first: same person?', zh:'先你来判断：是同一个人吗？'},
+  'play.guess.link':{en:'LINK', zh:'连'},
+  'play.guess.refuse':{en:'REFUSE', zh:'不连'},
+  'play.guess.skip':{en:'just show me', zh:'直接看结果'},
+  'play.tally':    {en:'you vs model: {OK}/{N}', zh:'你 vs 模型：{OK}/{N}'},
+  'play.you':      {en:'you said', zh:'你判的是'},
+  'play.verdict.linked':{en:'LINKED — asserted same identity', zh:'LINKED · 断言同一个人'},
+  'play.verdict.refused':{en:'REFUSED — not asserted', zh:'REFUSED · 拒绝断言'},
+  'play.above':    {en:'above θ', zh:'超 θ'},
+  'play.below':    {en:'below θ', zh:'距 θ 不足'},
+  'play.truth.same':{en:'Febrl3 truth: same identity', zh:'Febrl3 真值：同一人'},
+  'play.truth.diff':{en:'Febrl3 truth: different people', zh:'Febrl3 真值：不同人'},
+  'play.truth.ok': {en:'assertion CORRECT', zh:'断言正确'},
+  'play.truth.bad':{en:'assertion WRONG', zh:'断言错误'},
+  'play.mode':     {en:'score mode: offline pre-sampled real matrix — equals the live service output (free-text scoring lives in the MCP server; see Connect view).',
+                   zh:'打分模式：离线预取样真实矩阵——与线上服务输出一致（自由文本打分在 MCP 服务器里，见「接入」视图）。'},
+  'play.f.name':   {en:'Name', zh:'姓名'},
+  'play.f.dob':    {en:'DOB', zh:'生日'},
+  'play.f.address':{en:'Address', zh:'地址'},
+  'play.f.locality':{en:'Locality', zh:'地区'},
+  'play.f.ssn':    {en:'ID No.', zh:'证件号'},
+  'play.open':     {en:'▶ open this pair in the Playground', zh:'▶ 这对去试玩台亲手打'},
+  'conn.toplay':   {en:'▶ Try it right on this page — Playground', zh:'▶ 先在本页零安装试一把 —— 试玩台'},
+  'footer.note':   {en:'Scripted track: records, relations and scores are synthetic, generated deterministically from seed. Open-benchmark track: real measurements of fine-tuned models on Febrl3. Single-file build — opens offline.',                   zh:'剧本轨：记录、关系与分数均为种子确定性生成的合成数据；开源基准轨：微调模型在 Febrl3 上的真实实测。单文件构建，可离线打开。'},
   'footer.note.open': {en:'Open track: Febrl3 public benchmark (programmatically generated person records, no real PII); fine-tuned scores are real model measurements; pairwise baseline is a literal-similarity proxy. Scripted track available via the header switch. Single-file build — opens offline.',
                    zh:'实测轨：Febrl3 公开基准（程序合成的个人记录，无真实隐私数据）；微调分数为真实模型实测；逐对基线为字面相似度代理。可用头部切换器切回合成剧本轨。单文件构建，可离线打开。'},
 };
@@ -274,10 +367,8 @@ function setLang(l){
   document.getElementById('langBtn').textContent = (l === 'en' ? '中文' : 'EN');
   document.documentElement.lang = l;
   document.querySelectorAll('[data-i18n]').forEach(el => { el.textContent = t(el.dataset.i18n); });
-  document.getElementById('buildInfo').textContent = DATA.meta.generated_at +
-    ' · ' + DATA.meta.n_records + ' rec / ' + DATA.meta.n_entities + ' ent';
   applyTrackChrome();
-  renderArena(); renderNetLegend(); netLabels(); renderTrackBar(); renderExplain(); renderScoreboard(); renderOpenBench();
+  renderArena(); renderNetLegend(); netLabels(); renderTrackBar(); renderExplain(); renderScoreboard(); renderOpenBench(); renderPlay(); renderConnect();
 }
 function applyTrackChrome(){
   /* 按当前数据集轨道刷新徽章与口径文案（诚实标注随轨切换） */
@@ -285,6 +376,10 @@ function applyTrackChrome(){
   document.getElementById('thr-note').textContent = TRACK === 'open'
     ? 'θ base ' + OC.baseline.theta.toFixed(3) + ' (proxy) / tuned ' + OC.theta.toFixed(3) + ' · ' + t('thr.at')
     : 'θ = ' + TAU + ' · ' + t('thr.at');
+  /* buildInfo 也随轨：open 轨报案例村规模，synth 轨报生成时间戳（合成数据专属） */
+  document.getElementById('buildInfo').textContent = (TRACK === 'open' && OC)
+    ? Object.keys(OC.records).length + ' rec / ' + OC.stats.components + ' ent · Febrl3'
+    : DATA.meta.generated_at + ' · ' + DATA.meta.n_records + ' rec / ' + DATA.meta.n_entities + ' ent';
   document.getElementById('seed-pill').textContent = TRACK === 'open'
     ? t('badge.open') + ' · ' + OC.model
     : t('badge.synthetic') + ' · seed ' + DATA.meta.seed;
@@ -582,7 +677,7 @@ function buildNet(){
       const isBad = badSet.has([l.a, l.b].sort().join('|'));
       const el = svgEl('line', {'class': 'edge'});
       if (isBad) { el.style.stroke = 'var(--red)'; el.style.strokeWidth = '2'; el.style.strokeOpacity = '.85'; }
-      else { el.style.stroke = '#7aa7c9'; el.style.strokeWidth = '1.1'; el.style.strokeOpacity = '.3'; }
+      else { el.style.stroke = 'var(--edge)'; el.style.strokeWidth = '1.1'; el.style.strokeOpacity = '.3'; }
       el.dataset.a = l.a; el.dataset.b = l.b; el.dataset.kind = 'blink';
       gBL.appendChild(el);
     });
@@ -873,11 +968,11 @@ function renderNetLegend(){
   html += '<span class="k">' + t('net.lg.record') + '</span>';
   html += '<span class="k">' + t('net.lg.halo') + '</span>';
   if (TRACK === 'open') html += '<span class="k"><span class="lg-bad-halo"></span>' + t('net.open.lg.mixed') + '</span>';
-  if (TRACK === 'open' && OC.baseline) html += '<span class="k"><svg width="26" height="8"><line x1="1" y1="4" x2="25" y2="4" stroke="#d97862" stroke-width="2"/></svg>' + t('net.open.lg.blink.bad') + '</span>';
+  if (TRACK === 'open' && OC.baseline) html += '<span class="k"><svg width="26" height="8"><line x1="1" y1="4" x2="25" y2="4" style="stroke:var(--red)" stroke-width="2"/></svg>' + t('net.open.lg.blink.bad') + '</span>';
   html += '<span class="k">' + t(TRACK === 'open' ? 'net.open.lg.island' : 'net.lg.src') + '</span>';
   for (const rel in rels) {
     html += '<span class="k"><svg width="26" height="8"><line x1="1" y1="4" x2="25" y2="4" ' +
-      'stroke="#7aa7c9" stroke-width="1.6" stroke-dasharray="' + dashFor(rel) + '"/></svg>' +
+      'style="stroke:var(--edge)" stroke-width="1.6" stroke-dasharray="' + dashFor(rel) + '"/></svg>' +
       esc(LANG === 'zh' ? rels[rel].zh : rels[rel].en) + '</span>';
   }
   lg.innerHTML = html;
@@ -972,7 +1067,12 @@ function renderExplain(){
     t('exp.realonly') + '</div>';
   html += '</div>';
   html += '<div class="story" style="margin-top:12px">' + esc(bi(p.note)) + '</div>';
+  if (p.real) html += '<div style="margin-top:10px"><button class="chip cy toplay" data-a="' + p.a +
+    '" data-b="' + p.b + '">' + t('play.open') + '</button></div>';
   document.getElementById('explainMain').innerHTML = html;
+  document.querySelectorAll('#explainMain .toplay').forEach(function(b){
+    b.addEventListener('click', function(){ playOpen(b.dataset.a, b.dataset.b); });
+  });
 }
 
 /* ============================ Scoreboard ============================ */
@@ -985,6 +1085,37 @@ function renderScoreboard(){
     renderMetricsBoard(DATA.metrics.overall, DATA.metrics.by_scenario, 'sb.proto', k => scenName(k));
   }
 }
+/* ---- 柱状图共用：圆顶方底 path + hover tooltip ---- */
+function barPath(x, y, w, h, r){
+  /* 数据端（顶）圆角、基线端方 —— dataviz 标记规格 */
+  r = Math.max(0, Math.min(r, w / 2, h));
+  return 'M' + x + ' ' + (y + h) + 'V' + (y + r) +
+         'Q' + x + ' ' + y + ' ' + (x + r) + ' ' + y +
+         'H' + (x + w - r) +
+         'Q' + (x + w) + ' ' + y + ' ' + (x + w) + ' ' + (y + r) +
+         'V' + (y + h) + 'Z';
+}
+let ctipEl = null;
+function bindBarTips(root){
+  root.querySelectorAll('rect[data-tip],path[data-tip]').forEach(rc => {
+    rc.addEventListener('mouseenter', () => {
+      if (!ctipEl) { ctipEl = document.createElement('div'); ctipEl.className = 'ctip'; document.body.appendChild(ctipEl); }
+      ctipEl.innerHTML = rc.getAttribute('data-tip');
+      ctipEl.style.display = 'block';
+    });
+    rc.addEventListener('mousemove', ev => {
+      if (!ctipEl) return;
+      ctipEl.style.left = Math.min(ev.clientX + 14, window.innerWidth - 260) + 'px';
+      ctipEl.style.top = (ev.clientY + 16) + 'px';
+    });
+    rc.addEventListener('mouseleave', () => { if (ctipEl) ctipEl.style.display = 'none'; });
+  });
+}
+function chartLegend(){
+  return '<div class="mb-legend">' +
+    '<span class="k"><span class="dot" style="background:var(--violet)"></span>' + t('lg.baseline') + '</span>' +
+    '<span class="k"><span class="dot" style="background:var(--cyan)"></span>' + t('lg.tuned') + '</span></div>';
+}
 function renderMetricsBoard(o, scs, protoKey, labelOf){
   const tiles = [
     ['sb.linkrecall', 'link_recall', false],
@@ -996,41 +1127,45 @@ function renderMetricsBoard(o, scs, protoKey, labelOf){
     const bv = o.baseline[tl[1]], tv = o.tuned[tl[1]];
     const delta = tv - bv;
     const good = tl[2] ? delta < 0 : delta > 0;
-    const dTxt = (delta >= 0 ? '+' : '') + (delta * 100).toFixed(1) + ' pts';
     html += '<div class="tile"><div class="tname">' + t(tl[0]) + '</div><div class="nums">' +
-      '<span class="n-b">' + (bv*100).toFixed(1) + '</span><span class="arrow">⟶</span>' +
-      '<span class="n-t">' + (tv*100).toFixed(1) + '</span></div>' +
-      '<div class="delta ' + (good ? 'up' : 'down') + '">' + dTxt + (good ? ' ↓better' : '') + '</div></div>';
+      '<span class="n-b"><span class="mk mk-b"></span>' + (bv*100).toFixed(1) + '</span><span class="arrow">⟶</span>' +
+      '<span class="n-t"><span class="mk mk-t"></span>' + (tv*100).toFixed(1) + '</span></div>' +
+      '<div class="delta ' + (good ? 'up' : 'down') + '">' + (delta >= 0 ? '▲ +' : '▼ ') +
+      Math.abs(delta * 100).toFixed(1) + ' pts</div></div>';
   });
   html += '</div>';
 
-  // 分组柱状图（link recall by scenario / bucket）
-  const W = 560, H = 250, padL = 40, padB = 46, padT = 18;
-  const yMax = 1.0;
+  // 分组柱状图（link recall by scenario / bucket）：
+  // 细柱圆顶方底、色值走 token、值只标微调列（故事列），基线值在 tooltip 与表格
+  const W = 560, H = 252, padL = 38, padB = 46, padT = 20;
+  const plotH = H - padT - padB;
   let chart = '<svg viewBox="0 0 ' + W + ' ' + H + '" style="width:100%">';
   [0, .5, 1].forEach(gy => {
-    const y = padT + (H - padT - padB) * (1 - gy);
+    const y = padT + plotH * (1 - gy);
     chart += '<line x1="' + padL + '" y1="' + y + '" x2="' + (W-8) + '" y2="' + y +
-      '" stroke="rgba(125,148,166,.18)" stroke-width="1"/>' +
-      '<text x="' + (padL-6) + '" y="' + (y+3) + '" fill="#8496a5" font-size="9" text-anchor="end" font-family="ui-monospace">' + (gy*100) + '</text>';
+      '" stroke="var(--' + (gy === 0 ? 'line2' : 'line') + ')" stroke-width="1"/>' +
+      '<text class="ax-t" x="' + (padL-6) + '" y="' + (y+3.5) + '" text-anchor="end">' + (gy*100) + '</text>';
   });
-  const bw = 13, gapIn = 4;
+  const bw = 16, gapIn = 4;
   const groupW = (W - padL - 8) / scs.length;
   scs.forEach((s, i) => {
     const cx = padL + groupW * i + groupW / 2;
-    const vals = [s.baseline.link_recall, s.tuned.link_recall];
-    vals.forEach((v, j) => {
+    const lbl = esc(labelOf(s.scenario));
+    [[s.baseline.link_recall, 0], [s.tuned.link_recall, 1]].forEach(pr => {
+      const v = pr[0], j = pr[1];
       if (v === null || v === undefined) return;
-      const h = (H - padT - padB) * v;
+      const h = Math.max(plotH * v, 1.5);   // 0 值也留一道发丝痕（"在测但为0"）
       const x = cx - bw - gapIn/2 + j * (bw + gapIn);
-      chart += '<rect x="' + x + '" y="' + (H - padB - h) + '" width="' + bw + '" height="' + h +
-        '" rx="2" fill="' + (j ? '#39b8d0' : '#9d93e8') + '" opacity="' + (j ? .95 : .8) + '"/>' +
-        '<text x="' + (x + bw/2) + '" y="' + (H - padB - h - 4) + '" fill="' + (j ? '#54cade' : '#b3aaef') +
-        '" font-size="8.5" text-anchor="middle" font-family="ui-monospace">' + (v*100).toFixed(0) + '</text>';
+      chart += '<path class="bar-mark ' + (j ? 'mb-t' : 'mb-b') + '" d="' +
+        barPath(x, H - padB - h, bw, h, 4) +
+        '" data-tip="<span class=m>' + lbl + ' · ' + esc(j ? t('lg.tuned') : t('lg.baseline')) +
+        '</span><br><span class=v>' + (v*100).toFixed(1) + '</span>"/>';
+      if (j) chart += '<text class="cap-t" x="' + (x + bw/2) + '" y="' + (H - padB - h - 5) +
+        '" text-anchor="middle">' + (v*100).toFixed(0) + '</text>';
     });
-    chart += '<text x="' + cx + '" y="' + (H - padB + 14) + '" fill="#a9b8c4" font-size="9" text-anchor="middle">' +
-      esc(labelOf(s.scenario).split(' ')[0]) + '</text>' +
-      '<text x="' + cx + '" y="' + (H - padB + 25) + '" fill="#8496a5" font-size="8" text-anchor="middle">n=' + s.n + '</text>';
+    chart += '<text class="ax-cat" x="' + cx + '" y="' + (H - padB + 16) + '" text-anchor="middle">' +
+      lbl.split(' ')[0] + '</text>' +
+      '<text class="ax-sub" x="' + cx + '" y="' + (H - padB + 29) + '" text-anchor="middle">n=' + s.n + '</text>';
   });
   chart += '</svg>';
 
@@ -1050,37 +1185,43 @@ function renderMetricsBoard(o, scs, protoKey, labelOf){
   });
   table += '</table><div class="protocol">' + t(protoKey) + '</div>';
 
-  html += '<div class="sb-grid"><div class="card"><div style="font-size:12.5px;color:var(--t2);margin-bottom:8px">' +
-    t('sb.chart') + '</div>' + chart + '</div>' +
-    '<div class="card"><div style="font-size:12.5px;color:var(--t2);margin-bottom:8px">' + t('sb.table') + '</div>' +
+  html += '<div class="sb-grid"><div class="card"><div class="chart-head"><span class="eyebrow">' +
+    t('sb.chart') + '</span>' + chartLegend() + '</div>' +
+    '<div class="chartwrap">' + chart + '</div></div>' +
+    '<div class="card"><div class="chart-head"><span class="eyebrow">' + t('sb.table') + '</span></div>' +
     table + '</div></div>';
-  document.getElementById('scoreMain').innerHTML = html;
+  const host = document.getElementById('scoreMain');
+  host.innerHTML = html;
+  bindBarTips(host);
 }
 
 /* ============== 开源基准轨（真实模型 × Febrl3，实测数字） ============== */
 function renderOpenBench(){
   const ms = DATA.open_bench.models;
-  // 柱状图：NDCG@10 前(violet)/后(cyan)；轴 90–100（图题已声明截断，柱上标精确值）
-  const W = 560, H = 240, padL = 40, padB = 40, padT = 16, Y0 = 0.9, Y1 = 1.0;
+  // 柱状图：NDCG@10 前(violet)/后(cyan)；轴 90–100（图题已声明截断）
+  // 圆顶方底细柱（≤24px）、色值走 token、值只标微调后列，前值在 tooltip 与表格
+  const W = 560, H = 240, padL = 38, padB = 40, padT = 18, Y0 = 0.9, Y1 = 1.0;
   const yv = v => padT + (H - padT - padB) * (1 - (v - Y0) / (Y1 - Y0));
   let chart = '<svg viewBox="0 0 ' + W + ' ' + H + '" style="width:100%">';
   [0.9, 0.95, 1.0].forEach(gy => {
     chart += '<line x1="' + padL + '" y1="' + yv(gy) + '" x2="' + (W-8) + '" y2="' + yv(gy) +
-      '" stroke="rgba(125,148,166,.18)" stroke-width="1"/>' +
-      '<text x="' + (padL-6) + '" y="' + (yv(gy)+3) + '" fill="#8496a5" font-size="9" text-anchor="end" font-family="ui-monospace">' + (gy*100) + '</text>';
+      '" stroke="var(--' + (gy === 0.9 ? 'line2' : 'line') + ')" stroke-width="1"/>' +
+      '<text class="ax-t" x="' + (padL-6) + '" y="' + (yv(gy)+3.5) + '" text-anchor="end">' + (gy*100) + '</text>';
   });
-  const bw = 26, gapIn = 6, groupW = (W - padL - 8) / ms.length;
+  const bw = 20, gapIn = 4, groupW = (W - padL - 8) / ms.length;
   ms.forEach((m, i) => {
     const cx = padL + groupW * i + groupW / 2;
     [[m.before.ndcg10, 0], [m.after.ndcg10, 1]].forEach(pair => {
       const v = pair[0], j = pair[1];
       const x = cx - bw - gapIn/2 + j * (bw + gapIn), top = yv(v);
-      chart += '<rect x="' + x + '" y="' + top + '" width="' + bw + '" height="' + (H - padB - top) +
-        '" rx="2" fill="' + (j ? '#39b8d0' : '#9d93e8') + '" opacity="' + (j ? .95 : .8) + '"/>' +
-        '<text x="' + (x + bw/2) + '" y="' + (top - 4) + '" fill="' + (j ? '#54cade' : '#b3aaef') +
-        '" font-size="8.5" text-anchor="middle" font-family="ui-monospace">' + (v*100).toFixed(1) + '</text>';
+      const tip = '<span class=m>' + esc(m.key) + ' · ' + esc(j ? t('lg.tuned') : t('lg.baseline')) +
+                  '</span><br><span class=v>NDCG@10 ' + (v*100).toFixed(2) + '</span>';
+      chart += '<path class="bar-mark ' + (j ? 'ob-t' : 'ob-b') + '" d="' +
+        barPath(x, top, bw, H - padB - top, 4) + '" data-tip="' + tip + '"/>';
+      if (j) chart += '<text class="cap-t" x="' + (x + bw/2) + '" y="' + (top - 5) +
+        '" text-anchor="middle">' + (v*100).toFixed(1) + '</text>';
     });
-    chart += '<text x="' + cx + '" y="' + (H - padB + 14) + '" fill="#a9b8c4" font-size="9.5" text-anchor="middle" font-family="ui-monospace">' + esc(m.key) + '</text>';
+    chart += '<text class="ax-cat" x="' + cx + '" y="' + (H - padB + 16) + '" text-anchor="middle">' + esc(m.key) + '</text>';
   });
   chart += '</svg>';
 
@@ -1108,12 +1249,325 @@ function renderOpenBench(){
   const html = '<div class="ob-wrap">' +
     '<div class="ob-h2">' + t('ob.h') + '<span class="pill">' + t('ob.badge') + '</span></div>' +
     '<p class="ob-sub">' + t('ob.sub') + '</p>' +
-    '<div class="sb-grid"><div class="card"><div style="font-size:12.5px;color:var(--t2);margin-bottom:8px">' +
-    t('ob.chart') + '</div>' + chart + '</div>' +
-    '<div class="card"><div style="font-size:12.5px;color:var(--t2);margin-bottom:8px">' +
-    t('ob.table') + '</div>' + table + '</div></div>' +
+    '<div class="sb-grid"><div class="card"><div class="chart-head"><span class="eyebrow">' +
+    t('ob.chart') + '</span>' + chartLegend() + '</div>' +
+    '<div class="chartwrap">' + chart + '</div></div>' +
+    '<div class="card"><div class="chart-head"><span class="eyebrow">' +
+    t('ob.table') + '</span></div>' + table + '</div></div>' +
     '<div class="protocol">' + t('ob.proto') + '</div></div>';
-  document.getElementById('openBench').innerHTML = html;
+  const host = document.getElementById('openBench');
+  host.innerHTML = html;
+  bindBarTips(host);
+}
+
+/* ============================ Connect（MCP 接入） ============================ */
+let connSeq = 0;
+function connCode(code){
+  /* 代码/提问块：等宽展示 + 复制按钮（离线可用：clipboard 失败回退 execCommand） */
+  const id = 'cb-' + (++connSeq);
+  return '<div class="codeblock"><button class="copybtn" data-copy="' + id + '">' +
+    t('conn.copy') + '</button><pre><code id="' + id + '">' + esc(code) + '</code></pre></div>';
+}
+function renderConnect(){
+  const el = document.getElementById('connectMain');
+  const cmd = 'claude mcp add entity-er -- python3 scripts/er_mcp_server.py';
+  const cfg = '{\n  "mcpServers": {\n    "entity-er": {\n' +
+    '      "command": "python3",\n      "args": ["scripts/er_mcp_server.py"]\n    }\n  }\n}';
+  const th = (typeof OC !== 'undefined' && OC) ? OC.theta.toFixed(3) : '0.921';
+
+  let html = '<div class="conn-steps">';
+  ['conn.s1', 'conn.s2', 'conn.s3'].forEach(function(k){
+    html += '<div class="card conn-step"><div class="sh">' + t(k + '.h') + '</div>' +
+      '<div class="st">' + t(k + '.t') + '</div></div>';
+  });
+  html += '</div>';
+
+  html += '<div style="margin:2px 0 14px"><button id="connPlay" class="pl-preset" style="color:var(--cyan-b);border-color:rgba(72,197,208,.4)">' +
+    t('conn.toplay') + '</button></div>';
+
+  const install = '<div class="card"><div class="conn-h2">' + t('conn.install.h') + '</div>' +
+    '<div class="conn-h3" style="margin-top:0">' + t('conn.install.cc') + '</div>' + connCode(cmd) +
+    '<p class="conn-note">' + t('conn.install.repo') + '</p>' +
+    '<div class="conn-h3">' + t('conn.install.any') + '</div>' + connCode(cfg) + '</div>';
+
+  let table = '<table class="mtable"><tr><th>' + t('conn.tools.name') + '</th><th>' +
+    t('conn.tools.args') + '</th><th>' + t('conn.tools.does') + '</th></tr>';
+  [['er_score_pair', 'a, b', 'conn.t1.d'], ['er_find_records', 'q?, limit?', 'conn.t2.d'],
+   ['er_about', '—', 'conn.t3.d']].forEach(function(row){
+    table += '<tr><td><span class="mono" style="color:var(--cyan-b)">' + row[0] + '</span></td>' +
+      '<td class="mono" style="font-size:11px">' + row[1] + '</td><td>' + t(row[2]) + '</td></tr>';
+  });
+  table += '</table>';
+  const tools = '<div class="card"><div class="conn-h2">' + t('conn.tools.h') + '</div>' + table + '</div>';
+
+  html += '<div class="conn-grid">' + install + tools + '</div>';
+
+  html += '<div class="card" style="margin-bottom:16px"><div class="conn-h2">' + t('conn.ex.h') + '</div>' +
+    '<div class="conn-ex">' + connCode(t('conn.ex1')) + connCode(t('conn.ex2')) +
+    connCode(t('conn.ex3')) + connCode(t('conn.ex4')) + '</div></div>';
+
+  html += '<div class="card" style="margin-bottom:4px"><div class="conn-h2">' + t('conn.mode.h') + '</div>' +
+    '<div class="conn-grid" style="margin-bottom:0">' +
+    '<div><div class="sh" style="font-size:13px;font-weight:650;color:var(--cyan-b)">' + t('conn.mode.off.h') + '</div>' +
+    '<p class="conn-note">' + t('conn.mode.off.t') + '</p></div>' +
+    '<div><div class="sh" style="font-size:13px;font-weight:650;color:var(--violet-b)">' + t('conn.mode.on.h') + '</div>' +
+    '<p class="conn-note">' + t('conn.mode.on.t') + '</p></div></div></div>';
+
+  html += '<div class="protocol">' + t('conn.proto').split('{TH}').join(th) + '</div>';
+  el.innerHTML = html;
+}
+function connCopy(btn){
+  const code = document.getElementById(btn.dataset.copy);
+  const txt = code ? code.textContent : '';
+  const done = function(ok){
+    btn.textContent = ok ? t('conn.copied') : '✗';
+    btn.classList.toggle('ok', ok);
+    setTimeout(function(){ btn.textContent = t('conn.copy'); btn.classList.remove('ok'); }, 1600);
+  };
+  const fallback = function(){
+    const ta = document.createElement('textarea');
+    ta.value = txt; ta.style.position = 'fixed'; ta.style.opacity = '0';
+    document.body.appendChild(ta); ta.select();
+    let ok = false;
+    try { ok = document.execCommand('copy'); } catch (e) { ok = false; }
+    document.body.removeChild(ta); done(ok);
+  };
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(txt).then(function(){ done(true); }, fallback);
+  } else { fallback(); }
+}
+
+/* ============================ Play（试玩台：页面内亲手打分） ============================ */
+let playA = null, playB = null, playRevealed = false, playSaid = null;
+let playTally = {n: 0, ok: 0};
+const playQ = {a: '', b: ''};
+let playC = null;   // 解码缓存：{order,pos,u16,n,lo}
+function playData(){
+  /* OC.play：rid 排序上三角行主序的 u16 量化分数（构建期已断言与全精度判定一致） */
+  if (!OC || !OC.play) return null;
+  if (playC) return playC;
+  const bin = atob(OC.play.b64), u = new Uint16Array(bin.length >> 1);
+  for (let i = 0; i < u.length; i++) u[i] = bin.charCodeAt(2 * i) | (bin.charCodeAt(2 * i + 1) << 8);
+  const pos = {};
+  OC.play.order.forEach(function(r, i){ pos[r] = i; });
+  playC = {order: OC.play.order, pos: pos, u: u, n: OC.play.n, lo: OC.play.lo};
+  return playC;
+}
+function playScore(a, b){
+  const P = playData();
+  if (!P || P.pos[a] === undefined || P.pos[b] === undefined || a === b) return null;
+  let i = P.pos[a], j = P.pos[b];
+  if (i > j) { const t = i; i = j; j = t; }
+  return P.u[i * (2 * P.n - i - 1) / 2 + (j - i - 1)] / 10000;
+}
+function levRatio(a, b){
+  /* 与后端 _field_state 同口径：fuzzy/conflict 分界 0.7 */
+  if (a === b) return 1;
+  const la = a.length, lb = b.length;
+  let prev = [];
+  for (let j = 0; j <= lb; j++) prev[j] = j;
+  for (let i = 1; i <= la; i++) {
+    const cur = [i];
+    for (let j = 1; j <= lb; j++)
+      cur[j] = Math.min(prev[j] + 1, cur[j - 1] + 1, prev[j - 1] + (a[i - 1] !== b[j - 1] ? 1 : 0));
+    prev = cur;
+  }
+  return 1 - prev[lb] / Math.max(la, lb);
+}
+function plFieldState(va, vb){
+  if (!va || !vb) return {state: 'missing', sim: null};
+  if (va === vb) return {state: 'exact', sim: 1};
+  const sim = Math.round(levRatio(va, vb) * 100) / 100;
+  return {state: sim >= 0.7 ? 'fuzzy' : 'conflict', sim: sim};
+}
+function playSet(a, b){
+  playA = a; playB = b; playRevealed = false; playSaid = null;
+  renderPlayList('a'); renderPlayList('b'); renderPlayResult();
+}
+function playOpen(a, b){
+  playSet(a, b);
+  document.querySelector('#nav button[data-view="play"]').click();
+}
+function renderPlay(){
+  const el = document.getElementById('playMain');
+  document.getElementById('playSub').textContent = t('play.sub');
+  if (!OC || !OC.play) { el.innerHTML = '<div class="card">' + t('play.none') + '</div>'; return; }
+  let html = '<div class="card" style="margin-bottom:14px"><div class="conn-h2">' + t('play.preset.h') +
+    '</div><div class="pl-presets">';
+  DATA.pairs.filter(function(p){ return ['R1','R2','R3'].indexOf(p.pair_id) >= 0; }).forEach(function(p){
+    html += '<button class="pl-preset" data-a="' + p.a + '" data-b="' + p.b + '">' +
+      '<span class="mono" style="color:var(--cyan-b)">' + p.pair_id + '</span> ' + esc(bi(p.title)) + '</button>';
+  });
+  html += '<button class="pl-preset" data-rand="true">' + t('play.preset.t') + '</button>' +
+    '<button class="pl-preset" data-rand="near">' + t('play.preset.n') + '</button>' +
+    '<button class="pl-preset" data-rand="any">' + t('play.preset.r') + '</button></div></div>';
+  html += '<div class="play-grid">' +
+    '<div class="card pl-pick"><div class="conn-h2" style="margin-top:0">' + t('play.pick.h') + '</div>' +
+    '<div class="pl-side"><div class="pl-lab mono">A</div>' +
+    '<input class="pl-search" data-side="a" placeholder="' + t('play.search') + '" value="' + esc(playQ.a) + '">' +
+    '<div class="plist" id="plist-a"></div></div>' +
+    '<div class="pl-side"><div class="pl-lab mono">B</div>' +
+    '<input class="pl-search" data-side="b" placeholder="' + t('play.search') + '" value="' + esc(playQ.b) + '">' +
+    '<div class="plist" id="plist-b"></div></div></div>' +
+    '<div id="playResult"></div></div>';
+  el.innerHTML = html;
+  el.querySelectorAll('.pl-search').forEach(function(inp){
+    inp.addEventListener('input', function(){ playQ[inp.dataset.side] = inp.value; renderPlayList(inp.dataset.side); });
+  });
+  el.querySelectorAll('.pl-preset').forEach(function(b){
+    b.addEventListener('click', function(){
+      const r = b.dataset.rand;
+      if (!r) { playSet(b.dataset.a, b.dataset.b); return; }
+      const P = playData(), order = P.order;
+      const rnd = function(n){ return Math.floor(Math.random() * n); };
+      if (r === 'true') {
+        const byEnt = {};
+        order.forEach(function(rid){ const e = OC.records[rid].entity; (byEnt[e] = byEnt[e] || []).push(rid); });
+        const truth = [];
+        Object.keys(byEnt).sort().forEach(function(e){
+          const m = byEnt[e];
+          for (let i = 0; i < m.length; i++) for (let j = i + 1; j < m.length; j++) truth.push([m[i], m[j]]);
+        });
+        const pick = truth[rnd(truth.length)];
+        playSet(pick[0], pick[1]);
+      } else if (r === 'near') {
+        const a = order[rnd(order.length)];
+        let best = null, bs = -1;
+        order.forEach(function(x){
+          if (x === a || OC.records[x].entity === OC.records[a].entity) return;
+          const s = playScore(a, x);
+          if (s > bs) { bs = s; best = x; }
+        });
+        playSet(a, best);
+      } else {
+        const a = order[rnd(order.length)];
+        let b2 = a;
+        while (b2 === a) b2 = order[rnd(order.length)];
+        playSet(a, b2);
+      }
+    });
+  });
+  renderPlayList('a'); renderPlayList('b'); renderPlayResult();
+}
+function renderPlayList(side){
+  const host = document.getElementById('plist-' + side);
+  if (!host) return;
+  const q = (playQ[side] || '').trim().toLowerCase();
+  const sel = side === 'a' ? playA : playB;
+  let rows;
+  if (q) {
+    rows = OC.play.order.filter(function(r){
+      return OC.records[r].text.toLowerCase().indexOf(q) >= 0 || r.toLowerCase().indexOf(q) >= 0;
+    });
+  } else {
+    const seenE = {};   // 无搜索词：每实体首条的确定性抽样（与 er_find_records 同款）
+    rows = OC.play.order.filter(function(r){
+      const e = OC.records[r].entity;
+      if (seenE[e]) return false;
+      seenE[e] = true; return true;
+    });
+  }
+  const total = rows.length;
+  rows = rows.slice(0, 10);
+  let html = rows.map(function(r){
+    const f = OC.records[r].fields;
+    return '<button class="pl-row' + (r === sel ? ' active' : '') + '" data-rid="' + r + '" data-side="' + side + '">' +
+      '<span class="pl-rrid mono">' + r + '</span>' +
+      '<span class="pl-rname">' + esc(f.name || r) + '</span>' +
+      '<span class="pl-rmeta mono">' + [f.dob, f.ssn ? 'SSN ' + f.ssn : null].filter(Boolean).join(' · ') + '</span>' +
+      '</button>';
+  }).join('');
+  if (total > rows.length) html += '<div class="pl-more">' + (total - rows.length) + '+ …</div>';
+  if (!rows.length) html = '<div class="pl-more">' + t('play.nomatch') + '</div>';
+  host.innerHTML = html;
+  host.querySelectorAll('.pl-row').forEach(function(b){
+    b.addEventListener('click', function(){
+      if (b.dataset.side === 'a') playA = b.dataset.rid; else playB = b.dataset.rid;
+      playRevealed = false; playSaid = null;
+      renderPlayList('a'); renderPlayList('b'); renderPlayResult();
+    });
+  });
+}
+function plRecCard(rec, rid){
+  return '<div class="card qcard"><div class="rec-name">' + esc(rec.fields.name || rid) +
+    ' <span class="chip" style="margin-left:6px">ent ' + rec.entity + '</span></div>' +
+    '<div class="fields">' + openRecMeta(rec) + '</div>' +
+    '<div class="mono" style="opacity:.55;font-size:10.5px;margin-top:6px">' + rid + '</div></div>';
+}
+function plFieldTable(ra, rb){
+  const KEYS = [['name','play.f.name'],['dob','play.f.dob'],['address','play.f.address'],
+                ['locality','play.f.locality'],['ssn','play.f.ssn']];
+  let html = '<div class="card ftable" style="margin-top:12px">' +
+    '<div class="frow"><span class="flabel"></span>' +
+    '<span class="flabel" style="text-align:left">' + esc(ra.fields.name || playA) + '</span><span></span>' +
+    '<span class="flabel" style="text-align:left">' + esc(rb.fields.name || playB) + '</span></div>';
+  KEYS.forEach(function(k){
+    const va = ra.fields[k[0]], vb = rb.fields[k[0]];
+    const st = plFieldState(va, vb);
+    const cell = '<span class="sym">' + ST_SYM[st.state] + '</span> ' +
+      (st.sim === null || st.state === 'exact' || st.state === 'missing' ? t('st.' + st.state) : st.sim);
+    html += '<div class="frow"><span class="flabel">' + t(k[1]) + '</span>' +
+      '<span class="fval' + (va ? '' : ' na') + '">' + esc(va || '—') + '</span>' +
+      '<span class="fstate st-' + st.state + '">' + cell + '</span>' +
+      '<span class="fval' + (vb ? '' : ' na') + '">' + esc(vb || '—') + '</span></div>';
+  });
+  return html + '</div>';
+}
+function renderPlayResult(){
+  const host = document.getElementById('playResult');
+  if (!host) return;
+  if (!playA || !playB) { host.innerHTML = '<div class="card pl-empty">' + t('play.empty') + '</div>'; return; }
+  if (playA === playB) { host.innerHTML = '<div class="card pl-empty">' + t('play.same') + '</div>'; return; }
+  const ra = OC.records[playA], rb = OC.records[playB];
+  const P = playData(), theta = OC.theta;
+  let html = '<div class="xgrid">' + plRecCard(ra, playA) + plRecCard(rb, playB) + '</div>';
+  html += plFieldTable(ra, rb);
+  if (!playRevealed) {
+    html += '<div class="card pl-guess" style="margin-top:12px"><div class="sh">' + t('play.guess.h') + '</div>' +
+      '<div class="pl-gbtns">' +
+      '<button class="pl-g link" data-say="link">' + t('play.guess.link') + '</button>' +
+      '<button class="pl-g refuse" data-say="refuse">' + t('play.guess.refuse') + '</button>' +
+      '<button class="pl-g skip" data-say="skip">' + t('play.guess.skip') + '</button>' +
+      (playTally.n ? '<span class="chip cy" style="align-self:center">' +
+        t('play.tally').split('{OK}').join(playTally.ok).split('{N}').join(playTally.n) + '</span>' : '') +
+      '</div></div>';
+  } else {
+    const s = playScore(playA, playB);
+    const linked = s >= theta, margin = s - theta;
+    const same = ra.entity === rb.entity;
+    const correct = linked === same;
+    const pct = Math.max(0, Math.min(100, (s - P.lo) / (1 - P.lo) * 100));
+    const thPct = Math.max(0, Math.min(100, (theta - P.lo) / (1 - P.lo) * 100));
+    html += '<div class="card" style="margin-top:12px">' +
+      '<div class="pl-score-row"><span class="pl-big mono">' + s.toFixed(4) + '</span>' +
+      '<span class="pl-verdict-chip ' + (correct ? 'ok' : 'bad') + '">' +
+      (linked ? t('play.verdict.linked') : t('play.verdict.refused')) + '</span>' +
+      '<span class="pl-margin mono">' + (margin >= 0 ? '+' : '') + margin.toFixed(4) + ' ' +
+      t(margin >= 0 ? 'play.above' : 'play.below') + '</span></div>' +
+      '<div class="pgauge"><div class="pg-fill" style="width:' + pct + '%;background:var(--' +
+      (correct ? 'cyan' : 'red') + ')"></div>' +
+      '<div class="pg-tick" style="left:' + thPct + '%"><span>θ ' + theta.toFixed(4) + '</span></div></div>' +
+      '<div class="pl-truth">' + (same ? t('play.truth.same') : t('play.truth.diff')) + ' — <span style="color:var(--' +
+      (correct ? 'cyan-b' : 'red-b') + ');font-weight:650">' + (correct ? '✓ ' + t('play.truth.ok') : '✗ ' + t('play.truth.bad')) +
+      '</span></div>' +
+      (playSaid ? '<div class="pl-said">' + t('play.you') + '：' +
+        (playSaid === 'link' ? t('play.guess.link') : t('play.guess.refuse')) +
+        ' · <span class="chip cy">' + t('play.tally').split('{OK}').join(playTally.ok).split('{N}').join(playTally.n) + '</span></div>' : '') +
+      '<div class="pl-mode">' + t('play.mode') + '</div></div>';
+  }
+  host.innerHTML = html;
+  host.querySelectorAll('.pl-g').forEach(function(b){
+    b.addEventListener('click', function(){
+      if (b.dataset.say !== 'skip') {
+        playSaid = b.dataset.say;
+        const modelSaid = (playScore(playA, playB) >= OC.theta) ? 'link' : 'refuse';
+        playTally.n += 1;
+        if (playSaid === modelSaid) playTally.ok += 1;
+      }
+      playRevealed = true;
+      renderPlayResult();
+    });
+  });
 }
 
 /* ============================ init ============================ */
@@ -1128,6 +1582,13 @@ function init(){
   document.getElementById('resolveBtn').addEventListener('click', netToggle);
   DATA.rels = {"family": {"en":"Family","zh":"亲属"}, "co_address": {"en":"Shared address","zh":"同址"},
                "co_travel": {"en":"Co-travel","zh":"同行"}, "shared_phone": {"en":"Shared phone","zh":"共用号码"}};
+  // 复制按钮事件委托挂在容器上（重渲染只换 innerHTML，不动容器本身）
+  document.getElementById('connectMain').addEventListener('click', function(e){
+    const b = e.target.closest('.copybtn');
+    if (b) connCopy(b);
+    const pl = e.target.closest('#connPlay');
+    if (pl) document.querySelector('#nav button[data-view="play"]').click();
+  });
   setLang(LANG);
   // ?view= 直达视图 + ?track=open 直达 Febrl3 轨 + ?focus= 直开档案卡（可分享链接）
   const qs = new URLSearchParams(location.search);
@@ -1151,6 +1612,16 @@ function init(){
     const want = csel.charAt(0) === 'R' ? 'open' : 'synth';
     if (want !== TRACK && (want === 'synth' || OC)) switchNetTrack(want);
     if (trackPairs().some(x => x.pair_id === csel)) { expSel = csel; renderExplain(); }
+  }
+  // ?pair=ridA,ridB 直达试玩台指定对（可分享链接；不带 view 时自动切到试玩台）
+  const ppair = qs.get('pair');
+  if (ppair && OC && OC.play) {
+    const two = ppair.split(',');
+    if (two.length === 2 && two[0] !== two[1] && OC.records[two[0]] && OC.records[two[1]]) {
+      playA = two[0]; playB = two[1]; playRevealed = true;
+      if (!v) document.querySelector('#nav button[data-view="play"]').click();
+      renderPlayResult();
+    }
   }
   // ?resolve=1 直达"归并后"状态（跳过动画，供截图/分享；三态开源轨直达微调态）
   if (qs.get('resolve')) { netResolved = true; netT = netMax; netApply(netMax); netSyncUI(netMax); }

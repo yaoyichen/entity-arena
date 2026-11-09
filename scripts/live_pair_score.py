@@ -21,61 +21,23 @@ from __future__ import annotations
 
 import argparse
 import json
-import math
 import os
-import ssl
 import sys
-import time
-import urllib.request
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(ROOT / "src"))
+
+from entity_arena.embed_client import (  # noqa: E402
+    DEFAULT_MODEL, DEFAULT_URL, EmbedError, cosine, embed,
+)
+
 VILLAGE = ROOT / "data_open" / "village.json"
-DEFAULT_URL = "https://9dogmocj5hg5cpbgmkmcehcg5qkpcdqm.openapi-inspire.inf.tech"
-DEFAULT_MODEL = "febrl3-er-gemma"
 THETA = 0.9208  # 案例村 link-F1 最优判定线（build_open_cases.py 扫描得出）
 try:  # 优先用最新构建产物里的 θ，避免两处维护漂移
     THETA = float(json.loads((ROOT / "data" / "open_cases.json").read_text())["theta"])
 except Exception:
     pass
-RETRIES = 3
-
-
-def _ssl_ctx() -> ssl.SSLContext:
-    """强制 TLS1.2：平台网关掐 OpenSSL 3.x 默认 ClientHello（见 fetch_village_embeddings.py）。"""
-    ctx = ssl.create_default_context()
-    ctx.minimum_version = ssl.TLSVersion.TLSv1_2
-    ctx.maximum_version = ssl.TLSVersion.TLSv1_2
-    return ctx
-
-
-def embed(url: str, model: str, token: str, texts: list[str]) -> list[list[float]]:
-    payload = {"model": model, "input": texts, "input_type": "document",
-               "encoding_format": "float"}
-    req = urllib.request.Request(
-        url.rstrip("/") + "/v1/embeddings",
-        data=json.dumps(payload).encode("utf-8"),
-        headers={"Authorization": f"Bearer {token}", "Content-Type": "application/json"},
-        method="POST")
-    body = None
-    for attempt in range(1, RETRIES + 1):
-        try:
-            with urllib.request.urlopen(req, timeout=120, context=_ssl_ctx()) as resp:
-                body = json.loads(resp.read().decode("utf-8"))
-            break
-        except (urllib.error.URLError, ssl.SSLError, OSError) as e:
-            print(f"  attempt {attempt}/{RETRIES} failed: {e}", file=sys.stderr)
-            if attempt == RETRIES:
-                raise SystemExit(f"embeddings 请求连续 {RETRIES} 次失败（服务还在吗？）")
-            time.sleep(3 * attempt)
-    return [item["embedding"] for item in sorted(body["data"], key=lambda d: d["index"])]
-
-
-def cosine(a: list[float], b: list[float]) -> float:
-    dot = sum(x * y for x, y in zip(a, b))
-    na = math.sqrt(sum(x * x for x in a))
-    nb = math.sqrt(sum(x * x for x in b))
-    return dot / (na * nb)
 
 
 def show_pair(rec_a: dict, rec_b: dict) -> None:
@@ -145,7 +107,10 @@ def main() -> None:
         texts = [args.text_a, args.text_b]
 
     print(f"\n  调用部署服务 {args.model} 取向量（实时）…")
-    va, vb = embed(args.url, args.model, token, texts)
+    try:
+        va, vb = embed(args.url, args.model, token, texts)
+    except EmbedError as e:
+        raise SystemExit(str(e))
     score = cosine(va, vb)
     linked = score >= args.theta
     margin = score - args.theta

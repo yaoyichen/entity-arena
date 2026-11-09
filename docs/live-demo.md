@@ -96,6 +96,8 @@ python3 scripts/live_pair_score.py \
   --text-a "name: spencer green  dob: 1942-03-13  address: 24 yarra street" \
   --text-b "name: spencxr royans  address: 24 yarra srteet"
 ```
+终端不便时用页面试玩台（`?view=play`）同款互动：客户在村里点名两条记录，
+先盲猜 LINK/REFUSE 再揭晓——分数与 live 服务同值（页面内嵌真实矩阵）。
 预设桥段：把 B 的地址改成完全不同的地址 → 分数当场掉下 θ →
 "证据被拿走，模型立刻不敢断言——它没有背答案"。
 
