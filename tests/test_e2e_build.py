@@ -100,13 +100,37 @@ class TestEndToEnd(unittest.TestCase):
         for marker in ('"play":{"n":', '"order":["rec-', '"lo":', "playRevealed"):
             self.assertIn(marker, self.html)
 
+    def test_play_free_input_in_page(self):
+        """试玩台「直接输入两条」：双页签 + 在线打分（同源相对路径，零 URL 字符串）+
+        双 rid 走内嵌矩阵的捷径 + ?fa=/?fb= 深链 + 失败人话提示。"""
+        for marker in ('data-tab="free"', 'id="plTaA"', 'id="plTaB"', 'id="plGo"',
+                       "playFreeScore", "fetch('api/score'", "play.free.mode.live",
+                       "play.free.cmd", "qs.get('fa')", "qs.get('fb')",
+                       "pl-verdict-chip.no", "mode: 'matrix'"):
+            self.assertIn(marker, self.html)
+
     def test_page_markers_present(self):
-        for marker in ('id="view-arena"', 'id="view-network"', 'id="view-explain"',
+        for marker in ('id="view-home"', 'id="view-arena"', 'id="view-network"', 'id="view-explain"',
                        'id="view-scoreboard"', 'id="view-play"', 'id="view-connect"',
                        'id="openBench"',
                        "switchNetTrack", "openNetSide", "const DATA = {",
                        "renderConnect", "er_score_pair", "renderPlay", "playScore"):
             self.assertIn(marker, self.html)
+
+    def test_home_guide_view_in_page(self):
+        """导览视图（默认落地页）：入口文案 + 三步叙事直达网络三态 + 双轨卡切换。"""
+        for marker in ('id="view-home"', "renderHome", "home.lede", "home.step2.t.open",
+                       "data-goto", "data-stage", "data-trackgo", "nav.home"):
+            self.assertIn(marker, self.html)
+
+    def test_theme_toggle_in_page(self):
+        """黑白主题：默认浅色 + 先行脚本防闪 + 顶栏切换钮 + 双套调色板变量块。"""
+        for marker in ('data-theme="light"', "ea_theme", 'id="themeBtn"',
+                       "applyThemeBtn", "html[data-theme=\"dark\"]"):
+            self.assertIn(marker, self.html)
+        # 先行脚本必须出现在 <body> 之前（首帧前定主题，防闪）
+        head = self.html.split("<body>")[0]
+        self.assertIn("ea_theme", head)
 
     def test_zero_external_links(self):
         """离线契约：成品页不得引用任何外部资源。

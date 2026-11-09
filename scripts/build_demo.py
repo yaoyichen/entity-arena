@@ -108,15 +108,17 @@ def main() -> None:
     print(f"built {args.out}  ({size_kb:.0f} KB, single file, zero external links)")
 
     # 自检：关键标记齐全（失败不静默）
-    markers = ['id="view-arena"', 'id="view-network"', 'id="view-explain"',
+    markers = ['id="view-home"', 'id="view-arena"', 'id="view-network"', 'id="view-explain"',
                'id="view-scoreboard"', 'id="view-play"', 'id="view-connect"', 'id="openBench"',
                "const DATA = {", "netToggle", "renderScoreboard", "renderOpenBench",
                "renderConnect", "er_score_pair", "renderPlay", "playScore",
                'id="trackBar"', "switchNetTrack", "openNetSide",
-               "renderTrackBar", "applyTrackChrome",
+               "renderTrackBar", "applyTrackChrome", "renderHome",
                # 合成轨三态：network.json 必须带基线块（旧数据契约 → 构建即失败，不静默）
                '"baseline":{"kind":"proxy"', "net.syn.state.baseline",
-               "buildMissGroup", "renderNetStats"]
+               "buildMissGroup", "renderNetStats",
+               # 试玩台「直接输入」：在线打分走同源相对路径（sidecar 转发），页面零 URL 字符串
+               "playFreeScore", "api/score", 'id="plGo"']
     if bundle["open_cases"] is not None:
         markers.append('"open_cases":{')  # 数据就绪时必须真的打进页面
         markers += ['"query_id":"F1"', '"pair_id":"R3"', 'missmark']  # 新 payload 与漏连标记必须真的进页面
@@ -124,7 +126,7 @@ def main() -> None:
         if marker not in html:
             raise SystemExit(f"self-check failed: marker missing: {marker}")
     assert "</script><script" not in html.split("<body>")[0]  # 数据未破坏脚本结构
-    print("self-check: 6 views + data blob + interactions ✓")
+    print("self-check: 7 views (home guide + 6) + data blob + interactions ✓")
 
     if args.open:
         import subprocess

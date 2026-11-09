@@ -9,7 +9,7 @@ from __future__ import annotations
 import json
 
 TEMPLATE = """<!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-theme="light">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -17,6 +17,14 @@ TEMPLATE = """<!DOCTYPE html>
 <style>
 __CSS__
 </style>
+<script>
+/* 主题先行（首帧前）：localStorage 记忆 > ?theme= 深链 > 默认浅色——防闪白/闪黑 */
+(function(){try{
+  var t = localStorage.getItem('ea_theme') ||
+          new URLSearchParams(location.search).get('theme') || 'light';
+  document.documentElement.dataset.theme = (t === 'dark') ? 'dark' : 'light';
+}catch(e){ document.documentElement.dataset.theme = 'light'; }})();
+</script>
 </head>
 <body>
 <header>
@@ -25,18 +33,52 @@ __CSS__
     <span class="pill" id="headPill"></span>
     <div class="trackbar hdr" id="trackBar"></div>
     <nav id="nav">
-      <button data-view="arena" class="active" data-i18n="nav.arena"></button>
+      <button data-view="home" class="active" data-i18n="nav.home"></button>
+      <button data-view="arena" data-i18n="nav.arena"></button>
       <button data-view="network" data-i18n="nav.network"></button>
       <button data-view="explain" data-i18n="nav.explain"></button>
       <button data-view="scoreboard" data-i18n="nav.scoreboard"></button>
       <button data-view="play" data-i18n="nav.play"></button>
       <button data-view="connect" data-i18n="nav.connect"></button>
     </nav>
+    <button class="lang" id="themeBtn" aria-label="theme">☾</button>
     <button class="lang" id="langBtn">中文</button>
   </div>
 </header>
 <main>
-  <section id="view-arena" class="view active">
+  <section id="view-home" class="view active">
+    <div class="hero">
+      <div class="eyebrow" data-i18n="home.eyebrow"></div>
+      <h1 data-i18n="home.h"></h1>
+      <p class="lede" data-i18n="home.lede"></p>
+      <div class="cta-row">
+        <button class="cta primary" data-goto="network" data-stage="0" data-i18n="home.cta.tour"></button>
+        <button class="cta ghost" data-goto="play" data-i18n="home.cta.play"></button>
+      </div>
+    </div>
+    <div class="homeblock statblock">
+      <div class="eyebrow" data-i18n="home.stats.h"></div>
+      <div class="homestats" id="homeStats"></div>
+    </div>
+    <div class="homeblock">
+      <div class="eyebrow" data-i18n="home.steps.eyebrow"></div>
+      <h2 data-i18n="home.steps.h"></h2>
+      <div class="steps" id="homeSteps"></div>
+    </div>
+    <div class="homeblock" id="homeTracksBlock">
+      <div class="eyebrow" data-i18n="home.tracks.eyebrow"></div>
+      <h2 data-i18n="home.tracks.h"></h2>
+      <div class="tracks2" id="homeTracks"></div>
+    </div>
+    <div class="homeblock">
+      <div class="eyebrow" data-i18n="home.views.eyebrow"></div>
+      <h2 data-i18n="home.views.h"></h2>
+      <div class="viewgrid" id="viewGrid"></div>
+    </div>
+    <p class="homemode" data-i18n="home.mode"></p>
+  </section>
+
+  <section id="view-arena" class="view">
     <div class="vhead">
       <h1 data-i18n="arena.h"></h1>
       <p id="arenaSub"></p>
@@ -124,6 +166,7 @@ const I18N = {
   'app.zh':        {en:'Entity Resolution Demo', zh:'实体归并演示台'},
   'badge.synthetic':{en:'SYNTHETIC DATA', zh:'合成演示数据'},
   'badge.open':    {en:'FEBRL3 · REAL MODEL SCORES', zh:'FEBRL3 · 真实模型实测'},
+  'nav.home':      {en:'Guide', zh:'导览'},
   'nav.arena':     {en:'Arena', zh:'对比台'},
   'nav.network':   {en:'Network', zh:'关系网络'},
   'nav.explain':   {en:'Explain', zh:'匹配解释'},
@@ -288,8 +331,8 @@ const I18N = {
   'conn.copy':     {en:'copy', zh:'复制'},
   'conn.copied':   {en:'copied ✓', zh:'已复制 ✓'},
   'play.h':        {en:'Playground — pick a pair, call the verdict', zh:'试玩台 · 挑一对，亲手下判定'},
-  'play.sub':      {en:'All 25,878 pairs of the 228-record village, scored by the fine-tuned model — pick any two records (or draw a classic), guess first if you dare, then see the real cosine against θ. Fully offline: this page embeds the pre-sampled real matrix, identical to the live service output.',
-                   zh:'228 条村记录两两全量 25,878 对，分数全部来自微调模型——任意挑两条（或抽一对名场面），敢的话先盲猜，再看真实余弦对着 θ 的判定。全程离线：页面内嵌预取样真实矩阵，与线上服务输出一致。'},
+  'play.sub':      {en:'Two ways to score a pair. Pick from village: all 25,878 pairs, embedded pre-sampled real matrix — fully offline, identical to the live service. Type two records: any text you like, scored live by the deployed fine-tuned model (needs the local relay).',
+                   zh:'两种出题方式。挑村记录：两两全量 25,878 对，页面内嵌预取样真实矩阵，完全离线、与线上服务同值；直接输入：随便写两条记录，部署的微调模型在线实时打分（需先启动本地转发服务）。'},
   'play.none':     {en:'Febrl3 village data is not bundled in this build — the playground needs it. Rebuild after village scores land.', zh:'本构建未打入 Febrl3 案例村数据——试玩台需要它。案例村分数入库后重新构建即可。'},
   'play.preset.h': {en:'Or start from a classic', zh:'名场面一键开打'},
   'play.preset.t': {en:'random true pair', zh:'随机真对'},
@@ -314,8 +357,30 @@ const I18N = {
   'play.truth.diff':{en:'Febrl3 truth: different people', zh:'Febrl3 真值：不同人'},
   'play.truth.ok': {en:'assertion CORRECT', zh:'断言正确'},
   'play.truth.bad':{en:'assertion WRONG', zh:'断言错误'},
-  'play.mode':     {en:'score mode: offline pre-sampled real matrix — equals the live service output (free-text scoring lives in the MCP server; see Connect view).',
-                   zh:'打分模式：离线预取样真实矩阵——与线上服务输出一致（自由文本打分在 MCP 服务器里，见「接入」视图）。'},
+  'play.mode':     {en:'score mode: offline pre-sampled real matrix — equals the live service output (typed free text scores live instead — the “Type two records” tab).',
+                   zh:'打分模式：离线预取样真实矩阵——与线上服务输出一致（自由文本走在线实测，见「直接输入两条」页签）。'},
+  /* ---------- 试玩台·直接输入（在线）：双语文案 ---------- */
+  'play.tab.pick': {en:'Pick village records', zh:'挑村记录对'},
+  'play.tab.free': {en:'Type two records', zh:'直接输入两条'},
+  'play.free.h':   {en:'Type any two records — live verdict', zh:'随便输入两条记录——实时判定'},
+  'play.free.sub': {en:'Village-style text or anything you invent, scored live by the deployed fine-tuned model. Field labels follow the village format; typos, missing fields and swapped digits are exactly the fun part. Two village rids also work — scored instantly from the embedded matrix, same value as live.',
+                   zh:'村同构文本或任意自编记录，由部署的微调模型在线打分。字段名沿用村格式；错字、缺字段、换数字正是好玩的地方。两端填村 rid 也行——直接走页面内嵌矩阵，与在线同值。'},
+  'play.free.ph':  {en:'name: chelsea morrison | DOB: 1962-10-20 | address: 6 hansen circuit | locality: golden bay 2608 nsw | SSN: 6038747',
+                    zh:'name: chelsea morrison | DOB: 1962-10-20 | address: 6 hansen circuit | locality: golden bay 2608 nsw | SSN: 6038747'},
+  'play.free.tpl': {en:'fill a classic, then edit:', zh:'名场面文本，填进来改着玩：'},
+  'play.free.go':  {en:'Score this pair', zh:'打这一对'},
+  'play.free.busy':{en:'scoring…', zh:'打分中…'},
+  'play.free.need':{en:'Fill in both records first.', zh:'先把两条记录都填上。'},
+  'play.free.err': {en:'Live scoring unreachable — the local relay is not running, or this page was not opened from it.',
+                   zh:'在线打分不可达——本地转发服务没启动，或页面不是从它打开的。'},
+  'play.free.cmd': {en:'python3 scripts/play_live_server.py',
+                    zh:'python3 scripts/play_live_server.py'},
+  'play.free.err2':{en:'then open this page from the address it prints (same origin is required). Village-rid scoring keeps working offline meanwhile.',
+                   zh:'然后从它打印的地址打开本页（需同源才能调用）。期间挑村记录的离线打分不受影响。'},
+  'play.free.recA':{en:'Record A · your input', zh:'记录 A · 你输入的'},
+  'play.free.recB':{en:'Record B · your input', zh:'记录 B · 你输入的'},
+  'play.free.mode.live': {en:'score mode: live — deployed model “{M}”, real-time cosine (input_type=document); θ identical to the rest of the page. No ground truth for free text — this is the model’s own assertion.',
+                   zh:'打分模式：在线实测——部署模型「{M}」实时余弦（input_type=document），θ 与全页一致。自由文本无真值核验，这是模型自己的断言。'},
   'play.f.name':   {en:'Name', zh:'姓名'},
   'play.f.dob':    {en:'DOB', zh:'生日'},
   'play.f.address':{en:'Address', zh:'地址'},
@@ -323,6 +388,61 @@ const I18N = {
   'play.f.ssn':    {en:'ID No.', zh:'证件号'},
   'play.open':     {en:'▶ open this pair in the Playground', zh:'▶ 这对去试玩台亲手打'},
   'conn.toplay':   {en:'▶ Try it right on this page — Playground', zh:'▶ 先在本页零安装试一把 —— 试玩台'},
+  /* ---------- 导览视图（home）：入口页文案，数字行由 renderHome 按轨拼装 ---------- */
+  'home.eyebrow':  {en:'ENTITY RESOLUTION · SINGLE-FILE DEMO', zh:'实体归并 · 单文件演示台'},
+  'home.h':        {en:'Same name. Same birthday. Same person?', zh:'同名、同生日——就是同一个人吗？'},
+  'home.lede':     {en:'Entity Resolution, shown end to end. Two scorers judge every record pair — a literal-similarity baseline and a fine-tuned embedding model — and each only asserts "same person" above its own θ line. Both datasets and every real score travel inside this one offline file.',
+                   zh:'实体归并端到端演示：两位判官给每一对记录打分——字面相似度基线与微调嵌入模型——各自越过自己的 θ 判定线，才敢断言"同一个人"。两个数据集与全部真实分数，都装在这一个断网可开的文件里。'},
+  'home.cta.tour': {en:'▶ Take the tour — 3 stages', zh:'▶ 跟着走一遍 · 三步看懂'},
+  'home.cta.play': {en:'Skip ahead — score a pair yourself', zh:'跳过导览 · 亲手挑一对打分'},
+  'home.stats.h':  {en:'Headline numbers', zh:'开场数字'},
+  'home.st.village':{en:'Febrl3 village · real benchmark', zh:'Febrl3 案例村 · 公开基准'},
+  'home.st.village.t':{en:'records · {E} identities · 1,223 look-alike shadow pairs', zh:'条记录 · {E} 个身份 · 1,223 对影子相似'},
+  'home.st.village.synth':{en:'Scripted world · seed 42', zh:'合成剧本 · seed 42'},
+  'home.st.village.synth.t':{en:'records · {E} entities · 5 sources', zh:'条记录 · {E} 个实体 · 5 个来源'},
+  'home.st.tuned.open':{en:'Tuned assertions · REAL scores', zh:'微调断言 · 真实分数'},
+  'home.st.tuned.synth':{en:'Tuned · proxy score', zh:'微调 · 代理评分'},
+  'home.st.tuned.open.t':{en:'F1 · {A}/{T} true pairs asserted · 0 false · 0 missed', zh:'F1 · 断言 {A}/{T} 真对 · 0 误连 · 0 漏连'},
+  'home.st.tuned.synth.t':{en:'F1 · all {A} assertions correct · {M} honest miss(es) scripted', zh:'F1 · 断言 {A} 条全对 · 剧本保留 {M} 条诚实漏连'},
+  'home.st.base':  {en:'Baseline · literal-similarity proxy', zh:'基线 · 字面相似代理'},
+  'home.st.base.t':{en:'false merges / missed links — the red marks on the map', zh:'误连 / 漏连 —— 即图上的红线与红虚线 ⊘'},
+  'home.st.bench': {en:'Open benchmark · real models × Febrl3', zh:'开源基准 · 真实模型 × Febrl3'},
+  'home.st.bench.t':{en:'base models fine-tuned, NDCG@10 ≥ .998 · 850-query duels: {W} W / {L} L', zh:'个基座微调后 NDCG@10 ≥ .998 · 850 查询对垒 {W} 胜 / {L} 负'},
+  'home.steps.eyebrow':{en:'The story', zh:'三步叙事'},
+  'home.steps.h':  {en:'One network, three stages', zh:'同一张网，三个阶段'},
+  'home.step0.h':  {en:'① Raw — no verdicts yet', zh:'① 原始 · 还没有判定'},
+  'home.step0.t':  {en:'Records arrive unscored. Look-alike ties — shared surnames, addresses, birthdays — already tangle different people together.',
+                   zh:'记录刚到，还没人打分。同姓、同址、同生日的"影子相似"已经把不同的人缠成一团团乱麻。'},
+  'home.step1.h':  {en:'② Baseline — literal resemblance', zh:'② 基线 · 只看长得像'},
+  'home.step1.t':  {en:'A field-similarity proxy links whatever crosses θ: many true links found, but look-alikes get falsely merged (red lines) and some true pairs are left unlinked (dashed ⊘).',
+                   zh:'字面相似度代理越过 θ 就连：真对连上不少，但影子被误连成一个人（红线），也有真对没敢连（红虚线 ⊘）。'},
+  'home.step2.h':  {en:'③ Fine-tuned — embeddings judge', zh:'③ 微调 · 嵌入来判'},
+  'home.step2.t.open':{en:'The fine-tuned model asserts with real scores — on this village every assertion is correct: 323/323 true pairs, 0 false, 0 missed.',
+                   zh:'微调模型用真实分数断言——在这个案例村上 323/323 真对全中，0 误连、0 漏连。'},
+  'home.step2.t.synth':{en:'The tuned proxy keeps honest blind spots: zero false links, and the scripted misses (twins, missing fields) stay visible as dashed ⊘.',
+                   zh:'微调代理保留诚实盲区：零误连，但剧本注定的失手（双胞胎、字段缺失）仍以红虚线 ⊘ 露着。'},
+  'home.golink':   {en:'view this stage →', zh:'查看该阶段 →'},
+  'home.tracks.eyebrow':{en:'Two datasets', zh:'双轨数据集'},
+  'home.tracks.h': {en:'Pick a track — every view follows', zh:'选一条轨——各视图全体跟随'},
+  'home.tr.cur':   {en:'current', zh:'当前轨'},
+  'home.tr.open.h':{en:'Febrl3 · measured track', zh:'Febrl3 · 实测轨'},
+  'home.tr.open.t':{en:'A public benchmark (programmatically generated, no real PII). Fine-tuned scores are the deployed model\'s real outputs; the pairwise baseline is a literal-similarity proxy — real base-model metrics sit in the Scoreboard.',
+                   zh:'公开基准（程序生成，无真实隐私）。微调分数 = 已部署模型的真实输出；逐对基线 = 字面相似度代理——基模真实指标在指标板的开源基准板块。'},
+  'home.tr.synth.h':{en:'Scripted · synthetic track', zh:'剧本 · 合成轨'},
+  'home.tr.synth.t':{en:'47 hand-scripted characters, deterministic (seed 42), built for explainable stories — twins, shared phones, typo storms. Scores are proxy formulas: they show the mechanism, not production performance.',
+                   zh:'47 位剧本人物，seed 42 确定性生成，专为可解释叙事设计——双胞胎、共用电话、错字风暴。分数是代理公式：演示机制差异，不代表生产性能。'},
+  'home.tr.enter': {en:'enter on this track →', zh:'以此轨进入 →'},
+  'home.views.eyebrow':{en:'Six views', zh:'六个视图'},
+  'home.views.h':  {en:'Where to look, in what order', zh:'按这个顺序看'},
+  'home.v.arena':  {en:'One scripted query, two models side by side — who gets linked, who gets wrongly linked.', zh:'一个剧本查询，两模型并排——谁被连上、谁被误连。'},
+  'home.v.network':{en:'The same network in three stages: raw tangle → baseline red marks → tuned merge.', zh:'同一张网的三态：原始纠缠 → 基线红标 → 微调归并。'},
+  'home.v.explain':{en:'Field-by-field evidence for the decisive pairs, θ tick on every score bar.', zh:'关键记录对的逐字段证据，每根分数条上都标着 θ 刻度。'},
+  'home.v.scoreboard':{en:'Assertion metrics with the fine print — plus the real open-benchmark board below.', zh:'断言指标附完整口径——下方还有开源基准真实数字。'},
+  'home.v.play':   {en:'All 25,878 village pairs embedded offline. Pick two, guess first, then the real cosine.', zh:'全村 25,878 对分数内嵌离线。挑两条、先盲猜、再看真实余弦。'},
+  'home.v.connect':{en:'Take the scorer into your own AI via MCP — zero config for village rid pairs.', zh:'通过 MCP 把打分器装进你的 AI——rid 对零配置。'},
+  'home.mode':     {en:'Honest labeling throughout — every number carries its caliber: real measurement, proxy score, or synthetic script (declared per track in the status bar, scoreboard and footer). Single-file build, opens offline; deep links like ?view=network&stage=1 jump straight in.',
+                   zh:'全程诚实标注——每个数字都带自己的口径：真实实测、代理评分或合成剧本（按轨在状态条、统计条与页脚三处声明）。单文件构建断网可开；?view=network&stage=1 这类深链可直达任意位置。'},
+
   'footer.note':   {en:'Scripted track: records, relations and scores are synthetic, generated deterministically from seed. Open-benchmark track: real measurements of fine-tuned models on Febrl3. Single-file build — opens offline.',                   zh:'剧本轨：记录、关系与分数均为种子确定性生成的合成数据；开源基准轨：微调模型在 Febrl3 上的真实实测。单文件构建，可离线打开。'},
   'footer.note.open': {en:'Open track: Febrl3 public benchmark (programmatically generated person records, no real PII); fine-tuned scores are real model measurements; pairwise baseline is a literal-similarity proxy. Scripted track available via the header switch. Single-file build — opens offline.',
                    zh:'实测轨：Febrl3 公开基准（程序合成的个人记录，无真实隐私数据）；微调分数为真实模型实测；逐对基线为字面相似度代理。可用头部切换器切回合成剧本轨。单文件构建，可离线打开。'},
@@ -365,15 +485,45 @@ document.querySelectorAll('#nav button').forEach(b => {
     if (b.dataset.view === 'network') netFit();
   });
 });
+function goView(v){ document.querySelector('#nav button[data-view="' + v + '"]').click(); }
+/* 导览视图（home）：卡片/CTA 跳转走事件委托——renderHome 只换 innerHTML，不动容器 */
+document.getElementById('view-home').addEventListener('click', function(e){
+  const g = e.target.closest('[data-goto]');
+  if (g) {
+    goView(g.dataset.goto);
+    if (g.dataset.stage !== undefined) {   // 三步叙事卡直达网络三态（与 ?stage= 同路径）
+      netT = +g.dataset.stage; netApply(+g.dataset.stage); netSyncUI(+g.dataset.stage);
+    }
+    return;
+  }
+  const tr = e.target.closest('[data-trackgo]');
+  if (tr) {
+    const want = tr.dataset.trackgo;
+    if (want !== TRACK && (want === 'synth' || OC)) switchNetTrack(want);
+    goView('network'); netT = 0; netApply(0); netSyncUI(0);
+  }
+});
 
 document.getElementById('langBtn').addEventListener('click', () => setLang(LANG === 'en' ? 'zh' : 'en'));
+/* 黑白主题切换：浅色默认；选择记入 localStorage，图标 = 点击后去往的主题 */
+let THEME = document.documentElement.dataset.theme === 'dark' ? 'dark' : 'light';
+function setTheme(t){
+  THEME = t;
+  try { localStorage.setItem('ea_theme', t); } catch (e) { /* file:// 极端场景忽略 */ }
+  document.documentElement.dataset.theme = t;
+  applyThemeBtn();
+}
+function applyThemeBtn(){
+  document.getElementById('themeBtn').textContent = THEME === 'dark' ? '☀' : '☾';
+}
+document.getElementById('themeBtn').addEventListener('click', () => setTheme(THEME === 'light' ? 'dark' : 'light'));
 function setLang(l){
   LANG = l; localStorage.setItem('ea_lang', l);
   document.getElementById('langBtn').textContent = (l === 'en' ? '中文' : 'EN');
   document.documentElement.lang = l;
   document.querySelectorAll('[data-i18n]').forEach(el => { el.textContent = t(el.dataset.i18n); });
   applyTrackChrome();
-  renderArena(); renderNetLegend(); netLabels(); renderTrackBar(); renderExplain(); renderScoreboard(); renderOpenBench(); renderPlay(); renderConnect();
+  renderHome(); renderArena(); renderNetLegend(); netLabels(); renderTrackBar(); renderExplain(); renderScoreboard(); renderOpenBench(); renderPlay(); renderConnect();
 }
 function applyTrackChrome(){
   /* 按当前数据集轨道刷新徽章与口径文案（诚实标注随轨切换） */
@@ -603,7 +753,7 @@ function switchNetTrack(track) {
   buildNet();
   netLabels(); renderNetLegend(); netSyncUI();
   renderTrackBar();
-  renderArena(); renderExplain(); renderScoreboard(); applyTrackChrome();
+  renderHome(); renderArena(); renderExplain(); renderScoreboard(); applyTrackChrome();
   syncTrackParam();
 }
 function syncTrackParam() {
@@ -1452,6 +1602,8 @@ function connCopy(btn){
 
 /* ============================ Play（试玩台：页面内亲手打分） ============================ */
 let playA = null, playB = null, playRevealed = false, playSaid = null;
+let playTab = 'pick';                      /* 'pick'=挑村记录（离线矩阵）| 'free'=直接输入（在线） */
+const playFree = {a: '', b: '', busy: false, res: null, err: null};
 let playTally = {n: 0, ok: 0};
 const playQ = {a: '', b: ''};
 let playC = null;   // 解码缓存：{order,pos,u16,n,lo}
@@ -1505,6 +1657,21 @@ function renderPlay(){
   const el = document.getElementById('playMain');
   document.getElementById('playSub').textContent = t('play.sub');
   if (!OC || !OC.play) { el.innerHTML = '<div class="card">' + t('play.none') + '</div>'; return; }
+  /* 双出题方式页签：挑村记录（离线矩阵）/ 直接输入两条（在线实测） */
+  el.innerHTML = '<div class="pl-tabs">' +
+    '<button class="pl-tab' + (playTab === 'pick' ? ' active' : '') + '" data-tab="pick">' + t('play.tab.pick') + '</button>' +
+    '<button class="pl-tab' + (playTab === 'free' ? ' active' : '') + '" data-tab="free">' + t('play.tab.free') + '</button></div>' +
+    '<div id="playPick"></div><div id="playFree"></div>';
+  el.querySelectorAll('.pl-tab').forEach(function(b){
+    b.addEventListener('click', function(){ playTab = b.dataset.tab; renderPlay(); });
+  });
+  renderPlayPick();
+  renderPlayFree();
+}
+function renderPlayPick(){
+  const host = document.getElementById('playPick');
+  if (!host) return;
+  host.style.display = playTab === 'pick' ? '' : 'none';
   let html = '<div class="card" style="margin-bottom:14px"><div class="conn-h2">' + t('play.preset.h') +
     '</div><div class="pl-presets">';
   DATA.pairs.filter(function(p){ return ['R1','R2','R3'].indexOf(p.pair_id) >= 0; }).forEach(function(p){
@@ -1523,11 +1690,11 @@ function renderPlay(){
     '<input class="pl-search" data-side="b" placeholder="' + t('play.search') + '" value="' + esc(playQ.b) + '">' +
     '<div class="plist" id="plist-b"></div></div></div>' +
     '<div id="playResult"></div></div>';
-  el.innerHTML = html;
-  el.querySelectorAll('.pl-search').forEach(function(inp){
+  host.innerHTML = html;
+  host.querySelectorAll('.pl-search').forEach(function(inp){
     inp.addEventListener('input', function(){ playQ[inp.dataset.side] = inp.value; renderPlayList(inp.dataset.side); });
   });
-  el.querySelectorAll('.pl-preset').forEach(function(b){
+  host.querySelectorAll('.pl-preset').forEach(function(b){
     b.addEventListener('click', function(){
       const r = b.dataset.rand;
       if (!r) { playSet(b.dataset.a, b.dataset.b); return; }
@@ -1561,6 +1728,127 @@ function renderPlay(){
     });
   });
   renderPlayList('a'); renderPlayList('b'); renderPlayResult();
+}
+/* ---------- 直接输入两条（在线实测；双 rid 直填走内嵌矩阵，与 MCP er_score_pair 同款双模式） ---------- */
+function renderPlayFree(){
+  const host = document.getElementById('playFree');
+  if (!host) return;
+  host.style.display = playTab === 'free' ? '' : 'none';
+  const tpl = DATA.pairs.filter(function(p){ return ['R1','R2'].indexOf(p.pair_id) >= 0; });
+  let html = '<div class="card pl-free">' +
+    '<div class="conn-h2" style="margin-top:0">' + t('play.free.h') + '</div>' +
+    '<p class="pl-free-sub">' + t('play.free.sub') + '</p>' +
+    '<div class="pl-free-tpl"><span class="pl-free-tpllab">' + t('play.free.tpl') + '</span>' +
+    tpl.map(function(p){
+      return '<button class="pl-preset" data-tpl="' + p.pair_id + '">' +
+        '<span class="mono" style="color:var(--cyan-b)">' + p.pair_id + '</span> ' + esc(bi(p.title)) + '</button>';
+    }).join('') + '</div>' +
+    '<div class="pl-free-grid">' +
+    '<div><div class="pl-lab mono">A</div>' +
+    '<textarea class="pl-ta" id="plTaA" rows="5" spellcheck="false" placeholder="' + esc(t('play.free.ph')) + '">' + esc(playFree.a) + '</textarea></div>' +
+    '<div><div class="pl-lab mono">B</div>' +
+    '<textarea class="pl-ta" id="plTaB" rows="5" spellcheck="false" placeholder="' + esc(t('play.free.ph')) + '">' + esc(playFree.b) + '</textarea></div>' +
+    '</div>' +
+    '<div class="pl-free-bar"><button class="cta primary" id="plGo"' + (playFree.busy ? ' disabled' : '') + '>' +
+    (playFree.busy ? t('play.free.busy') : t('play.free.go')) + '</button></div>' +
+    '<div id="plFreeRes"></div></div>';
+  host.innerHTML = html;
+  [['a','plTaA'],['b','plTaB']].forEach(function(pair){
+    const ta = document.getElementById(pair[1]);
+    ta.addEventListener('input', function(){ playFree[pair[0]] = ta.value; });
+  });
+  host.querySelectorAll('[data-tpl]').forEach(function(b){
+    b.addEventListener('click', function(){
+      const p = DATA.pairs.find(function(x){ return x.pair_id === b.dataset.tpl; });
+      if (!p) return;
+      playFree.a = OC.records[p.a].text; playFree.b = OC.records[p.b].text;
+      document.getElementById('plTaA').value = playFree.a;
+      document.getElementById('plTaB').value = playFree.b;
+      playFree.res = null; playFree.err = null;
+      renderPlayFreeRes();
+    });
+  });
+  document.getElementById('plGo').addEventListener('click', playFreeScore);
+  renderPlayFreeRes();
+}
+function playFreeScore(){
+  if (playFree.busy) return;
+  const a = playFree.a.trim(), b = playFree.b.trim();
+  playFree.res = null; playFree.err = null;
+  if (!a || !b) { playFree.err = {msg: t('play.free.need')}; renderPlayFreeRes(); return; }
+  const ra = OC.records[a], rb = OC.records[b];
+  if (ra && rb) {
+    if (a === b) { playFree.err = {msg: t('play.same')}; renderPlayFreeRes(); return; }
+    const s = playScore(a, b);           /* 双 rid：内嵌矩阵（确定性 = 在线输出） */
+    if (s !== null) {
+      playFree.res = {score: s, mode: 'matrix', ra: ra, rb: rb, rida: a, ridb: b};
+      renderPlayFreeRes(); return;
+    }
+  }
+  /* 自由文本（rid 自动换村文本，混合也行）→ 本地同源转发 → 部署服务实时打分 */
+  playFree.busy = true; renderPlayFree();
+  fetch('api/score', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({a: ra ? ra.text : a, b: rb ? rb.text : b})
+  }).then(function(r){
+    return r.json().then(function(j){
+      if (!r.ok) throw new Error(j.error || ('HTTP ' + r.status));
+      return j;
+    });
+  }).then(function(d){
+    playFree.busy = false; playFree.res = {score: d.score, mode: 'live', model: d.model};
+    renderPlayFree();
+  }).catch(function(){
+    playFree.busy = false; playFree.err = {msg: t('play.free.err')};
+    renderPlayFree();
+  });
+}
+function renderPlayFreeRes(){
+  const host = document.getElementById('plFreeRes');
+  if (!host) return;
+  if (playFree.err) {
+    host.innerHTML = '<div class="card pl-free-err" style="margin-top:12px">' +
+      '<div class="pl-free-errt">' + esc(playFree.err.msg) + '</div>' +
+      '<pre class="pl-free-cmd mono">' + esc(t('play.free.cmd')) + '</pre>' +
+      '<div class="pl-free-errh">' + t('play.free.err2') + '</div></div>';
+    return;
+  }
+  const r = playFree.res;
+  if (!r) { host.innerHTML = ''; return; }
+  const P = playData(), theta = OC.theta, s = r.score;
+  const linked = s >= theta, margin = s - theta;
+  let html = '';
+  if (r.mode === 'matrix') {
+    html += '<div class="xgrid" style="margin-top:12px">' + plRecCard(r.ra, r.rida) + plRecCard(r.rb, r.ridb) + '</div>';
+    html += plFieldTable(r.ra, r.rb);
+  } else {
+    html += '<div class="xgrid" style="margin-top:12px">' +
+      '<div class="card gline qcard"><div class="rec-name">' + t('play.free.recA') + '</div>' +
+      '<div class="mono pl-free-txt">' + esc(playFree.a.trim()) + '</div></div>' +
+      '<div class="card gline qcard"><div class="rec-name">' + t('play.free.recB') + '</div>' +
+      '<div class="mono pl-free-txt">' + esc(playFree.b.trim()) + '</div></div></div>';
+  }
+  const pct = Math.max(0, Math.min(100, (s - P.lo) / (1 - P.lo) * 100));
+  const thPct = Math.max(0, Math.min(100, (theta - P.lo) / (1 - P.lo) * 100));
+  html += '<div class="card" style="margin-top:12px">' +
+    '<div class="pl-score-row"><span class="pl-big mono">' + s.toFixed(4) + '</span>' +
+    '<span class="pl-verdict-chip ' + (linked ? 'ok' : 'no') + '">' +
+    (linked ? t('play.verdict.linked') : t('play.verdict.refused')) + '</span>' +
+    '<span class="pl-margin mono">' + (margin >= 0 ? '+' : '') + margin.toFixed(4) + ' ' +
+    t(margin >= 0 ? 'play.above' : 'play.below') + '</span></div>' +
+    '<div class="pgauge"><div class="pg-fill" style="width:' + pct + '%;background:var(--cyan)"></div>' +
+    '<div class="pg-tick" style="left:' + thPct + '%"><span>θ ' + theta.toFixed(4) + '</span></div></div>';
+  if (r.mode === 'matrix') {
+    const same = r.ra.entity === r.rb.entity;
+    const correct = linked === same;
+    html += '<div class="pl-truth">' + (same ? t('play.truth.same') : t('play.truth.diff')) + ' — <span style="color:var(--' +
+      (correct ? 'cyan-b' : 'red-b') + ');font-weight:650">' + (correct ? '✓ ' + t('play.truth.ok') : '✗ ' + t('play.truth.bad')) +
+      '</span></div>';
+  }
+  html += '<div class="pl-mode">' + (r.mode === 'matrix' ? t('play.mode') :
+    t('play.free.mode.live').split('{M}').join(r.model || '')) + '</div></div>';
+  host.innerHTML = html;
 }
 function renderPlayList(side){
   const host = document.getElementById('plist-' + side);
@@ -1683,6 +1971,72 @@ function renderPlayResult(){
   });
 }
 
+/* ============================ Home（导览：入口落地页） ============================ */
+function renderHome(){
+  /* 入口页四块：开场数字带 / 三步叙事 / 双轨卡 / 六视图导览。
+     数字全部按当前 TRACK 现算（与各视图同源），口径随 tile 名逐条标注。 */
+  const A = trackAdapter();
+  const open = TRACK === 'open';
+  const bl = A.baseline.stats, st = A.stats;   // 当前轨：基线态统计 / 微调态统计
+  const nRec = open ? Object.keys(OC.records).length : DATA.meta.n_records;
+  const nEnt = open ? st.components : DATA.meta.n_entities;
+
+  /* --- 开场数字带（4 tile，复用记分牌 .tile 样式；数字穿文字色，身份由 tile 名承载） --- */
+  const ob = DATA.open_bench ? DATA.open_bench.models : [];
+  let wl = [0, 0, 0];
+  ob.forEach(m => { wl[0] += m.win_tie_loss[0]; wl[1] += m.win_tie_loss[1]; wl[2] += m.win_tie_loss[2]; });
+  const tiles = [
+    { n: t(open ? 'home.st.village' : 'home.st.village.synth'), big: nRec,
+      d: t(open ? 'home.st.village.t' : 'home.st.village.synth.t').replace('{E}', nEnt), cls: '' },
+    { n: t(open ? 'home.st.tuned.open' : 'home.st.tuned.synth'), big: f2(st.f1),
+      d: t(open ? 'home.st.tuned.open.t' : 'home.st.tuned.synth.t')
+             .replace('{A}', st.asserted).replace('{T}', st.truth_pairs).replace('{M}', st.missed_pairs), cls: 'up' },
+    { n: t('home.st.base'), big: bl.false_links + ' / ' + bl.missed_pairs,
+      d: t('home.st.base.t'), cls: 'down' },
+    { n: t('home.st.bench'), big: ob.length + '/' + ob.length,
+      d: t('home.st.bench.t').replace('{W}', wl[0]).replace('{L}', wl[2]), cls: 'up' },
+  ];
+  document.getElementById('homeStats').innerHTML = tiles.map(x =>
+    '<div class="tile"><div class="tname">' + x.n + '</div>' +
+    '<div class="nums"><span class="n-t">' + x.big + '</span></div>' +
+    '<div class="delta ' + x.cls + '">' + x.d + '</div></div>').join('');
+
+  /* --- 三步叙事：整卡可点，直达网络三态（data-stage 与 ?stage= 同一路径） --- */
+  const steps = [
+    { s: 0, h: t('home.step0.h'), d: t('home.step0.t'),
+      chip: open ? 'Febrl3 · ' + nRec + ' rec · ' + nEnt + ' id' : 'seed 42 · ' + nRec + ' rec · 5 sources' },
+    { s: 1, h: t('home.step1.h'), d: t('home.step1.t'),
+      chip: 'false ' + bl.false_links + ' · missed ' + bl.missed_pairs + ' · θ ' + A.baseline.theta.toFixed(3) },
+    { s: 2, h: t('home.step2.h'), d: t(open ? 'home.step2.t.open' : 'home.step2.t.synth'),
+      chip: 'asserted ' + st.asserted + ' · false ' + st.false_links + ' · missed ' + st.missed_pairs +
+            ' · θ ' + A.theta.toFixed(3) },
+  ];
+  document.getElementById('homeSteps').innerHTML = steps.map(x =>
+    '<button class="card gline stepcard" data-goto="network" data-stage="' + x.s + '">' +
+    '<span class="stepnum mono">0' + (x.s + 1) + '</span><div class="sh">' + x.h + '</div>' +
+    '<p class="st">' + x.d + '</p><span class="chip mono">' + x.chip + '</span>' +
+    '<span class="golink">' + t('home.golink') + '</span></button>').join('');
+
+  /* --- 双轨卡：当前轨高亮，另一轨点击即切（与头部切换器等价，随后落到网络原始态） --- */
+  const trk = [];
+  if (OC) trk.push({ k: 'open', badge: t('badge.open'), h: t('home.tr.open.h'), d: t('home.tr.open.t') });
+  trk.push({ k: 'synth', badge: t('badge.synthetic'), h: t('home.tr.synth.h'), d: t('home.tr.synth.t') });
+  document.getElementById('homeTracks').innerHTML = trk.map(x =>
+    '<button class="card gline trackcard' + (TRACK === x.k ? ' cur' : '') + '" data-trackgo="' + x.k + '">' +
+    '<div class="trackhead"><span class="sh">' + x.h + '</span><span class="pill">' + x.badge + '</span>' +
+    (TRACK === x.k ? '<span class="chip cy">' + t('home.tr.cur') + '</span>'
+                   : '<span class="golink">' + t('home.tr.enter') + '</span>') + '</div>' +
+    '<p class="st">' + x.d + '</p></button>').join('');
+  document.getElementById('homeTracksBlock').style.display = OC ? '' : 'none';
+
+  /* --- 六视图导览：一卡一句，点击直达 --- */
+  const views = ['arena', 'network', 'explain', 'scoreboard', 'play', 'connect'];
+  document.getElementById('viewGrid').innerHTML = views.map((v, i) =>
+    '<button class="card gline viewcard" data-goto="' + v + '">' +
+    '<span class="stepnum mono">0' + (i + 1) + '</span><div class="sh">' + t('nav.' + v) + '</div>' +
+    '<p class="st">' + t('home.v.' + v) + '</p></button>').join('');
+}
+
 /* ============================ init ============================ */
 function init(){
   // 网络工具栏（在 netbox 上层）
@@ -1703,6 +2057,7 @@ function init(){
     if (pl) document.querySelector('#nav button[data-view="play"]').click();
   });
   setLang(LANG);
+  applyThemeBtn();
   // ?view= 直达视图 + ?track=open 直达 Febrl3 轨 + ?focus= 直开档案卡（可分享链接）
   const qs = new URLSearchParams(location.search);
   const v = qs.get('view');
@@ -1731,10 +2086,19 @@ function init(){
   if (ppair && OC && OC.play) {
     const two = ppair.split(',');
     if (two.length === 2 && two[0] !== two[1] && OC.records[two[0]] && OC.records[two[1]]) {
-      playA = two[0]; playB = two[1]; playRevealed = true;
+      playTab = 'pick'; playA = two[0]; playB = two[1]; playRevealed = true;
       if (!v) document.querySelector('#nav button[data-view="play"]').click();
       renderPlayResult();
     }
+  }
+  // ?fa=/?fb= 直达试玩台「直接输入」（URL 编码文本或 rid；两端都给全时自动打分——现场剧本/截图深链）
+  const fa = qs.get('fa'), fb = qs.get('fb');
+  if ((fa || fb) && OC && OC.play) {
+    playTab = 'free'; playFree.a = fa || ''; playFree.b = fb || '';
+    playFree.res = null; playFree.err = null; playFree.busy = false;
+    if (!v) document.querySelector('#nav button[data-view="play"]').click();
+    else renderPlay();
+    if (playFree.a.trim() && playFree.b.trim()) playFreeScore();
   }
   // ?resolve=1 直达"归并后"状态（跳过动画，供截图/分享；三态开源轨直达微调态）
   if (qs.get('resolve')) { netResolved = true; netT = netMax; netApply(netMax); netSyncUI(netMax); }
