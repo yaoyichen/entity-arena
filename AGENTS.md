@@ -70,7 +70,7 @@ PYTHONPATH=src python3 -m unittest discover -s tests   # 测试（或装 pytest 
   （θ 扫描 F1 最大化 → 断言链 → 组件纯度；溯源分数写 `data_open/village_scores.json`
   入库，默认从该文件离线复算）。**实测主轨全量数据都由它供**：
   ① 网络三态：原始=影子关系纠缠簇 → 基线=字面相似度**代理**打分（平台无法逐对
-  部署基模，权重/口径写进 provenance，误连红线+混合组件红光环）→ 微调=真实断言
+  部署基模，权重/口径写进 provenance，误连红线+漏连红虚线⊘+混合组件红光环）→ 微调=真实断言
   组件；② Arena 六查询 F1–F6（六类极值规则：大家族/缺失/影子纠缠/基线误连/
   基线漏连/错字风暴，规则全文进 `provenance.arena_rule`，类别池空则缺席）；
   ③ 指标板（方向性口径与 simulate.py 逐条对齐，五分桶

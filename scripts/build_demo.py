@@ -116,7 +116,7 @@ def main() -> None:
                "renderTrackBar", "applyTrackChrome"]
     if bundle["open_cases"] is not None:
         markers.append('"open_cases":{')  # 数据就绪时必须真的打进页面
-        markers += ['"query_id":"F1"', '"pair_id":"R3"']  # 新 payload 必须真的进页面
+        markers += ['"query_id":"F1"', '"pair_id":"R3"', 'missmark']  # 新 payload 与漏连标记必须真的进页面
     for marker in markers:
         if marker not in html:
             raise SystemExit(f"self-check failed: marker missing: {marker}")

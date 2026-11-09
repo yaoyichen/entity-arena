@@ -174,13 +174,14 @@ const I18N = {
   'net.track.synth': {en:'Scripted world', zh:'合成剧本'},
   'net.track.open':  {en:'Febrl3 · real model', zh:'Febrl3 · 真实模型'},
   'net.open.state.before': {en:'RAW · look-alike ties tangle different people together', zh:'原始态 · 相似纠缠把不同的人缠在一起'},
-  'net.open.state.baseline': {en:'BASELINE · literal-similarity proxy · red links = false merges, red halo = mixed', zh:'基线打分（字面相似度代理）· 红线 = 误连，红光环 = 混入异实体'},
+  'net.open.state.baseline': {en:'BASELINE · literal-similarity proxy · red = false merge, dashed red ⊘ = missed link, red halo = mixed', zh:'基线打分（字面相似度代理）· 红线 = 误连，红虚线 ⊘ = 漏连，红光环 = 混入异实体'},
   'net.open.state.after':  {en:'RESOLVED by the fine-tuned model · red halo = mixed', zh:'微调模型归并完成 · 红色光环 = 混入异实体'},
   'net.open.btn.base':   {en:'⟶ Score with baseline', zh:'⟶ 基线打分归并'},
   'net.open.btn.tuned':  {en:'⟶ Resolve with fine-tuned model', zh:'⟶ 微调模型归并'},
   'net.open.base.note':  {en:'Proxy baseline: classic field-similarity ER scorer, same θ rule (F1-optimal). Not per-record base-model scores — base models cannot be served on this platform; real base-model metrics are in the Scoreboard.', zh:'代理基线：经典字段相似度打分器，θ 同规则（F1 最优）。非基模逐条分数——基模无法在平台部署，真实基线指标见记分牌。'},
   'net.open.lg.blink':   {en:'baseline asserted link', zh:'基线断言连线'},
   'net.open.lg.blink.bad': {en:'false merge (baseline)', zh:'误连（红线）'},
+  'net.open.lg.blink.miss': {en:'missed true link — same person, unlinked (baseline)', zh:'漏连（红虚线 ⊘）'},
   'ob.baseline.tag':     {en:'BASELINE · literal-similarity proxy', zh:'基线 · 字面相似度代理'},
   'ob.shadow':           {en:'look-alike ties', zh:'影子对'},
   'ob.shadow.note':      {en:'same surname / address / DOB — different people', zh:'同姓 / 同址 / 同生日的异实体，不是一伙的'},
@@ -518,6 +519,7 @@ let netT = 0, netResolved = false, netAnim = null, netMax = 1;
 const netNodes = {}, netPos = {};
 let svg = null, gSrc, gEB, gEA, gHalo, gNode, gELabel;
 let gBL = null, gHaloB = null, gELabelB = null, BASE_ENTS = null;
+let gMiss = null, missLinks = [];   // 漏连真对：红虚线 + 中点断口标记（基线态）
 
 function openComps() {
   const comps = {};
@@ -638,13 +640,14 @@ function buildNet(){
   box.appendChild(svg);
   gSrc = svgEl('g', {}); gEB = svgEl('g', {});
   gBL = hasBase ? svgEl('g', {}) : null;               // 基线断言连线
+  gMiss = hasBase ? svgEl('g', {}) : null;             // 漏连真对（红虚线桥）
   gEA = svgEl('g', {});
   gHaloB = hasBase ? svgEl('g', {}) : null;            // 基线组件光环
   gHalo = svgEl('g', {}); gNode = svgEl('g', {});
   gELabelB = hasBase ? svgEl('g', {}) : null;
   gELabel = svgEl('g', {});
   const layers = [gSrc, gEB];
-  layers.push.apply(layers, hasBase ? [gBL, gEA, gHaloB, gHalo, gNode, gELabelB, gELabel]
+  layers.push.apply(layers, hasBase ? [gBL, gMiss, gEA, gHaloB, gHalo, gNode, gELabelB, gELabel]
                                     : [gEA, gHalo, gNode, gELabel]);
   svg.append.apply(svg, layers);
 
@@ -676,10 +679,24 @@ function buildNet(){
     OC.baseline.links.forEach(l => {
       const isBad = badSet.has([l.a, l.b].sort().join('|'));
       const el = svgEl('line', {'class': 'edge'});
-      if (isBad) { el.style.stroke = 'var(--red)'; el.style.strokeWidth = '2'; el.style.strokeOpacity = '.85'; }
+      if (isBad) { el.style.stroke = 'var(--red)'; el.style.strokeWidth = '2.4'; el.style.strokeOpacity = '.95'; }
       else { el.style.stroke = 'var(--edge)'; el.style.strokeWidth = '1.1'; el.style.strokeOpacity = '.3'; }
       el.dataset.a = l.a; el.dataset.b = l.b; el.dataset.kind = 'blink';
       gBL.appendChild(el);
+    });
+    // 漏连真对：基线没敢连的同一人——红虚线跨在缺口上，中点 ⊘ 断口标记。
+    // "该连而没连"本是看不见的缺失，画成断线让它直接可见；数量与统计条 漏连 严格一致。
+    missLinks = [];
+    OC.baseline.missed_pairs.forEach(p => {
+      const w = p.split('|');
+      const g = svgEl('g', {});
+      const ln = svgEl('line', {'class': 'missline'});
+      const mk = svgEl('g', {'class': 'missmark'});
+      mk.appendChild(svgEl('circle', {r: 6}));
+      mk.appendChild(svgEl('line', {x1: -3.8, y1: 3.8, x2: 3.8, y2: -3.8}));
+      g.append(ln, mk);
+      gMiss.appendChild(g);
+      missLinks.push({g: g, ln: ln, mk: mk, a: w[0], b: w[1]});
     });
     OC.baseline.network.entities.forEach(en => {
       const meta = BASE_ENTS[en.e];
@@ -777,6 +794,15 @@ function netApply(u){
       el.setAttribute('x2', pb[0]); el.setAttribute('y2', pb[1]);
     }
     el.setAttribute('opacity', oHB);
+  });
+  if (gMiss) missLinks.forEach(m => {       // 漏连虚线：端点跟随节点，⊘ 钉在中点
+    const pa = netPos[m.a], pb = netPos[m.b];
+    if (pa && pb) {
+      m.ln.setAttribute('x1', pa[0]); m.ln.setAttribute('y1', pa[1]);
+      m.ln.setAttribute('x2', pb[0]); m.ln.setAttribute('y2', pb[1]);
+      m.mk.setAttribute('transform', 'translate(' + (pa[0] + pb[0]) / 2 + ',' + (pa[1] + pb[1]) / 2 + ')');
+    }
+    m.g.setAttribute('opacity', oHB);
   });
   gEA.childNodes.forEach(el => {
     const a = NET.entities.find(x => x.e === el.dataset.ea), b = NET.entities.find(x => x.e === el.dataset.eb);
@@ -967,8 +993,9 @@ function renderNetLegend(){
   let html = '';
   html += '<span class="k">' + t('net.lg.record') + '</span>';
   html += '<span class="k">' + t('net.lg.halo') + '</span>';
-  if (TRACK === 'open') html += '<span class="k"><span class="lg-bad-halo"></span>' + t('net.open.lg.mixed') + '</span>';
   if (TRACK === 'open' && OC.baseline) html += '<span class="k"><svg width="26" height="8"><line x1="1" y1="4" x2="25" y2="4" style="stroke:var(--red)" stroke-width="2"/></svg>' + t('net.open.lg.blink.bad') + '</span>';
+  if (TRACK === 'open' && OC.baseline) html += '<span class="k"><svg width="26" height="8"><line x1="1" y1="4" x2="25" y2="4" class="missline"/></svg>' + t('net.open.lg.blink.miss') + '</span>';
+  if (TRACK === 'open') html += '<span class="k"><span class="lg-bad-halo"></span>' + t('net.open.lg.mixed') + '</span>';
   html += '<span class="k">' + t(TRACK === 'open' ? 'net.open.lg.island' : 'net.lg.src') + '</span>';
   for (const rel in rels) {
     html += '<span class="k"><svg width="26" height="8"><line x1="1" y1="4" x2="25" y2="4" ' +

@@ -72,6 +72,9 @@ class TestEndToEnd(unittest.TestCase):
         for marker in ('"kind":"proxy"', "net.open.state.baseline",
                        "net.open.btn.base", "qs.get('stage')"):
             self.assertIn(marker, self.html)
+        # 漏连可视化：红虚线桥 + ⊘ 断口标记 + 图例词条（误连/漏连在图上可分辨）
+        for marker in ("missmark", "missed_pairs.forEach", "net.open.lg.blink.miss"):
+            self.assertIn(marker, self.html)
 
     @unittest.skipUnless(HAS_OPEN_CASES, "data_open/village_scores.json 未入库（平台部署修复后接入）")
     def test_dual_track_switch_in_page(self):
