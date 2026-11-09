@@ -46,7 +46,12 @@ CSS = """
   --violet:#787bd2; --violet-b:#a3a5ec;
   --red:#cf6d58; --red-b:#e69886;
   --steel:#55616d; --edge:#7aa7c9;
-  --r-s:4px; --r-m:8px; --r-l:12px;
+  /* INF 平台家族签名（对齐控制台 styles.css）：135° 青→紫渐变。
+     只做界面铬件（logo/导航/切换器/卡左线），绝不做数据编码——
+     数据标记永远用上面过六查的实色角色色。 */
+  --sig-a:#22d3ee; --sig-b:#a78bfa;
+  --sig:linear-gradient(135deg,var(--sig-a),var(--sig-b));
+  --r-s:4px; --r-m:8px; --r-l:16px;
   --shadow-1:0 1px 2px rgba(0,0,0,.35);
   --shadow-2:0 12px 32px -10px rgba(0,0,0,.5);
   --mono: ui-monospace,'SF Mono',Menlo,Consolas,monospace;
@@ -70,16 +75,19 @@ header { position:sticky; top:0; z-index:50; backdrop-filter:blur(12px);
 .hbar { max-width:1280px; margin:0 auto; padding:0 24px; height:56px;
   display:flex; align-items:center; gap:16px; }
 .logo { display:flex; align-items:baseline; gap:10px; white-space:nowrap; }
-.logo .mark { color:var(--cyan-b); font-weight:700; letter-spacing:.14em; font-size:14px; }
+.logo .mark { font-weight:700; letter-spacing:.14em; font-size:14px;
+  background:var(--sig); -webkit-background-clip:text; background-clip:text;
+  color:var(--cyan-b); -webkit-text-fill-color:transparent; }
 .logo .zh { color:var(--t3); font-size:12px; }
 .pill { font-size:11px; letter-spacing:.1em; padding:2px 10px; border-radius:999px;
   border:1px solid rgba(72,197,208,.38); color:var(--cyan-b); white-space:nowrap; }
 nav { display:flex; gap:4px; margin-left:auto; }
-nav button { background:none; border:1px solid transparent; color:var(--t2); cursor:pointer;
+nav button { position:relative; background:none; border:1px solid transparent; color:var(--t2); cursor:pointer;
   padding:6px 14px; border-radius:var(--r-m); font-size:13px; transition:all .18s; }
 nav button:hover { color:var(--t1); background:rgba(125,148,166,.08); }
-nav button.active { color:var(--cyan-b); background:rgba(16,166,173,.12);
-  border-color:rgba(72,197,208,.35); }
+nav button.active { color:var(--t1); font-weight:600; background:rgba(255,255,255,.045); }
+nav button.active::after { content:""; position:absolute; left:12px; right:12px; bottom:1px;
+  height:2px; border-radius:2px; background:var(--sig); }
 .lang { background:none; border:1px solid var(--line2); color:var(--t2); cursor:pointer;
   padding:5px 12px; border-radius:var(--r-m); font-size:12px; }
 .lang:hover { color:var(--t1); border-color:var(--t3); }
@@ -102,7 +110,12 @@ main { max-width:1280px; margin:0 auto; padding:24px 24px 60px; }
 
 /* ---------- 通用卡片/芯片 ---------- */
 .card { background:var(--panel); border:1px solid var(--line); border-radius:var(--r-l);
-  padding:16px; box-shadow:var(--shadow-1); }
+  padding:16px; box-shadow:var(--shadow-1);
+  background-image:linear-gradient(180deg, rgba(255,255,255,.028), rgba(255,255,255,0) 38%); }
+/* 平台家族签名：卡片左侧渐变细线（console result 卡同款），挂 .gline 启用 */
+.gline { position:relative; }
+.gline::before { content:""; position:absolute; left:-1px; top:12px; bottom:12px; width:2.5px;
+  border-radius:0 2px 2px 0; background:var(--sig); opacity:.8; }
 .chip { display:inline-block; font-size:11px; padding:1px 8px; border-radius:999px;
   border:1px solid var(--line2); color:var(--t3); letter-spacing:.04em; }
 .chip.cy { color:var(--cyan-b); border-color:rgba(72,197,208,.4); }
@@ -170,7 +183,8 @@ main { max-width:1280px; margin:0 auto; padding:24px 24px 60px; }
 /* ---------- Network ---------- */
 .netwrap { display:grid; grid-template-columns:1fr 270px; gap:16px; align-items:start; }
 .netbox { position:relative; background:var(--panel); border:1px solid var(--line);
-  border-radius:var(--r-l); overflow:hidden; box-shadow:var(--shadow-1); }
+  border-radius:var(--r-l); overflow:hidden; box-shadow:var(--shadow-1);
+  background-image:linear-gradient(180deg, rgba(255,255,255,.028), rgba(255,255,255,0) 38%); }
 .netbox svg { display:block; width:100%; height:auto; }
 .netbar { position:absolute; top:12px; left:12px; right:12px; display:flex; gap:12px; align-items:center;
   pointer-events:none; }
@@ -187,7 +201,8 @@ main { max-width:1280px; margin:0 auto; padding:24px 24px 60px; }
   padding:6px 16px; border-radius:var(--r-m); cursor:pointer; font-size:12.5px;
   font-weight:600; letter-spacing:.03em; transition:all .2s; }
 .trackbar button:hover { border-color:var(--line2); color:var(--t1); }
-.trackbar button.active { color:var(--cyan-b); border-color:rgba(72,197,208,.5); background:rgba(16,166,173,.12); }
+.trackbar button.active { color:#081119; border-color:transparent; font-weight:650;
+  background:var(--sig); }
 /* header 内的全局数据集切换器：更紧凑 */
 .trackbar.hdr { margin:0; }
 .trackbar.hdr button { font-size:11px; padding:3px 11px; border-radius:999px; }
@@ -252,7 +267,8 @@ main { max-width:1280px; margin:0 auto; padding:24px 24px 60px; }
 /* ---------- Scoreboard ---------- */
 .tiles { display:grid; grid-template-columns:repeat(3,1fr); gap:16px; margin-bottom:20px; }
 .tile { background:var(--panel); border:1px solid var(--line); border-radius:var(--r-l);
-  padding:16px 18px; box-shadow:var(--shadow-1); }
+  padding:16px 18px; box-shadow:var(--shadow-1);
+  background-image:linear-gradient(180deg, rgba(255,255,255,.028), rgba(255,255,255,0) 38%); }
 .tile .tname { font-size:11px; font-weight:600; color:var(--t3); letter-spacing:.08em;
   text-transform:uppercase; }
 .tile .nums { display:flex; align-items:baseline; gap:12px; margin-top:8px; }

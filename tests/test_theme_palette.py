@@ -121,6 +121,19 @@ class TestRolePaletteSixChecks(unittest.TestCase):
             r = _contrast(TOKENS[name], TOKENS["panel"])
             self.assertGreaterEqual(r, 4.5, f"{name} vs panel 对比度 {r:.2f} < 4.5:1")
 
+    def test_signature_gradient_is_chrome_only(self):
+        """平台家族签名渐变（对齐 INF 控制台）：token 在场，且绝不染指数据编码。"""
+        css = CSS.replace(" ", "")
+        self.assertIn("--sig-a:#22d3ee", css)
+        self.assertIn("--sig-b:#a78bfa", css)
+        self.assertIn("linear-gradient(135deg,var(--sig-a),var(--sig-b))", css)
+        # 数据标记（柱/点）只允许实色角色色，渐变不得渗入
+        for fill_rule in (".mb-t{fill:", ".mb-b{fill:", ".ob-t{fill:", ".ob-b{fill:"):
+            i = css.find(fill_rule)
+            self.assertNotEqual(i, -1, f"{fill_rule} 规则失踪")
+            self.assertNotIn("sig", css[i:i + 60],
+                             f"{fill_rule} 沾上签名渐变——数据编码必须实色")
+
     def test_tokens_and_css_in_sync(self):
         """TOKENS 与 CSS 变量不得漂移：每个颜色 token 必须以同名 CSS 变量出现。"""
         for name, value in TOKENS.items():

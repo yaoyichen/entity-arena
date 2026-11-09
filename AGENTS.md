@@ -93,12 +93,16 @@ PYTHONPATH=src python3 -m unittest discover -s tests   # 测试（或装 pytest 
 ## 视觉语言（继承 retrieval-forge ADR 0005 · 2026-11-09 精修深空 + 角色色全过六查）
 
 - 深空底 `#0c1117`，靠**明度**分层，重要的更亮；token 化排版见 `theme.py`
-  （字号阶 11–28、8px 网格、圆角 4/8/12、`--shadow-1/2`、`.eyebrow` 小眉标）；
+  （字号阶 11–28、8px 网格、圆角 4/8/16、`--shadow-1/2`、`.eyebrow` 小眉标）；
 - 全场只有两个角色色：**cyan `#10a6ad` = 微调模型/正确**，**violet `#787bd2` = baseline**；
   红 `#cf6d58` 是批注红，只给**错误断言**，不做警报色滥用。角色三色经
   dataviz 六查（OKLab ΔE + Machado CVD：dark 带内、彩度 ≥0.10、相邻 CVD ≥8、
   正常视觉 ≥15、对底/面板 ≥3:1），由 `tests/test_theme_palette.py` 锁定，
   **改色先跑该测试**；彩色文字用亮阶 `cyan-b/violet-b/red-b/cyan-l`（面板 ≥4.5:1）；
+- **平台家族签名**：135° 青→紫渐变 `--sig`（`#22d3ee→#a78bfa`，取自 INF 控制台
+  styles.css 同款），只做界面铬件——logo/导航激活态/双轨切换器/卡片左线 `.gline`
+  /玻璃上缘高光；**绝不做数据编码**，数据标记永远用实色角色色
+  （chrome-only 约定由 test_theme_palette.py 锁定）；
 - 图表按 dataviz 标记规格：细柱（≤24px）、数据端 4px 圆角基线端方、发丝实线
   网格、值只标关键列（其余进 tooltip/表格）、文字穿文字色不穿系列色、
   ≥2 系列必带图例（`chartLegend()`）；

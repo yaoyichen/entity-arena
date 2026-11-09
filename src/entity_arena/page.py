@@ -346,7 +346,7 @@ function recMetaHTML(r){
   return bits.join('');
 }
 function recCardHTML(r, extra){
-  return '<div class="card qcard"><div class="rec-name">' + esc(r.name) +
+  return '<div class="card gline qcard"><div class="rec-name">' + esc(r.name) +
     (extra||'') + '</div><div class="fields">' + recMetaHTML(r) + '</div></div>';
 }
 
@@ -455,7 +455,7 @@ function renderArena(){
   const r = A.rec(q.record_id);
   const relevant = A.relevantOf(q);
 
-  let html = '<div class="card qcard"><div class="rec-name">' + esc(A.nameOf(r, q.record_id)) +
+  let html = '<div class="card gline qcard"><div class="rec-name">' + esc(A.nameOf(r, q.record_id)) +
     ' <span class="chip cy" style="margin-left:8px">' + esc(A.scenName(q.scenario)) + '</span></div>' +
     '<div class="fields">' + A.recMeta(r) + '</div>' +
     '<div class="mono" style="opacity:.55;font-size:10.5px;margin-top:6px">' + q.record_id + '</div></div>' +
@@ -938,7 +938,7 @@ function openNetSide(rid){
   if (f.locality) bits.push('<span>' + t('f.pob') + ' <b class="mono">' + esc(f.locality) + '</b></span>');
   if (f.ssn) bits.push('<span>SSN <b class="mono">' + esc(f.ssn) + '</b></span>');
   bits.push('<span>' + t('ob.trueEnt') + ' <b class="mono">E' + esc(rec.entity) + '</b></span>');
-  let html = '<div class="card qcard"><div class="rec-name">' + esc(f.name || rid) +
+  let html = '<div class="card gline qcard"><div class="rec-name">' + esc(f.name || rid) +
     ' <span class="chip ' + (comp.pure ? 'cy' : 'rd') + '" style="margin-left:6px">' +
     (comp.pure ? 'E' + esc(comp.entities[0]) : 'MIXED') + '</span></div>' +
     '<div class="fields">' + bits.join('') + '</div>' +
@@ -1025,7 +1025,7 @@ function renderExplain(){
   const a = REC[p.a], b = REC[p.b];
 
   let html = '<div class="xgrid">' + recCardHTML(a) + recCardHTML(b) + '</div>';
-  html += '<div class="card ftable"><div class="frow"><span class="flabel"></span><span class="flabel" style="text-align:left">' +
+  html += '<div class="card gline ftable"><div class="frow"><span class="flabel"></span><span class="flabel" style="text-align:left">' +
     esc(a.name) + ' <span class="mono" style="opacity:.6">' + p.a + '</span></span><span></span>' +
     '<span class="flabel" style="text-align:left">' + esc(b.name) + ' <span class="mono" style="opacity:.6">' + p.b + '</span></span></div>';
   p.fields.forEach(f => {
@@ -1041,7 +1041,7 @@ function renderExplain(){
     ? '<span class="truth-chip tc-match">' + t('exp.truth') + ': ' + t('exp.match') + '</span>'
     : '<span class="truth-chip tc-non">' + t('exp.truth') + ': ' + t('exp.nonmatch') + '</span>';
 
-  html += '<div class="card verdict-zone"><div style="display:flex;align-items:center;gap:12px;margin-bottom:6px">' +
+  html += '<div class="card gline verdict-zone"><div style="display:flex;align-items:center;gap:12px;margin-bottom:6px">' +
     truthChip + '</div>';
   // 实测卡只有微调模型一行（基线无法部署），判定线用该轨道真实 θ
   const rows = p.real
@@ -1489,7 +1489,7 @@ function renderPlayList(side){
   });
 }
 function plRecCard(rec, rid){
-  return '<div class="card qcard"><div class="rec-name">' + esc(rec.fields.name || rid) +
+  return '<div class="card gline qcard"><div class="rec-name">' + esc(rec.fields.name || rid) +
     ' <span class="chip" style="margin-left:6px">ent ' + rec.entity + '</span></div>' +
     '<div class="fields">' + openRecMeta(rec) + '</div>' +
     '<div class="mono" style="opacity:.55;font-size:10.5px;margin-top:6px">' + rid + '</div></div>';
@@ -1497,7 +1497,7 @@ function plRecCard(rec, rid){
 function plFieldTable(ra, rb){
   const KEYS = [['name','play.f.name'],['dob','play.f.dob'],['address','play.f.address'],
                 ['locality','play.f.locality'],['ssn','play.f.ssn']];
-  let html = '<div class="card ftable" style="margin-top:12px">' +
+  let html = '<div class="card gline ftable" style="margin-top:12px">' +
     '<div class="frow"><span class="flabel"></span>' +
     '<span class="flabel" style="text-align:left">' + esc(ra.fields.name || playA) + '</span><span></span>' +
     '<span class="flabel" style="text-align:left">' + esc(rb.fields.name || playB) + '</span></div>';
