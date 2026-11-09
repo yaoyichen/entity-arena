@@ -163,6 +163,9 @@ main { max-width:1280px; margin:0 auto; padding:26px 22px 60px; }
   font-weight:600; letter-spacing:.03em; transition:all .2s; }
 .trackbar button:hover { border-color:var(--line2); color:var(--t1); }
 .trackbar button.active { color:var(--cyan-b); border-color:rgba(57,184,208,.5); background:rgba(57,184,208,.1); }
+/* header 内的全局数据集切换器：更紧凑 */
+.trackbar.hdr { margin:0; }
+.trackbar.hdr button { font-size:11px; padding:3px 11px; border-radius:99px; }
 #netTrackSub { display:flex; flex-wrap:wrap; gap:8px 18px; margin:-4px 0 12px; font-size:12px; color:var(--t2); }
 #netTrackSub:empty { display:none; }
 #netTrackSub .ob-sub { margin:0; font-size:11.5px; color:var(--t3); }

@@ -169,9 +169,11 @@ class TestOpenCases(unittest.TestCase):
         self.assertEqual(self.scores.read_text(encoding="utf-8"), before)
 
     def test_explain_cards_structure(self):
-        """Explain 实测卡：真实分数 + 逐字段四态；θ/模型与全 payload 一致。"""
+        """Explain 实测卡：真实分数 + 逐字段四态；θ/模型与全 payload 一致。
+        六卡按极值规则生成，池空缺席（fixture 基线 θ=1.0 零误连 → R6 缺席）。"""
         exp = self.payload["explain"]
-        self.assertEqual([c["pair_id"] for c in exp["pairs"]], ["R1", "R2"])
+        ids = [c["pair_id"] for c in exp["pairs"]]
+        self.assertEqual(ids, ["R1", "R2", "R3", "R4", "R5"])  # R6 池空缺席
         for c in exp["pairs"]:
             self.assertTrue(c["real"])
             self.assertEqual(c["theta"], round(self.payload["theta"], 4))
@@ -219,6 +221,115 @@ class TestOpenCases(unittest.TestCase):
         self.assertEqual(r2["verdicts"]["tuned"], "nonmatch")
         # fixture 里被拒的最高分是 0.50（0.93 那对是误连、不在被拒池）
         self.assertAlmostEqual(r2["scores"]["tuned"], 0.50, places=6)
+
+    def test_explain_r3_r4_extreme_picks(self):
+        """R3 = 贴线惊险连对（距 θ ≥ 0.01 的最低分真连）；R4 = exact 字段
+        最多仍拒连。fixture 上 R3 池只剩 E1 对（E3 对 0.90 贴线 0.00 被边距
+        排除），R4 是同名同生日的影子对（name/dob 双 exact）。"""
+        pairs = {c["pair_id"]: c for c in self.payload["explain"]["pairs"]}
+        r3 = pairs["R3"]
+        self.assertEqual(r3["truth"], "match")
+        self.assertEqual(r3["verdicts"]["tuned"], "match")
+        self.assertGreaterEqual(r3["scores"]["tuned"] - self.payload["theta"], 0.01)
+        r4 = pairs["R4"]
+        self.assertEqual(r4["truth"], "nonmatch")
+        self.assertEqual(r4["verdicts"]["tuned"], "nonmatch")
+        exact = [f["key"] for f in r4["fields"] if f["state"] == "exact"]
+        self.assertGreaterEqual(len(exact), 2, "R4 必须是 exact 最多仍被拒的对")
+
+    # ---- Arena 对决台（payload["arena"]） ----
+
+    def test_arena_payload(self):
+        """Arena 六类查询：顺序编号、类别/缺席声明、双模型 top-5 降序，
+        微调列与全矩阵独立重算逐对一致（tie-break：-分数、rid 升序）。"""
+        a, p = self.payload["arena"], self.payload
+        known = {"big_entity", "missing", "lookalike", "false_link",
+                 "missed_link", "typo_storm"}
+        self.assertEqual(a["k"], 5)
+        self.assertEqual(a["theta"]["baseline"], p["baseline"]["theta"])
+        self.assertEqual(a["theta"]["tuned"], round(p["theta"], 5))
+        self.assertTrue(set(a["absent"]) <= known)
+        # fixture：基线 θ=1.0 零误断言 → false_link 池空缺席
+        self.assertIn("false_link", a["absent"])
+
+        qs = a["queries"]
+        self.assertTrue(3 <= len(qs) <= 6, "类别池撞车顺延，但不得少于 3 条")
+        self.assertEqual([q["query_id"] for q in qs],
+                         [f"F{i}" for i in range(1, len(qs) + 1)])
+        self.assertEqual(len({q["record_id"] for q in qs}), len(qs),
+                         "一条记录不得充当两条查询")
+        self.assertTrue({q["scenario"] for q in qs} <= known)
+
+        # 全矩阵独立重算（微调列 = 真实分数，不依赖脚本内部实现）
+        full: dict[tuple[str, str], float] = {}
+        for x, y, s in json.loads(self.scores.read_text(encoding="utf-8"))["pairs"]:
+            full[(x, y)] = full[(y, x)] = s
+        recs = p["records"]
+        k = min(5, len(recs) - 1)
+        for q in qs:
+            for key in ("title", "story"):
+                self.assertIn("en", q[key]); self.assertIn("zh", q[key])
+            for model in ("baseline", "tuned"):
+                hits = q["results"][model]
+                self.assertEqual(len(hits), k)
+                ss = [h["s"] for h in hits]
+                self.assertEqual(ss, sorted(ss, reverse=True), "top-k 必须降序")
+                for h in hits:
+                    self.assertNotEqual(h["r"], q["record_id"])
+                    self.assertIn(h["r"], recs)
+                    self.assertGreaterEqual(h["s"], 0.0)
+                    self.assertLessEqual(h["s"], 1.0)
+            others = sorted((r for r in recs if r != q["record_id"]),
+                            key=lambda r: (-full[(q["record_id"], r)], r))[:k]
+            self.assertEqual([h["r"] for h in q["results"]["tuned"]], others,
+                             "微调列必须等于全矩阵重排（含 tie-break）")
+            for h, r in zip(q["results"]["tuned"], others):
+                self.assertEqual(h["s"], round(full[(q["record_id"], r)], 4))
+
+    def test_arena_extreme_picks(self):
+        """类别挑选对叙事盲（规则可复算）：missing 类必须落在按 5 字段
+        全 schema 缺失最多的记录上（fixture：E3 的记录只余 name，缺 4 个
+        居首；rec-4/rec-5 并列时 rid 升序取 rec-4）。"""
+        a = self.payload["arena"]
+        miss = [q for q in a["queries"] if q["scenario"] == "missing"]
+        self.assertTrue(miss, "fixture 的 missing 池非空")
+        self.assertEqual(miss[0]["record_id"], "rec-4")
+
+    # ---- 指标板（payload["metrics"]） ----
+
+    def test_open_metrics(self):
+        """指标口径：方向性计数、空池诚实置 None、分桶求和 = 总查询数、
+        link_recall ≤ recall@5（断言是检索的子集）。"""
+        m, p = self.payload["metrics"], self.payload
+        names = ("recall@5", "link_recall", "link_precision", "false_link_rate")
+        self.assertEqual(m["k"], 5)
+        self.assertEqual(m["n_queries"], len(p["records"]))
+        self.assertEqual(m["threshold"]["baseline"], p["baseline"]["theta"])
+        self.assertEqual(m["threshold"]["tuned"], round(p["theta"], 5))
+        self.assertEqual(sum(b["n"] for b in m["by_bucket"]), m["n_queries"])
+        for b in m["by_bucket"]:
+            self.assertIn(b["scenario"], m["bucket_labels"])
+            lbl = m["bucket_labels"][b["scenario"]]
+            self.assertIn("en", lbl); self.assertIn("zh", lbl)
+        for grp in [m["overall"], *(b for b in m["by_bucket"])]:
+            for model in ("baseline", "tuned"):
+                for name in names:
+                    v = grp[model][name]
+                    if v is not None:  # 空池（如单记录实体）诚实置空，页面渲染 —
+                        self.assertGreaterEqual(v, 0.0)
+                        self.assertLessEqual(v, 1.0)
+                lr, r5 = grp[model]["link_recall"], grp[model]["recall@5"]
+                if lr is not None and r5 is not None:
+                    self.assertLessEqual(lr, r5)
+        # fixture 可复算：影子查询 2 条，微调把 0.93 的影子对断言过线 → flr=1/2
+        self.assertAlmostEqual(m["overall"]["tuned"]["false_link_rate"], 0.5)
+        self.assertEqual(m["overall"]["baseline"]["false_link_rate"], 0.0)
+
+    def test_provenance_arena_and_metrics_rules(self):
+        """新板块的挑选/口径规则必须全文进溯源（对叙事盲的承诺可审计）。"""
+        self.assertIn("arena_rule", self.payload["provenance"])
+        self.assertIn("metrics_rule", self.payload["provenance"])
+        self.assertIn("θ", self.payload["provenance"]["metrics_rule"])
 
     # ---- 基线（字面相似度代理） ----
 

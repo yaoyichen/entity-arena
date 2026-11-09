@@ -62,9 +62,9 @@ class TestEndToEnd(unittest.TestCase):
 
     @unittest.skipUnless(HAS_OPEN_CASES, "data_open/village_scores.json 未入库（平台部署修复后接入）")
     def test_explain_real_cards_in_page(self):
-        """Explain 实测卡必须打进页面：R1/R2 卡、基线不可部署注脚、?case= 深链。"""
-        for marker in ('"pair_id":"R1"', '"pair_id":"R2"', "exp.realonly",
-                       "qs.get('case')", "Febrl3"):
+        """Explain 实测卡必须打进页面：R1-R6 卡、基线不可部署注脚、?case= 深链。"""
+        for marker in ('"pair_id":"R1"', '"pair_id":"R2"', '"pair_id":"R3"',
+                       "exp.realonly", "qs.get('case')", "Febrl3"):
             self.assertIn(marker, self.html)
 
     def test_open_baseline_stage_in_page(self):
@@ -73,9 +73,17 @@ class TestEndToEnd(unittest.TestCase):
                        "net.open.btn.base", "qs.get('stage')"):
             self.assertIn(marker, self.html)
 
+    @unittest.skipUnless(HAS_OPEN_CASES, "data_open/village_scores.json 未入库（平台部署修复后接入）")
+    def test_dual_track_switch_in_page(self):
+        """全局数据集切换器必须打进页面：header trackBar + Febrl 查询 + 双轨分派。"""
+        for marker in ('id="trackBar"', "renderTrackBar", "applyTrackChrome",
+                       '"query_id":"F1"', "arena.sub.open", "footer.note.open",
+                       "badge.open", "sb.proto.open"):
+            self.assertIn(marker, self.html)
+
     def test_page_markers_present(self):
         for marker in ('id="view-arena"', 'id="view-network"', 'id="view-explain"',
-                       'id="view-scoreboard"', 'id="openBench"', 'id="netTrack"',
+                       'id="view-scoreboard"', 'id="openBench"',
                        "switchNetTrack", "openNetSide", "const DATA = {"):
             self.assertIn(marker, self.html)
 

@@ -70,23 +70,23 @@ def _load_open_bench(data_dir: Path) -> dict:
 
 
 def _load_open_cases(data_dir: Path) -> dict | None:
-    """网络视图 Febrl3 实测轨数据（案例村 + 微调模型真实分数）。
+    """Febrl3 实测轨数据（案例村 + 微调模型真实分数；全局双轨切换的主轨）。
 
-    可选数据：平台部署修复前允许缺席——页面只出合成轨（轨道条隐藏，非静默：
+    可选数据：平台部署修复前允许缺席——页面只出合成轨（切换器隐藏，非静默：
     构建输出会显式提示）。接入后缺失字段仍直接 raise。
     """
     p = data_dir / "open_cases.json"
     if not p.exists():
-        print(f"note: {p} 不存在 —— 网络视图 Febrl3 实测轨未接入（仅合成轨）。\n"
+        print(f"note: {p} 不存在 —— Febrl3 实测轨未接入（仅合成轨）。\n"
               f"      平台部署修复后：fetch_village_embeddings.py → "
               f"build_open_cases.py --emb … → 重新构建即可点亮。")
         return None
     payload = json.loads(p.read_text(encoding="utf-8"))
     for key in ("model", "theta", "stats", "records", "links", "false_links",
                 "missed_pairs", "components", "comp_of", "top3", "baseline",
-                "explain", "network"):
+                "explain", "network", "arena", "metrics"):
         if key not in payload:
-            raise SystemExit(f"{p}: 缺字段 {key}，拒绝构建")
+            raise SystemExit(f"{p}: 缺字段 {key}，拒绝构建（重跑 build_open_cases.py）")
     if not payload["records"]:
         raise SystemExit(f"{p}: records 为空，拒绝构建")
     return payload
@@ -111,9 +111,11 @@ def main() -> None:
     markers = ['id="view-arena"', 'id="view-network"', 'id="view-explain"',
                'id="view-scoreboard"', 'id="openBench"', "const DATA = {",
                "netToggle", "renderScoreboard", "renderOpenBench",
-               'id="netTrack"', "switchNetTrack", "openNetSide"]
+               'id="trackBar"', "switchNetTrack", "openNetSide",
+               "renderTrackBar", "applyTrackChrome"]
     if bundle["open_cases"] is not None:
         markers.append('"open_cases":{')  # 数据就绪时必须真的打进页面
+        markers += ['"query_id":"F1"', '"pair_id":"R3"']  # 新 payload 必须真的进页面
     for marker in markers:
         if marker not in html:
             raise SystemExit(f"self-check failed: marker missing: {marker}")

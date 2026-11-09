@@ -22,7 +22,8 @@ __CSS__
 <header>
   <div class="hbar">
     <div class="logo"><span class="mark">◆ ENTITY ARENA</span><span class="zh" data-i18n="app.zh"></span></div>
-    <span class="pill" data-i18n="badge.synthetic"></span>
+    <span class="pill" id="headPill"></span>
+    <div class="trackbar hdr" id="trackBar"></div>
     <nav id="nav">
       <button data-view="arena" class="active" data-i18n="nav.arena"></button>
       <button data-view="network" data-i18n="nav.network"></button>
@@ -36,7 +37,7 @@ __CSS__
   <section id="view-arena" class="view active">
     <div class="vhead">
       <h1 data-i18n="arena.h"></h1>
-      <p data-i18n="arena.sub"></p>
+      <p id="arenaSub"></p>
       <div class="legendline">
         <span class="k"><span class="dot" style="background:var(--cyan)"></span><span data-i18n="lg.tuned"></span></span>
         <span class="k"><span class="dot" style="background:var(--violet)"></span><span data-i18n="lg.baseline"></span></span>
@@ -55,7 +56,6 @@ __CSS__
       <h1 data-i18n="net.h"></h1>
       <p data-i18n="net.sub"></p>
     </div>
-    <div class="trackbar" id="netTrack"></div>
     <div id="netTrackSub"></div>
     <div class="netwrap">
       <div class="netbox" id="netbox"></div>
@@ -69,7 +69,7 @@ __CSS__
   <section id="view-explain" class="view">
     <div class="vhead">
       <h1 data-i18n="exp.h"></h1>
-      <p data-i18n="exp.sub"></p>
+      <p id="expSub"></p>
     </div>
     <div class="pairsel" id="pairsel"></div>
     <div id="explainMain"></div>
@@ -78,7 +78,7 @@ __CSS__
   <section id="view-scoreboard" class="view">
     <div class="vhead">
       <h1 data-i18n="sb.h"></h1>
-      <p data-i18n="sb.sub"></p>
+      <p id="sbSub"></p>
     </div>
     <div id="scoreMain"></div>
     <div id="openBench"></div>
@@ -87,7 +87,7 @@ __CSS__
 <footer>
   <div class="fin">
     <span class="pill" id="seed-pill"></span>
-    <span data-i18n="footer.note"></span>
+    <span id="footNote"></span>
     <span class="mono" id="buildInfo"></span>
   </div>
 </footer>
@@ -105,6 +105,7 @@ JS = r"""
 const I18N = {
   'app.zh':        {en:'Entity Resolution Demo', zh:'实体归并演示台'},
   'badge.synthetic':{en:'SYNTHETIC DATA', zh:'合成演示数据'},
+  'badge.open':    {en:'FEBRL3 · REAL MODEL SCORES', zh:'FEBRL3 · 真实模型实测'},
   'nav.arena':     {en:'Arena', zh:'对比台'},
   'nav.network':   {en:'Network', zh:'关系网络'},
   'nav.explain':   {en:'Explain', zh:'匹配解释'},
@@ -117,6 +118,9 @@ const I18N = {
   'arena.h':       {en:'One query, two models', zh:'同一查询，两个模型'},
   'arena.sub':     {en:'Pick a scripted query. Left: off-the-shelf baseline. Right: fine-tuned. Records of the same true identity should be LINKED; look-alikes must NOT be.',
                    zh:'选择一个剧本查询。左栏：开箱基线模型；右栏：微调后模型。同一真实身份的记录应被连接（LINKED）；相似的"影子人"绝不能连上。'},
+  'arena.sub.open':{en:'Febrl3 village, 228 real records. Left: literal-similarity baseline proxy. Right: the fine-tuned model\'s real scores. Same identity should be LINKED; look-alikes must NOT be.',
+                   zh:'Febrl3 案例村，228 条真实记录。左栏：字面相似度基线代理；右栏：微调模型真实分数。同一身份的记录应被连接（LINKED）；相似的"影子人"绝不能连上。'},
+  'arena.proxy':   {en:'literal-similarity proxy', zh:'字面相似度代理'},
   'arena.qs':      {en:'Scripted queries', zh:'剧本查询'},
   'arena.qrecord': {en:'Query record', zh:'查询记录'},
   'arena.missed':  {en:'not retrieved', zh:'未召回'},
@@ -173,8 +177,10 @@ const I18N = {
   'ob.comps':      {en:'components (n/pure)', zh:'组件（总/纯）'},
 
   'exp.h':         {en:'Why did it match — or refuse to', zh:'为什么连上了——或者为什么拒绝'},
-  'exp.sub':       {en:'Field-by-field evidence for the decisive pairs. The tick on each score bar marks that track\'s decision threshold θ; scores above it are asserted as links. Cards marked Real are actual fine-tuned-model scores on Febrl3.',
-                   zh:'关键记录对的逐字段证据。分数条上的刻度线是该案例所属轨道的判定线 θ，过线即断言；标注"实测"的卡片是 Febrl3 上微调模型的真实分数。'},
+  'exp.sub':       {en:'Field-by-field evidence for the decisive pairs. The tick on each score bar marks the decision threshold θ; scores above it are asserted as links. Scripted world: both models\' verdicts side by side.',
+                   zh:'关键记录对的逐字段证据。分数条上的刻度线是判定线 θ，过线即断言。合成剧本：两模型判决并排对比。'},
+  'exp.sub.open':  {en:'Field-by-field evidence from the Febrl3 village. Scores are the fine-tuned model\'s real outputs; θ is this track\'s F1-optimal threshold. Cards are picked by deterministic extreme-value rules, not by story.',
+                   zh:'Febrl3 案例村的逐字段证据。分数是微调模型的真实输出，θ 是本轨 F1 最优判定线。案例卡由确定性的极值规则挑出，不是看故事挑的。'},
   'exp.truth':     {en:'Ground truth', zh:'真实标签'},
   'exp.match':     {en:'TRUE MATCH', zh:'真·同一人'},
   'exp.nonmatch':  {en:'TRUE NON-MATCH', zh:'真·不同人'},
@@ -192,6 +198,8 @@ const I18N = {
   'sb.h':          {en:'Before / after, with the fine print', zh:'训练前后对比，附口径'},
   'sb.sub':        {en:'Every record queries the other 46; top-5 retrieved; links asserted at θ. Synthetic world, seed 42 — numbers illustrate the mechanism, not production performance.',
                    zh:'每条记录检索其余 46 条，取 top-5，过 θ 断言。合成世界（seed 42）——数字演示的是机制差异，不代表生产性能。'},
+  'sb.sub.open':   {en:'Every one of the 228 Febrl3 records queries the other 227; top-5 retrieved; links asserted at each model\'s own θ. Tuned column: real model scores. Baseline column: literal-similarity proxy (base models cannot be served pairwise) — real baseline metrics below.',
+                   zh:'228 条 Febrl3 记录两两检索，各取 top-5，按各模型自己的 θ 断言。微调列：真实模型分数；基线列：字面相似度代理（基模无法逐对部署）——真实基线指标见下方开源基准板块。'},
   'sb.linkrecall': {en:'Link recall', zh:'断言召回'},
   'sb.linkprec':   {en:'Link precision', zh:'断言精度'},
   'sb.falselink':  {en:'False-link rate (look-alikes)', zh:'误连率（相似实体）'},
@@ -214,8 +222,12 @@ const I18N = {
   'ob.col.wtl':    {en:'win/tie/loss · 850 queries', zh:'胜/平/负 · 850 查询'},
   'ob.proto':      {en:'Protocol — queries and documents share one pool (every record both queries and is retrieved), so top-1 usually hits the record itself: read absolute values as effective k−1; identical terms for all six runs, so before/after comparisons are fair. After fine-tuning all three models converge to Recall@1 = 0.444 ≈ 1/2.25 — the theoretical ceiling when top-1 is always relevant (on average 2.25 relevant records per query). Fixed test split (400 identities / 850 queries), pytrec_eval, hard negatives on. nemotron starts near-perfect (Recall@10 = 1.000) so its fine-tuning gain is necessarily tiny — shown as measured. Reports verbatim: data_open/eval_reports/.',
                    zh:'口径——查询与文档同池（每条记录既查也被查），top-1 常命中自身：绝对值按"有效 k−1"解读；六个运行同口径，前后对比公平。微调后三个模型的 Recall@1 一致收敛到 0.444 ≈ 1/2.25，即 top-1 必中相关文档时的理论上限（平均每查询 2.25 个相关记录）。固定 test split（400 实体 / 850 查询），pytrec_eval，硬负例开启。nemotron 基线已近满分（Recall@10 = 1.000），微调增益必然微小——如实呈现。报告原文：data_open/eval_reports/。'},
+  'sb.proto.open': {en:'Protocol — each of the 228 village records queries the other 227; models return top-5 with scores; a hit = same ground-truth identity; links asserted at each model\'s own F1-optimal θ (tuned 0.921, baseline proxy 0.560). Directional counting, identical to the scripted track. recall@5 = 1.00 for BOTH models here — ranking true pairs into the top-5 is easy on this village; the difference is in the assertion metrics (dare-to-link, link-precision, false-link rate), where the tuned model is perfect and the proxy is not. Fine-tuned scores are real model outputs; pairwise baseline is a literal-similarity proxy (weights in provenance) — real base-model numbers are in the open-benchmark board below. Buckets classify each query by its field profile against true siblings (missing > conflict > typo-storm > typo > look-alike).',
+                   zh:'口径——228 条村记录两两检索，各取 top-5 及分数；命中 = 真同一身份；断言 = 分数 ≥ 各模型自己的 F1 最优 θ（微调 0.921、基线代理 0.560）。方向性计数，与合成轨完全同口径。本村两模型 recall@5 均为 1.00——把真对排进前五不难，差距在断言指标（敢连、连得对、不误连）：微调模型全对，字面代理不是。微调分数为真实模型输出；逐对基线是字面相似度代理（权重见 provenance）——真实基线数字在下方开源基准板块。分桶按每条查询对其真身兄弟的字段形态分类（缺失 > 冲突 > 错字风暴 > 零星错字 > 影子相似）。'},
   'footer.note':   {en:'Scripted track: records, relations and scores are synthetic, generated deterministically from seed. Open-benchmark track: real measurements of fine-tuned models on Febrl3. Single-file build — opens offline.',
                    zh:'剧本轨：记录、关系与分数均为种子确定性生成的合成数据；开源基准轨：微调模型在 Febrl3 上的真实实测。单文件构建，可离线打开。'},
+  'footer.note.open': {en:'Open track: Febrl3 public benchmark (programmatically generated person records, no real PII); fine-tuned scores are real model measurements; pairwise baseline is a literal-similarity proxy. Scripted track available via the header switch. Single-file build — opens offline.',
+                   zh:'实测轨：Febrl3 公开基准（程序合成的个人记录，无真实隐私数据）；微调分数为真实模型实测；逐对基线为字面相似度代理。可用头部切换器切回合成剧本轨。单文件构建，可离线打开。'},
 };
 
 let LANG = localStorage.getItem('ea_lang')
@@ -262,85 +274,150 @@ function setLang(l){
   document.getElementById('langBtn').textContent = (l === 'en' ? '中文' : 'EN');
   document.documentElement.lang = l;
   document.querySelectorAll('[data-i18n]').forEach(el => { el.textContent = t(el.dataset.i18n); });
-  document.getElementById('thr-note').textContent = 'θ = ' + TAU + ' · ' + t('thr.at');
-  document.getElementById('seed-pill').textContent = t('badge.synthetic') + ' · seed ' + DATA.meta.seed;
   document.getElementById('buildInfo').textContent = DATA.meta.generated_at +
     ' · ' + DATA.meta.n_records + ' rec / ' + DATA.meta.n_entities + ' ent';
-  renderArena(); renderNetLegend(); netLabels(); renderNetTrackBar(); renderExplain(); renderScoreboard(); renderOpenBench();
+  applyTrackChrome();
+  renderArena(); renderNetLegend(); netLabels(); renderTrackBar(); renderExplain(); renderScoreboard(); renderOpenBench();
+}
+function applyTrackChrome(){
+  /* 按当前数据集轨道刷新徽章与口径文案（诚实标注随轨切换） */
+  document.getElementById('headPill').textContent = t(TRACK === 'open' ? 'badge.open' : 'badge.synthetic');
+  document.getElementById('thr-note').textContent = TRACK === 'open'
+    ? 'θ base ' + OC.baseline.theta.toFixed(3) + ' (proxy) / tuned ' + OC.theta.toFixed(3) + ' · ' + t('thr.at')
+    : 'θ = ' + TAU + ' · ' + t('thr.at');
+  document.getElementById('seed-pill').textContent = TRACK === 'open'
+    ? t('badge.open') + ' · ' + OC.model
+    : t('badge.synthetic') + ' · seed ' + DATA.meta.seed;
+  document.getElementById('arenaSub').textContent = t(TRACK === 'open' ? 'arena.sub.open' : 'arena.sub');
+  document.getElementById('expSub').textContent = t(TRACK === 'open' ? 'exp.sub.open' : 'exp.sub');
+  document.getElementById('sbSub').textContent = t(TRACK === 'open' ? 'sb.sub.open' : 'sb.sub');
+  document.getElementById('footNote').textContent = t(TRACK === 'open' ? 'footer.note.open' : 'footer.note');
 }
 
 /* ============================ Arena ============================ */
-let arenaSel = DATA.queries[0].query_id;
+let arenaSel = null;
+function openRecMeta(rec){
+  /* Febrl 记录字段行（与网络视图档案卡同风格） */
+  const f = rec.fields, bits = [];
+  if (f.dob) bits.push('<span>' + t('f.dob') + ' <b class="mono">' + esc(f.dob) + '</b></span>');
+  if (f.address) bits.push('<span>addr <b class="mono">' + esc(f.address) + '</b></span>');
+  if (f.locality) bits.push('<span>' + t('f.pob') + ' <b class="mono">' + esc(f.locality) + '</b></span>');
+  if (f.ssn) bits.push('<span>SSN <b class="mono">' + esc(f.ssn) + '</b></span>');
+  return bits.join('');
+}
+function arenaAdapter(){
+  /* Arena 双轨适配层（与网络视图 trackAdapter 同模式）：
+     synth = 合成剧本（现状数据契约）；open = Febrl3 实测（真实微调分数 vs 字面代理）。 */
+  if (TRACK === 'open') {
+    const mem = {};
+    Object.keys(OC.records).forEach(rid => {
+      const e = OC.records[rid].entity;
+      (mem[e] = mem[e] || []).push(rid);
+    });
+    return {
+      queries: OC.arena.queries,
+      results: (model, q) => q.results[model],
+      rec: rid => OC.records[rid],
+      recMeta: rec => openRecMeta(rec),
+      nameOf: (rec, rid) => (rec.fields.name || rid),
+      relevantOf: q => mem[OC.records[q.record_id].entity].filter(m => m !== q.record_id),
+      scenName: k => bi(OC.arena.labels[k] || {en: k, zh: k}),
+      scenRed: [],
+      thr: { baseline: OC.baseline.theta, tuned: OC.theta },
+      colSub: { baseline: t('arena.proxy'), tuned: OC.model },
+      baseNote: true,   // 基线列挂"代理"诚实口径 tooltip
+    };
+  }
+  return {
+    queries: DATA.queries,
+    results: (model, q) => DATA.results[model][q.record_id],  /* 合成轨按 record_id 查 */
+    rec: rid => REC[rid],
+    recMeta: rec => recMetaHTML(rec),
+    nameOf: (rec, rid) => rec.name,
+    relevantOf: q => ENT[REC[q.record_id].entity_id].members.filter(m => m !== q.record_id),
+    scenName: k => scenName(k),
+    scenRed: ['similar_entity'],
+    thr: { baseline: TAU, tuned: TAU },
+    colSub: { baseline: 'off-the-shelf', tuned: 'fine-tuned' },
+    baseNote: false,
+  };
+}
 function renderArena(){
+  const A = arenaAdapter();
+  if (!A.queries.some(x => x.query_id === arenaSel)) arenaSel = A.queries[0].query_id;
   const ql = document.getElementById('qlist');
   ql.innerHTML = '';
-  DATA.queries.forEach(q => {
+  A.queries.forEach(q => {
     const b = document.createElement('button');
     b.className = q.query_id === arenaSel ? 'active' : '';
     b.innerHTML = '<div class="qtitle">' + esc(bi(q.title)) + '</div>' +
-      '<div class="qmeta"><span class="chip ' + (q.scenario==='similar_entity'?'rd':'cy') + '">' +
-      esc(scenName(q.scenario)) + '</span><span class="mono">' + q.record_id + '</span></div>';
+      '<div class="qmeta"><span class="chip ' + (A.scenRed.includes(q.scenario) ? 'rd' : 'cy') + '">' +
+      esc(A.scenName(q.scenario)) + '</span><span class="mono">' + q.record_id + '</span></div>';
     b.addEventListener('click', () => { arenaSel = q.query_id; renderArena(); });
     ql.appendChild(b);
   });
-  const q = DATA.queries.find(x => x.query_id === arenaSel);
-  const r = REC[q.record_id];
-  const ent = ENT[r.entity_id];
-  const relevant = ent.members.filter(m => m !== r.record_id);
+  const q = A.queries.find(x => x.query_id === arenaSel);
+  const r = A.rec(q.record_id);
+  const relevant = A.relevantOf(q);
 
-  let html = recCardHTML(r, ' <span class="chip cy" style="margin-left:8px">' + esc(scenName(q.scenario)) + '</span>') +
+  let html = '<div class="card qcard"><div class="rec-name">' + esc(A.nameOf(r, q.record_id)) +
+    ' <span class="chip cy" style="margin-left:8px">' + esc(A.scenName(q.scenario)) + '</span></div>' +
+    '<div class="fields">' + A.recMeta(r) + '</div>' +
+    '<div class="mono" style="opacity:.55;font-size:10.5px;margin-top:6px">' + q.record_id + '</div></div>' +
     '<div class="story">' + esc(bi(q.story)) + '</div><div style="height:14px"></div><div class="duel">';
-  ['baseline','tuned'].forEach(model => { html += duelCol(model, r, relevant); });
+  ['baseline','tuned'].forEach(model => { html += duelCol(A, model, q, relevant); });
   html += '</div>';
   document.getElementById('arenaMain').innerHTML = html;
 }
-function duelCol(model, qrec, relevant){
+function duelCol(A, model, q, relevant){
   const isBase = model === 'baseline';
   const accent = isBase ? 'violet' : 'cyan';
-  const res = DATA.results[model][qrec.record_id];
+  const tau = A.thr[model];
+  const res = A.results(model, q);
   const topIds = res.map(h => h.r);
   let asserted = 0;
-  res.forEach(h => { if (relevant.includes(h.r) && h.s >= TAU) asserted++; });
+  res.forEach(h => { if (relevant.includes(h.r) && h.s >= tau) asserted++; });
   const missed = relevant.filter(rid => !topIds.includes(rid));
 
   let html = '<div><div class="col-head">' +
     '<span class="name" style="color:var(--' + accent + ')">' + (isBase ? t('lg.baseline') : t('lg.tuned')).toUpperCase() + '</span>' +
-    '<span class="sub">' + (isBase ? 'off-the-shelf' : 'fine-tuned') + '</span>' +
+    '<span class="sub"' + (isBase && A.baseNote ? ' title="' + esc(t('net.open.base.note')) + '"' : '') + '>' +
+    esc(A.colSub[model]) + '</span>' +
     '<span class="bar-accent accent-' + (isBase ? 'vi' : 'cy') + '"></span></div>';
 
   res.forEach((h, i) => {
-    const r = REC[h.r];
+    const r = A.rec(h.r);
     let cls = 'dormant', chip = 'v-unrel', label = t('v.unrelated');
     if (relevant.includes(h.r)) {
-      if (h.s >= TAU) { cls = 'linked'; chip = 'v-linked'; label = t('v.linked'); }
+      if (h.s >= tau) { cls = 'linked'; chip = 'v-linked'; label = t('v.linked'); }
       else { cls = 'candidate'; chip = 'v-candidate'; label = t('v.candidate'); }
-    } else if (h.s >= TAU) {
+    } else if (h.s >= tau) {
       // 过线但非真身 = 断言了错误连接（无关路人或相似影子人都算误连）
       cls = 'false-link'; chip = 'v-false'; label = t('v.false');
     }
     html += '<div class="hit ' + cls + '"><div class="row1">' +
-      '<span class="rank">#' + (i+1) + '</span><span class="hname">' + esc(r.name) + '</span>' +
+      '<span class="rank">#' + (i+1) + '</span><span class="hname">' + esc(A.nameOf(r, h.r)) + '</span>' +
       '<span class="vchip ' + chip + '">' + label + '</span></div>' +
-      '<div class="meta">' + recMetaHTML(r) + '</div>' +
+      '<div class="meta">' + A.recMeta(r) + '</div>' +
       '<div class="score"><div class="srow"><span class="num">' + f2(h.s) + '</span>' +
       '<div class="sbar"><div class="fill" style="width:' + Math.round(h.s*100) + '%;background:var(--' + accent + ')"></div>' +
-      '<div class="tick" style="left:' + Math.round(TAU*100) + '%"></div></div></div></div></div>';
+      '<div class="tick" style="left:' + Math.round(tau*100) + '%"></div></div></div></div></div>';
   });
 
   html += '<div class="col-foot"><span>' + t('arena.asserted') + ' <b style="color:var(--' + accent + ')">' +
     asserted + '</b> ' + t('arena.of') + ' ' + relevant.length + ' ' + t('arena.true-links') + '</span>';
   if (missed.length) {
     html += '<span class="miss">' + t('arena.missed') + ': ' +
-      missed.map(rid => '<span class="misschip">' + rid + ' ' + esc(REC[rid].name) + '</span>').join('') + '</span>';
+      missed.map(rid => '<span class="misschip">' + rid + ' ' + esc(A.nameOf(A.rec(rid), rid)) + '</span>').join('') + '</span>';
   }
   html += '</div></div>';
   return html;
 }
 
 /* ============================ Network ============================ */
-let NET = DATA.network;              // 当前轨道的网络数据（switchNetTrack 切换）
-let TRACK = 'synth';                 // 'synth' 合成剧本 | 'open' Febrl3 实测案例村
-const OC = DATA.open_cases;
+const OC = DATA.open_cases;          // Febrl3 实测轨数据（缺席 → 仅合成轨可看）
+let TRACK = OC ? 'open' : 'synth';   // 全局数据集轨道（四视图共用），默认 Febrl3 实测
+let NET = TRACK === 'open' ? OC.network : DATA.network;  // 当前轨道的网络数据
 const OPEN_RELS = {lookalike: {en: 'Look-alike tie', zh: '相似纠缠'}};
 let netT = 0, netResolved = false, netAnim = null, netMax = 1;
 const netNodes = {}, netPos = {};
@@ -393,7 +470,10 @@ function trackAdapter() {
   };
 }
 function switchNetTrack(track) {
+  /* 全局数据集切换器（函数名保留：历史测试标记锁定）：synth 合成剧本 | open Febrl3 实测。
+     四个视图全部跟随切轨；URL ?track= 同步（可分享/可截图）。 */
   if (track === TRACK) return;
+  if (track === 'open' && !OC) return;
   TRACK = track;
   NET = trackAdapter().net;
   netT = 0; netResolved = false; netMax = 1;
@@ -402,7 +482,16 @@ function switchNetTrack(track) {
   if (svg) svg.remove();
   buildNet();
   netLabels(); renderNetLegend(); netSyncUI();
-  renderNetTrackBar();
+  renderTrackBar();
+  renderArena(); renderExplain(); renderScoreboard(); applyTrackChrome();
+  syncTrackParam();
+}
+function syncTrackParam() {
+  try {
+    const url = new URL(location.href);
+    url.searchParams.set('track', TRACK);
+    history.replaceState(null, '', url);
+  } catch (e) { /* file:// 下个别浏览器限制 replaceState，忽略 */ }
 }
 
 function svgEl(tag, attrs){
@@ -800,16 +889,16 @@ function netLabels(){
   gELabel.childNodes.forEach(l => { l.textContent = A.entLabel(l.dataset.eid); });
   gSrc.childNodes.forEach(l => { l.textContent = A.islandName(l.dataset.srcLabel); });
 }
-function renderNetTrackBar(){
-  /* 轨道切换：合成剧本 | Febrl3 实测（真实微调模型向量）。
+function renderTrackBar(){
+  /* 全局数据集切换器（header 内）：合成剧本 | Febrl3 实测。
      open_cases 数据未接入时（平台部署修复前）整条隐藏，页面只出合成轨。 */
-  const bar = document.getElementById('netTrack');
+  const bar = document.getElementById('trackBar');
   if (!bar) return;
   if (!OC) { bar.innerHTML = ''; bar.style.display = 'none'; return; }
   bar.style.display = '';
   const mk = (id, key) => '<button data-track="' + id + '" class="' + (TRACK === id ? 'active' : '') + '">' +
     t(key) + '</button>';
-  bar.innerHTML = mk('synth', 'net.track.synth') + mk('open', 'net.track.open');
+  bar.innerHTML = mk('open', 'net.track.open') + mk('synth', 'net.track.synth');
   bar.querySelectorAll('button').forEach(b => {
     b.addEventListener('click', () => switchNetTrack(b.dataset.track));
   });
@@ -817,19 +906,27 @@ function renderNetTrackBar(){
 function netFit(){ /* 预留：resize 适配；SVG viewBox 自动缩放，暂无需处理 */ }
 
 /* ============================ Explain ============================ */
-let expSel = DATA.pairs[0].pair_id;
+let expSel = null;
 const ST_SYM = {exact:'✓', fuzzy:'≈', conflict:'✗', missing:'—'};
+function trackPairs(){
+  /* 案例卡按轨过滤：synth = P*（剧本双模型卡）| open = R*（Febrl3 实测卡） */
+  const pre = TRACK === 'open' ? 'R' : 'P';
+  const ps = DATA.pairs.filter(p => p.pair_id.charAt(0) === pre);
+  return ps.length ? ps : DATA.pairs;   // 兜底：该轨无卡时全量（降级路径）
+}
 function renderExplain(){
   const sel = document.getElementById('pairsel');
   sel.innerHTML = '';
-  DATA.pairs.forEach(p => {
+  const pairs = trackPairs();
+  if (!pairs.some(x => x.pair_id === expSel)) expSel = pairs[0].pair_id;
+  pairs.forEach(p => {
     const b = document.createElement('button');
     b.className = p.pair_id === expSel ? 'active' : '';
     b.textContent = p.pair_id + ' · ' + bi(p.title);
     b.addEventListener('click', () => { expSel = p.pair_id; renderExplain(); });
     sel.appendChild(b);
   });
-  const p = DATA.pairs.find(x => x.pair_id === expSel);
+  const p = pairs.find(x => x.pair_id === expSel);
   const a = REC[p.a], b = REC[p.b];
 
   let html = '<div class="xgrid">' + recCardHTML(a) + recCardHTML(b) + '</div>';
@@ -880,7 +977,15 @@ function renderExplain(){
 
 /* ============================ Scoreboard ============================ */
 function renderScoreboard(){
-  const o = DATA.metrics.overall;
+  /* 双轨分派：open = Febrl3 实测指标（真实微调 vs 字面代理）；synth = 合成剧本指标 */
+  if (TRACK === 'open') {
+    renderMetricsBoard(OC.metrics.overall, OC.metrics.by_bucket, 'sb.proto.open',
+                       k => bi(OC.metrics.bucket_labels[k] || {en: k, zh: k}));
+  } else {
+    renderMetricsBoard(DATA.metrics.overall, DATA.metrics.by_scenario, 'sb.proto', k => scenName(k));
+  }
+}
+function renderMetricsBoard(o, scs, protoKey, labelOf){
   const tiles = [
     ['sb.linkrecall', 'link_recall', false],
     ['sb.linkprec', 'link_precision', false],
@@ -899,8 +1004,7 @@ function renderScoreboard(){
   });
   html += '</div>';
 
-  // 分组柱状图（link recall by scenario）
-  const scs = DATA.metrics.by_scenario;
+  // 分组柱状图（link recall by scenario / bucket）
   const W = 560, H = 250, padL = 40, padB = 46, padT = 18;
   const yMax = 1.0;
   let chart = '<svg viewBox="0 0 ' + W + ' ' + H + '" style="width:100%">';
@@ -925,7 +1029,7 @@ function renderScoreboard(){
         '" font-size="8.5" text-anchor="middle" font-family="ui-monospace">' + (v*100).toFixed(0) + '</text>';
     });
     chart += '<text x="' + cx + '" y="' + (H - padB + 14) + '" fill="#a9b8c4" font-size="9" text-anchor="middle">' +
-      esc(scenName(s.scenario).split(' ')[0]) + '</text>' +
+      esc(labelOf(s.scenario).split(' ')[0]) + '</text>' +
       '<text x="' + cx + '" y="' + (H - padB + 25) + '" fill="#8496a5" font-size="8" text-anchor="middle">n=' + s.n + '</text>';
   });
   chart += '</svg>';
@@ -936,7 +1040,7 @@ function renderScoreboard(){
     const b = s.baseline, tu = s.tuned;
     const cell = (x) => (x === null || x === undefined) ? '—' : (x*100).toFixed(0);
     const lrB = b.link_recall, lrT = tu.link_recall;
-    table += '<tr><td>' + esc(scenName(s.scenario)) + '</td><td class="num">' + s.n + '</td>' +
+    table += '<tr><td>' + esc(labelOf(s.scenario)) + '</td><td class="num">' + s.n + '</td>' +
       '<td class="num">' + cell(b['recall@5']) + ' ⟶ ' + cell(tu['recall@5']) + '</td>' +
       '<td class="num"><span' + (lrB !== null && lrT > lrB ? ' class="best"' : '') + '>' + cell(lrB) +
       ' ⟶ ' + cell(lrT) + '</span></td>' +
@@ -944,7 +1048,7 @@ function renderScoreboard(){
         ? '<span class="worst">' + cell(b.false_link_rate) + '</span> ⟶ <span class="best">' + cell(tu.false_link_rate) + '</span>'
         : '—') + '</td></tr>';
   });
-  table += '</table><div class="protocol">' + t('sb.proto') + '</div>';
+  table += '</table><div class="protocol">' + t(protoKey) + '</div>';
 
   html += '<div class="sb-grid"><div class="card"><div style="font-size:12.5px;color:var(--t2);margin-bottom:8px">' +
     t('sb.chart') + '</div>' + chart + '</div>' +
@@ -1032,13 +1136,22 @@ function init(){
     document.querySelector('#nav button[data-view="' + v + '"]').click();
   }
   if (qs.get('track') === 'open' && OC) switchNetTrack('open');
+  else if (qs.get('track') === 'synth') switchNetTrack('synth');
   const f = qs.get('focus');
   if (f && netNodes[f]) netSide(f);
-  // ?q= 直达 Arena 指定剧本查询、?case= 直达 Explain 指定案例（现场演示一键到位）
+  // ?q= 直达 Arena 指定查询（Q*=合成 / F*=Febrl3，自动切轨）、?case= 直达 Explain 指定案例
   const qsel = qs.get('q');
-  if (qsel && DATA.queries.some(x => x.query_id === qsel)) { arenaSel = qsel; renderArena(); }
+  if (qsel) {
+    const want = qsel.charAt(0) === 'F' ? 'open' : 'synth';
+    if (want !== TRACK && (want === 'synth' || OC)) switchNetTrack(want);
+    if (arenaAdapter().queries.some(x => x.query_id === qsel)) { arenaSel = qsel; renderArena(); }
+  }
   const csel = qs.get('case');
-  if (csel && DATA.pairs.some(x => x.pair_id === csel)) { expSel = csel; renderExplain(); }
+  if (csel) {
+    const want = csel.charAt(0) === 'R' ? 'open' : 'synth';
+    if (want !== TRACK && (want === 'synth' || OC)) switchNetTrack(want);
+    if (trackPairs().some(x => x.pair_id === csel)) { expSel = csel; renderExplain(); }
+  }
   // ?resolve=1 直达"归并后"状态（跳过动画，供截图/分享；三态开源轨直达微调态）
   if (qs.get('resolve')) { netResolved = true; netT = netMax; netApply(netMax); netSyncUI(netMax); }
   // ?stage=0|1|2 直达开源轨三态（原始/基线/微调——截图与现场剧本直达基线态）
