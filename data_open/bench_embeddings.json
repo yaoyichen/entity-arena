@@ -1,0 +1,39 @@
+{
+  "model": "febrl3-er-gemma",
+  "dim": 768,
+  "measured_at": "2026-11-11",
+  "method": {
+    "tool": "scripts/bench_embeddings.py",
+    "corpus": "data_open/village.json — 228 Febrl3 entity records, median 120 chars",
+    "protocol": "POST /v1/embeddings, input_type=document, TLS1.2, keep-alive; ladder 1/2/4/8/16 threads x 15s (single), 1/2/4/8 threads (batch32)",
+    "token_policy": "Bearer token never enters this file, the page, or the repo"
+  },
+  "single": {
+    "batch": 1,
+    "levels": [
+      {"threads": 1,  "qps": 5.0,  "p50": 0.176, "p95": 0.261, "err_rate": 0.0},
+      {"threads": 2,  "qps": 10.2, "p50": 0.174, "p95": 0.262, "err_rate": 0.0},
+      {"threads": 4,  "qps": 15.9, "p50": 0.245, "p95": 0.327, "err_rate": 0.0},
+      {"threads": 8,  "qps": 14.8, "p50": 0.525, "p95": 0.627, "err_rate": 0.0},
+      {"threads": 16, "qps": 13.8, "p50": 0.810, "p95": 1.010, "err_rate": 0.54}
+    ],
+    "peak_qps": 15.9,
+    "peak_threads": 4
+  },
+  "batch32": {
+    "batch": 32,
+    "levels": [
+      {"threads": 1, "qps": 1.8, "rps": 58.0,  "p50": 0.494, "p95": 0.971, "err_rate": 0.0},
+      {"threads": 2, "qps": 4.0, "rps": 129.2, "p50": 0.452, "p95": 0.749, "err_rate": 0.0},
+      {"threads": 4, "qps": 7.2, "rps": 231.1, "p50": 0.504, "p95": 0.802, "err_rate": 0.0},
+      {"threads": 8, "qps": 8.5, "rps": 272.2, "p50": 0.893, "p95": 1.256, "err_rate": 0.0}
+    ],
+    "peak_rps": 272.2,
+    "peak_threads": 8
+  },
+  "limits": {
+    "rate_limit_at_threads": 16,
+    "rate_limit_code": "429 rate_limit_exceeded — GPU queue full",
+    "note": "throughput plateau ~260-280 recs/s; add batch size, not concurrency, to scale"
+  }
+}
