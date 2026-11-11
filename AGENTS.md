@@ -56,7 +56,9 @@ PYTHONPATH=src python3 -m unittest discover -s tests   # 测试（或装 pytest 
   play=试玩台·双页签出题（挑村记录对=内嵌矩阵离线打分 / 直接输入两条=
   `fetch('api/score')` 同源在线打分，双 rid 输入走矩阵捷径、自由文本走 sidecar，
   `?fa=`/`?fb=` 深链直达并自动打分；sidecar 缺席时报错卡带启动命令，不静默）、
-  connect=MCP 接入指南，这两个视图不随双轨切换）
+  connect=MCP 接入指南 + 部署服务容量实测卡（`renderBench`：`data_open/
+  bench_embeddings.json` → 双口径 SVG 细柱——batch=1 QPS 饱和（16 并发红柱=
+  429 限流档）与 batch=32 吞吐，数据缺席优雅降级），这两个视图不随双轨切换）
 - `src/entity_arena/theme.py` 双主题调色板（`LIGHT` 默认 / `DARK`，各过六查）与 CSS
 - `scripts/make_mock_data.py` 合成数据入口（带三态剧本契约断言：基线又误连
   又漏连、微调零误连+≥1 诚实漏连，不满足即 SystemExit）；`scripts/build_demo.py` 页面构建入口

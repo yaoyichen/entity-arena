@@ -330,6 +330,22 @@ const I18N = {
                    zh:'诚实口径——所有分数均为微调模型真实输出（离线 = 预取样确定性矩阵；在线 = 部署服务实时）。θ = {TH} 由本村 link-F1 扫描选出，选村对分数盲；判定是模型断言，与 Febrl3 真值核验（公开基准、程序生成、无真实隐私）。案例村：228 条记录 / 78 个身份 / 1,223 对影子相似。完整指南：docs/mcp.md。'},
   'conn.copy':     {en:'copy', zh:'复制'},
   'conn.copied':   {en:'copied ✓', zh:'已复制 ✓'},
+  'conn.bench.h':  {en:'Measured capacity of the deployed service', zh:'部署服务容量实测'},
+  'conn.bench.sub':{en:'How much traffic can this deployment actually take? Load-tested {D} against the live /v1/embeddings with the village\'s own 228 records (median 120 chars per record): single-record latency vs. batch throughput, concurrency swept until the platform rate limit answered.',
+                   zh:'这套部署到底能扛多少流量？{D} 用案例村自己的 228 条记录（中位 120 字符）对线上 /v1/embeddings 实测压测：单条延迟与批量吞吐两个口径，并发一路爬到平台限流开口说话为止。'},
+  'conn.bench.b1.h':{en:'Realtime · one record per request', zh:'实时口径 · 每请求 1 条'},
+  'conn.bench.b1.t':{en:'Peak {Q} req/s at {N} concurrent requests (p50 {P} ms). Beyond that latency doubles and QPS flatlines — the GPU queue is the bottleneck, not the network.',
+                   zh:'{N} 并发时峰值 {Q} req/s（p50 {P} ms）。再往上加并发，延迟翻倍、QPS 不再涨——瓶颈在 GPU 队列，不在网络。'},
+  'conn.bench.b32.h':{en:'Bulk · 32 records per request', zh:'批量口径 · 每请求 32 条'},
+  'conn.bench.b32.t':{en:'Peak {R} records/s at {N} concurrent requests — {Q} req/s. Same GPU, 17× the throughput: batch, don\'t burst.',
+                    zh:'{N} 并发时峰值 {R} 条/秒（{Q} req/s）。同一块 GPU，吞吐翻 17 倍——要吞吐就攒批，别堆并发。'},
+  'conn.bench.rate':{en:'rate-limited', zh:'限流'},
+  'conn.bench.qps': {en:'req/s', zh:'请求数/秒'},
+  'conn.bench.rps': {en:'records/s', zh:'条/秒'},
+  'conn.bench.conc':{en:'concurrent requests', zh:'并发请求数'},
+  'conn.bench.p95': {en:'p95 latency (s)', zh:'p95 延迟（秒）'},
+  'conn.bench.note':{en:'Method: scripts/bench_embeddings.py (pure stdlib, TLS1.2, keep-alive), {N}-record corpus, 15s per step. Single-record scoring on this page sends 2 records per request — two orders of magnitude below saturation. Red bar = the step where the platform answered 429 (GPU queue full); the honest ceiling, not a failure.',
+                   zh:'方法：scripts/bench_embeddings.py（纯标准库、TLS1.2、连接复用），语料 {N} 条记录，每档 15 秒。本页在线打分一次只发 2 条——离饱和还有两个数量级。红柱 = 平台回 429（GPU 队列满）的那一档：这是诚实的上限，不是故障。'},
   'play.h':        {en:'Playground — pick a pair, call the verdict', zh:'试玩台 · 挑一对，亲手下判定'},
   'play.sub':      {en:'Two ways to score a pair. Pick from village: all 25,878 pairs, embedded pre-sampled real matrix — fully offline, identical to the live service. Type two records: any text you like, scored live by the deployed fine-tuned model (needs the local relay).',
                    zh:'两种出题方式。挑村记录：两两全量 25,878 对，页面内嵌预取样真实矩阵，完全离线、与线上服务同值；直接输入：随便写两条记录，部署的微调模型在线实时打分（需先启动本地转发服务）。'},
@@ -1576,8 +1592,80 @@ function renderConnect(){
     '<div><div class="sh" style="font-size:13px;font-weight:650;color:var(--violet-b)">' + t('conn.mode.on.h') + '</div>' +
     '<p class="conn-note">' + t('conn.mode.on.t') + '</p></div></div></div>';
 
+  const bench = (typeof DATA !== 'undefined' && DATA.bench) ? renderBench() : '';
+  html += bench;
   html += '<div class="protocol">' + t('conn.proto').split('{TH}').join(th) + '</div>';
   el.innerHTML = html;
+}
+function renderBench(){
+  /* 部署服务容量实测（data_open/bench_embeddings.json → DATA.bench）：
+     数据缺席时 renderConnect 不拼本卡（优雅降级，不静默——构建输出有提示） */
+  const B = DATA.bench;
+  const sub = t('conn.bench.sub').split('{D}').join(B.measured_at);
+  let html = '<div class="card" style="margin-top:16px">' +
+    '<div class="conn-h2">' + t('conn.bench.h') + '</div>' +
+    '<p class="conn-note" style="margin:0 0 14px">' + sub + '</p>' +
+    '<div class="conn-grid">';
+
+  /* 两图共用小工具：SVG 细柱（≤24px、数据端 4px 圆角方底、值只标峰值列） */
+  function benchChart(rows, valKey, unitKey, peakThreads, rateAt){
+    const vals = rows.map(r => r[valKey]);
+    const vmax = Math.max.apply(null, vals);
+    const W = 460, H = 210, padL = 34, padB = 40, padT = 26;
+    const plotH = H - padT - padB;
+    let svg = '<svg viewBox="0 0 ' + W + ' ' + H + '" style="width:100%" role="img" aria-label="bench chart">';
+    [0, .5, 1].forEach(gy => {
+      const y = padT + plotH * (1 - gy);
+      svg += '<line x1="' + padL + '" y1="' + y + '" x2="' + (W-6) + '" y2="' + y +
+        '" stroke="var(--' + (gy === 0 ? 'line2' : 'line') + ')" stroke-width="1"/>' +
+        '<text class="ax-t" x="' + (padL-5) + '" y="' + (y+3.5) + '" text-anchor="end">' +
+        (valKey === 'qps' ? (vmax * gy).toFixed(0) : (vmax * gy).toFixed(0)) + '</text>';
+    });
+    const groupW = (W - padL - 6) / rows.length;
+    rows.forEach((r, i) => {
+      const isRate = rateAt && r.threads === rateAt;
+      const isPeak = r.threads === peakThreads;
+      const h = Math.max(plotH * (r[valKey] / vmax), 1.5);
+      const x = padL + groupW * i + groupW / 2 - 9;
+      const tip = '<span class=m>' + r.threads + ' · ' + t('conn.bench.conc') + '</span><br>' +
+        '<span class=v>' + r[valKey].toFixed(1) + ' ' + t(unitKey) + '</span><br>' +
+        '<span class=v>p95 ' + (r.p95 !== undefined ? r.p95.toFixed(2) : '—') + 's · err ' + (r.err_rate*100).toFixed(0) + '%</span>';
+      svg += '<path class="bar-mark" style="fill:var(--' + (isRate ? 'red' : 'cyan') + ')" d="' +
+        barPath(x, H - padB - h, 18, h, 4) + '" data-tip="' + tip + '"/>';
+      if (isPeak) svg += '<text class="cap-t" x="' + (x + 9) + '" y="' + (H - padB - h - 6) +
+        '" text-anchor="middle" style="font-weight:600;fill:var(--cyan-b)">' + r[valKey].toFixed(1) + '</text>';
+      if (isRate) svg += '<text class="cap-t" x="' + (x + 9) + '" y="' + (H - padB - h - 6) +
+        '" text-anchor="middle" style="fill:var(--red-b)">' + t('conn.bench.rate') + '</text>';
+      svg += '<text class="ax-cat" x="' + (x + 9) + '" y="' + (H - padB + 15) + '" text-anchor="middle">' +
+        r.threads + '</text>';
+    });
+    svg += '<text class="ax-t" x="' + (W/2) + '" y="' + (H-6) + '" text-anchor="middle">' +
+      t('conn.bench.conc') + '</text>';
+    svg += '</svg>';
+    return '<div>' + svg + '</div>';
+  }
+
+  const s = B.single, b = B.batch32;
+  const sT = t('conn.bench.b1.t').split('{Q}').join(s.peak_qps).split('{N}').join(s.peak_threads)
+    .split('{P}').join(Math.round(s.levels.filter(l => l.threads === s.peak_threads)[0].p50 * 1000));
+  const bT = t('conn.bench.b32.t').split('{R}').join(b.peak_rps).split('{N}').join(b.peak_threads)
+    .split('{Q}').join(b.peak_qps);
+  html += '<div><div class="sh" style="font-size:13px;font-weight:650;color:var(--cyan-b);margin-bottom:2px">' +
+    t('conn.bench.b1.h') + '</div><p class="conn-note" style="margin:0 0 6px">' + sT + '</p>' +
+    benchChart(s.levels, 'qps', 'conn.bench.qps', s.peak_threads,
+               B.limits ? B.limits.rate_limit_at_threads : null) + '</div>';
+  html += '<div><div class="sh" style="font-size:13px;font-weight:650;color:var(--cyan-b);margin-bottom:2px">' +
+    t('conn.bench.b32.h') + '</div><p class="conn-note" style="margin:0 0 6px">' + bT + '</p>' +
+    benchChart(b.levels, 'rps', 'conn.bench.rps', b.peak_threads, null) + '</div>';
+
+  html += '</div>';
+  const nRec = 228;
+  html += '<p class="conn-note" style="margin:12px 0 0">' +
+    t('conn.bench.note').split('{N}').join(nRec) + '</p></div>';
+  const host = document.createElement('div');
+  host.innerHTML = html;
+  bindBarTips(host);
+  return host.innerHTML;
 }
 function connCopy(btn){
   const code = document.getElementById(btn.dataset.copy);

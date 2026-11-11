@@ -53,7 +53,31 @@ def load(data_dir: Path) -> dict:
         "pairs": pairs,
         "open_bench": _load_open_bench(data_dir),
         "open_cases": oc,
+        "bench": _load_bench(data_dir),
     }
+
+
+def _load_bench(data_dir: Path) -> dict | None:
+    """服务容量实测（压测）数据：connect 视图「容量实测」卡的数据源。
+
+    data_open/ 随仓库提交（溯源）；文件本身不含 URL/令牌。缺席 → 容量卡
+    不渲染（优雅降级，构建提示）——压测数据不是页面主叙事的硬依赖。
+    """
+    p = ROOT / "data_open" / "bench_embeddings.json"
+    if not p.exists():
+        print(f"note: {p} 不存在 —— connect 视图容量卡缺席（压测后 "
+              f"scripts/bench_embeddings.py --save 可点亮）。")
+        return None
+    payload = json.loads(p.read_text(encoding="utf-8"))
+    for key in ("model", "measured_at", "single", "batch32"):
+        if key not in payload:
+            raise SystemExit(f"{p}: 缺字段 {key}，拒绝构建（重跑 bench_embeddings.py --save）")
+    for key in ("single", "batch32"):
+        for lv in payload[key]["levels"]:
+            for col in ("threads", "qps", "p50", "p95", "err_rate"):
+                if col not in lv:
+                    raise SystemExit(f"{p}: {key}.levels 缺 {col}，拒绝构建")
+    return payload
 
 
 def _load_open_bench(data_dir: Path) -> dict:
@@ -122,6 +146,8 @@ def main() -> None:
     if bundle["open_cases"] is not None:
         markers.append('"open_cases":{')  # 数据就绪时必须真的打进页面
         markers += ['"query_id":"F1"', '"pair_id":"R3"', 'missmark']  # 新 payload 与漏连标记必须真的进页面
+    if bundle["bench"] is not None:
+        markers += ['"bench":{', "renderBench"]  # 容量实测卡：数据 + 渲染函数必须真的进页面
     for marker in markers:
         if marker not in html:
             raise SystemExit(f"self-check failed: marker missing: {marker}")

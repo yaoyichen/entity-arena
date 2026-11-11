@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 import re
 import subprocess
 import sys
@@ -131,6 +132,17 @@ class TestEndToEnd(unittest.TestCase):
         # 先行脚本必须出现在 <body> 之前（首帧前定主题，防闪）
         head = self.html.split("<body>")[0]
         self.assertIn("ea_theme", head)
+
+    @unittest.skipUnless((ROOT / "data_open" / "bench_embeddings.json").exists(),
+                         "data_open/bench_embeddings.json 未入库（压测后接入）")
+    def test_bench_capacity_card_in_page(self):
+        """connect 视图容量实测卡：压测数据 + 渲染函数必须真的进页面，
+        且数据文件绝不携带 URL（零外链契约不破——压测目标是部署服务地址）。"""
+        for marker in ('"bench":{', "renderBench", "conn.bench.h",
+                       "rate_limit_at_threads"):
+            self.assertIn(marker, self.html)
+        bench = json.loads((ROOT / "data_open" / "bench_embeddings.json").read_text())
+        self.assertNotIn("http", json.dumps(bench).lower())
 
     def test_zero_external_links(self):
         """离线契约：成品页不得引用任何外部资源。
