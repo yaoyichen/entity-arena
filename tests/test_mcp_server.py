@@ -19,10 +19,14 @@ HAS_DATA = (ROOT / "data_open" / "village_scores.json").exists() and \
 
 
 class McpClient:
-    def __init__(self):
+    def __init__(self, server: str = "scripts/er_mcp_server.py",
+                 env_extra: dict | None = None):
+        """server/env_extra 供租户交付包测试复用（W4）：默认行为与历史一致。"""
         env = {k: v for k, v in os.environ.items() if k != "EMB_TOKEN"}
+        if env_extra:
+            env.update(env_extra)
         self.proc = subprocess.Popen(
-            [sys.executable, "scripts/er_mcp_server.py"],
+            [sys.executable, server],
             stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL,
             cwd=ROOT, text=True, bufsize=1, env=env)
 

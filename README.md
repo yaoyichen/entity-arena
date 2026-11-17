@@ -18,7 +18,8 @@
 python3 scripts/play_live_server.py
 ```
 
-从零重建数据时才需要四步（已入库数据下平时不用跑）：
+从零重建数据时的四步如下（fresh clone 其实只跑上面那条命令就行——W5 起
+会自动补数据再构建；手动四步用于想单独控制某一步的场景）：
 
 ```bash
 python3 scripts/make_mock_data.py            # ① 合成数据：19 实体 / 47 记录 / 5 数据源
@@ -28,7 +29,7 @@ python3 scripts/build_demo.py --open         # ④ 构建 build/demo.html 并用
 ```
 
 - 零第三方依赖（Python ≥3.11 纯标准库）；产物**单文件、零外链、断网可开**，可直接发给客户。
-- 测试（126 项）：`PYTHONPATH=src python3 -m unittest discover -s tests`
+- 测试（233 项）：`PYTHONPATH=src python3 -m unittest discover -s tests`
 
 ## 双轨数据集（页面顶部一键切换）
 
@@ -79,6 +80,7 @@ python3 scripts/build_demo.py --open         # ④ 构建 build/demo.html 并用
 python3 scripts/play_live_server.py
 # 唯一要起的进程：页面过期自动重建、启动即开浏览器（默认 http://127.0.0.1:8787）
 # 不启动也不影响离线功能；--no-open 只起服务不弹窗、--no-build 关掉自动重建
+# fresh clone 直接跑也行：data/ 缺失时自动三步确定性重建（seed 42，~36s）再出页面
 ```
 
 令牌自动读本机文件（已配好的机器零输入）：`--token` > `EMB_TOKEN` 环境变量 >
@@ -208,7 +210,54 @@ Arena F1–F6 查询、Explain R1–R6 卡、Network 三态、Scoreboard 方向�
 1. ~~用 retrieval-forge 造 ER 训练对~~ → 已引入 Febrl 开源基准（见上）；
 2. ~~inf-retriever 平台微调三个基模~~ → 已完成，训练前后同集评测；
 3. ~~真实指标回填演示页~~ → 记分牌实测板块 + 网络视图 Febrl3 实测轨道均已接入；
-4. 拿到客户真实数据后按同一契约接入。
+4. 拿到客户真实数据后按同一契约接入——工具链已就位：`scripts/make_client_dataset.py`
+   （任意 schema → 校验 → 平台上传包，`--zip` 可直接上传），工程路线见
+   `docs/saas-maas-plan.md`（W1 已完成：Febrl3 经泛化入口与专用管线 qrels 逐字节一致；
+   W2 已完成：`build_tenant_cases.py` 让"客户自己数据的 demo 页"一条命令——
+   intake 记录 + 成对真实分数 + fieldmap 进，与 `open_cases.json` 同 shape 的
+   产物出（页面零改动点亮），统计核心抽到 `src/entity_arena/cases_core.py`
+   （Febrl 主构建字节级回归锚锁定），租户文案经 `page_labels` 覆盖——
+   页面里所有 Febrl 字样与硬编码数字换成按 payload 实算的租户口径；
+   W3 已完成：`scripts/er_gateway.py` 多租户打分网关——单进程同时是各租户
+   demo 页的同源托管（`/t/<name>/`，绕开平台网关无 CORS）与 MaaS API
+   （`/v1/er/score|embed|resolve`，每租户静态 api_key）；θ 与模型名只认
+   build_tenant_cases 产物（永不手调），结构化输入按该租户 fieldmap 序列化
+   与训练同口径，在线分数与入库矩阵逐对相等（测试锁定）。
+   W4 已完成：`build_tenant_cases.py --mcp-dir` 租户 MCP 交付包——七件套
+   （server + embed_client + records/scores/er_meta + env + START.md）开箱
+   即用，`claude mcp add` 一行命令接入客户自己的 AI；页面 connect 视图
+   文案全套模板化（注册命令/示例问题/容量卡全按租户口径，零 Febrl 残留）；
+   验收=MCP 离线判定 == 页面试玩台 == er-gateway 在线（`tests/test_mcp_delivery.py`
+   三方一致锁定）。
+
+### 租户体验页一条命令（W2）
+
+```bash
+# 前置：make_client_dataset.py 过校验的客户记录 + fieldmap；
+# 取样：fetch_village_embeddings.py --records client.csv --fieldmap fm.csv …
+#       → 成对分数（或平台侧算好后直接给 --scores 文件）
+python3 scripts/build_tenant_cases.py \
+  --records client.csv --fieldmap fieldmap.csv \
+  --scores pairwise_scores.json \
+  --dataset-label "Acme records" --truth-label "Acme labels" \
+  --out data/open_cases.json --demo-dir demo_acme --mcp-dir demo_acme/mcp_bundle
+# → demo_acme/demo.html：客户自己数据的网络三态/Arena/指标板/Explain/试玩台，
+#   双主题双语文案全部换成租户口径（θ、影子对数、误连漏连均实算，无 Febrl 残留）
+# → demo_acme/mcp_bundle/：MCP 交付七件套——按 START.md 一行
+#   `claude mcp add entity-er -- env ER_VILLAGE=… ER_SCORES=… ER_META=… \
+#   python3 …/er_mcp_server.py` 即可在客户 AI 里离线打分（在线自由文本补
+#   EMB_TOKEN）；页面 connect 视图同步给出这套命令与租户示例
+```
+
+### 租户托管页 + MaaS API 一个进程（W3）
+
+```bash
+# 注册表（仓库外，~/.config/entity-arena/er_tenants.json）：每租户
+#   endpoint/model/cases/fieldmap/page/api_key——θ 与模型名从 cases 产物读，不手调
+python3 scripts/er_gateway.py --registry ~/.config/entity-arena/er_tenants.json
+# → 落地页 http://127.0.0.1:8790/（租户清单）；演示页 /t/<acme>/（同源打分，
+#   免 CORS）；API /v1/er/score|embed|resolve（Authorization: Bearer <api_key>）
+```
 
 ## 设计决策
 

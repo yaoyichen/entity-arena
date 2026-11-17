@@ -151,6 +151,32 @@ class TestPlayLiveServer(unittest.TestCase):
             finally:
                 _os.utime(srv.BUILD_INPUTS[0], None)  # 恢复当前时间，别污染仓库状态
 
+    def test_ensure_data_bootstrap(self):
+        """fresh clone 引导（W5）：产物缺失→按注入的步骤重建；输入缺席→跳过。"""
+        import tempfile
+        with tempfile.TemporaryDirectory() as d:
+            d = Path(d)
+            out = d / "network.json"
+            script = d / "gen.py"
+            script.write_text(
+                "from pathlib import Path\n"
+                "Path(__file__).with_name('network.json').write_text('{}', encoding='utf-8')\n",
+                encoding="utf-8")
+            steps = ((out, (script,), ()),)
+            # 产物在、输入缺 → 跳过（降级路径交给 build_demo 提示）
+            missing_input = ((d / "a.json", (script,), (d / "not-committed.bin",)),)
+            self.assertIsNone(srv.ensure_data(steps=missing_input))
+            # auto_build=False → 只报告，不动手
+            self.assertEqual(srv.ensure_data(auto_build=False, steps=steps),
+                             "data missing: network.json")
+            self.assertFalse(out.exists())
+            # auto_build=True → 执行注入脚本，产物落地
+            self.assertEqual(srv.ensure_data(steps=steps), "rebuilt data (network.json)")
+            self.assertTrue(out.exists())
+            # 产物已在 → 无事可做（脚本改成必炸也证明没跑）
+            script.write_text("raise SystemExit('must not run')\n", encoding="utf-8")
+            self.assertIsNone(srv.ensure_data(steps=steps))
+
 
 if __name__ == "__main__":
     unittest.main()

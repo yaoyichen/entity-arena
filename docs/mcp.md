@@ -69,16 +69,43 @@ claude mcp add entity-er -- python3 scripts/er_mcp_server.py
 试用建议：**从离线模式开始**——先 `er_find_records` 挑 rid，再
 `er_score_pair` 打分，全程零配置；要体验「随口出题」再配 `EMB_TOKEN`。
 
+## 租户交付模式（W4）
+
+以上都是 **Febrl3 案例村默认口径**（无 `ER_META` 时的行为，字节级锁定）。
+给客户交付时走另一条路——`build_tenant_cases.py --mcp-dir` 产出**七件套
+交付包**：`er_mcp_server.py` + `embed_client.py`（仓库文件逐字节拷贝）+
+该租户的 `records.json` / `scores.json` / `er_meta.json` + `er_mcp.env` +
+`START.md`。客户按 START.md 一行命令接入自己的 AI：
+
+```bash
+claude mcp add entity-er -- env \
+  ER_VILLAGE=/abs/path/mcp_bundle/records.json \
+  ER_SCORES=/abs/path/mcp_bundle/scores.json \
+  ER_META=/abs/path/mcp_bundle/er_meta.json \
+  python3 /abs/path/mcp_bundle/er_mcp_server.py
+```
+
+- `ER_META` 指向租户 meta 后，数据集称谓 / 真值称谓 / 字段对照表 / θ
+  **全按租户口径**（θ 只认 build_tenant_cases 产物，永不手调）；工具描述、
+  报错引导、`er_about` 卡片同步换文案，零 Febrl 残留。
+- 离线模式同样零配置零令牌（打分走交付包内全量分数矩阵）；在线自由文本
+  照旧只需补 `EMB_TOKEN`。
+- 交付包**不依赖本仓库**（双路径 import 兜底同目录 `embed_client.py`），
+  令牌绝不进交付物（测试逐文件锁定）。
+- 验收口径：MCP 离线判定 == 客户 demo 页试玩台判定 == er-gateway 在线
+  判定（三方一致，`tests/test_mcp_delivery.py` 锁定）。
+
 ## 环境变量
 
 | 变量 | 必需 | 说明 |
 |---|---|---|
 | `EMB_TOKEN` | 在线模式必需 | 平台 Bearer 令牌（只在进程内使用，服务绝不回显；不进仓库） |
 | `ER_EMB_URL` | 否 | 部署服务地址（默认为当前部署，换服务时覆盖） |
-| `ER_EMB_MODEL` | 否 | 模型名（默认 `febrl3-er-gemma`） |
-| `ER_VILLAGE` | 否 | 案例村数据路径（默认 `data_open/village.json`） |
+| `ER_EMB_MODEL` | 否 | 模型名（默认 `febrl3-er-gemma`；有 `ER_META` 时优先取租户 meta） |
+| `ER_VILLAGE` | 否 | 记录数据路径（默认 `data_open/village.json`；交付包里指向 `records.json`） |
 | `ER_SCORES` | 否 | 预取样分数矩阵路径（默认 `data_open/village_scores.json`） |
-| `ER_THETA` | 否 | 覆盖判定线 θ（默认取 `data/open_cases.json`，避免两处漂移；**别随手改**，见下） |
+| `ER_META` | 否 | 租户口径元数据（交付包 `er_meta.json`；给了就走租户文案/字段表/θ） |
+| `ER_THETA` | 否 | 覆盖判定线 θ（默认 `ER_META` > `data/open_cases.json`，避免两处漂移；**别随手改**，见下） |
 
 启动时 stderr 会打一行配置摘要（stdout 保持纯协议流）。
 
@@ -176,4 +203,6 @@ Febrl3 truth (public benchmark, no real PII).
 - 数据懒加载（握手不读 1MB 文件）；θ 与 `data/open_cases.json` 同源，
   两处不漂移。
 - 行为由 `tests/test_mcp_server.py` 锁定：握手与协议版本回显、工具清单顺序、
-  离线分数必须等于入库矩阵值、报错引导文案、未知工具/方法的错误码。
+  离线分数必须等于入库矩阵值、报错引导文案、未知工具/方法的错误码；
+  租户交付模式由 `tests/test_mcp_delivery.py` 锁定（七件套内容、ER_META
+  口径、MCP/页面/网关三方判定一致）。

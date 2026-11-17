@@ -54,14 +54,51 @@ BUILD_INPUTS = [
     *sorted((ROOT / "data").glob("*.json")),
     ROOT / "data" / "records.jsonl",
 ]
+# fresh clone 引导（W5）：data/ 是生成物（gitignore），三个入口产物都能从
+# 已入库输入确定性重建（seed 42，~40s）。inputs 是该步的已入库前置——缺席即
+# 跳过（village_scores 缺席的降级路径交给 build_demo 原有人话提示，不硬跑）。
+DATA_STEPS = (
+    (ROOT / "data" / "network.json",                 # 合成轨全量（make_mock_data 一并产出）
+     (ROOT / "scripts" / "make_mock_data.py",), ()),
+    (ROOT / "data" / "open_benchmark.json",
+     (ROOT / "scripts" / "update_open_benchmark.py",),
+     (ROOT / "data_open" / "eval_reports",)),
+    (ROOT / "data" / "open_cases.json",
+     (ROOT / "scripts" / "build_open_cases.py",),
+     (ROOT / "data_open" / "village_scores.json",)),
+)
+
+
+def ensure_data(auto_build: bool = True, steps=DATA_STEPS) -> str | None:
+    """fresh clone 引导：data/ 缺失 → 按序三步确定性重建。
+
+    只在「产物缺失且已入库输入齐全」时执行对应步骤；返回 None=无需重建，
+    否则返回状态描述（steps 参数供测试注入，行为同 score_fn 的 stub 模式）。
+    """
+    todo = [(out, cmds) for out, cmds, inputs in steps
+            if not out.exists() and all(p.exists() for p in inputs)]
+    if not todo:
+        return None
+    if not auto_build:
+        return "data missing: " + ", ".join(o.name for o, _ in todo)
+    import subprocess
+    for out, cmds in todo:
+        for cmd in cmds:
+            print(f"[entity-arena] {out.name} 缺失 → {Path(cmd).name} 确定性重建…", flush=True)
+            subprocess.run([sys.executable, str(cmd)], check=True)
+    return "rebuilt data (" + "+".join(o.name for o, _ in todo) + ")"
 
 
 def ensure_page(page: Path, auto_build: bool = True) -> str:
     """demo.html 缺失或构建输入更新过 → 自动重建（免「先 build 再 serve」两步）。
 
-    返回状态描述（"up to date" / "missing" / "rebuilt (…)"）；构建失败会
-    check=True 直接抛错——失败不静默。
+    fresh clone 首跑先走 ensure_data 补 data/（确定性三步）。返回状态描述
+    （"up to date" / "missing" / "rebuilt (…)" / "data missing: …"）；构建失败
+    会 check=True 直接抛错——失败不静默。
     """
+    data_state = ensure_data(auto_build=auto_build)
+    if data_state is not None and not auto_build:
+        return data_state  # 数据都没齐，页面状态无从谈起——如实报告
     if page.exists():
         stale = [p for p in BUILD_INPUTS
                  if p.exists() and p.stat().st_mtime > page.stat().st_mtime]

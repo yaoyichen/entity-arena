@@ -38,6 +38,11 @@ different-entity records) — the client never labels negatives.
 
 ### 1.3 Field metadata (required, small YAML or table)
 
+Implemented format (v0.1, `scripts/make_client_dataset.py`): a CSV table with
+columns `field,role[,normalize][,neg_key]` (a JSON array of objects with the
+same keys is also accepted). `normalize` ∈ {lower, upper, date8}; `neg_key=0`
+opts an embedding field out of hard-negative mining (default 1).
+
 For each field, the client declares a role:
 
 | Role | Meaning | Example |
@@ -74,7 +79,11 @@ Optional per field: normalization notes (date format, casing, transliteration).
 2. Evaluation report on their held-out split (before/after fine-tuning);
 3. The same offline demo page re-pointed at their data (network view,
    scoreboard, playground) — their records, our pipeline, zero extra cost;
-4. MCP tools (`er_score_pair` / `er_find_records`) for integration trials.
+4. MCP tools (`er_score_pair` / `er_find_records`) for integration trials —
+   delivered as a self-contained bundle (server + their records/scores/meta +
+   START.md, built by `build_tenant_cases.py --mcp-dir`): one `claude mcp add`
+   line, zero-config offline scoring inside their own AI client, no repo
+   dependency, no token in the bundle.
 
 ## 4. Process
 

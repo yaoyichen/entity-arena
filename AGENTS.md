@@ -4,7 +4,9 @@
 页面顶部一键切换、四视图跟随）→ 双模型前后对比 → 单文件离线演示页 +
 **页内试玩台**（play 视图双出题模式：挑村记录对=内嵌全量真实分数矩阵离线打分 /
 直接输入两条=本地 sidecar 转发部署模型在线打分）+
-MCP 试用通道（connect 视图 + `scripts/er_mcp_server.py`）。
+MCP 试用通道（connect 视图 + `scripts/er_mcp_server.py`）+
+**多租户打分网关 er-gateway**（`scripts/er_gateway.py`，SaaS/MaaS 路线 W3：
+租户托管页 + MaaS API 单进程，见 `docs/saas-maas-plan.md`）。
 背景与决策见 `docs/adr/`，完整用法见 `README.md`。
 
 ## 硬约束（违反即 bug）
@@ -27,16 +29,25 @@ MCP 试用通道（connect 视图 + `scripts/er_mcp_server.py`）。
 python3 scripts/make_mock_data.py            # 生成 data/ 合成轨（确定性）
 python3 scripts/update_open_benchmark.py     # 生成 data/open_benchmark.json（开源基准轨，从已入库报告解析）
 python3 scripts/build_open_cases.py             # 生成 data/open_cases.json（实测主轨全量：网络三态+Arena+指标板+Explain 卡，从已入库分数离线复算）
+python3 scripts/build_tenant_cases.py --records client.csv --fieldmap fm.csv --scores scores.json --dataset-label "Acme records" --out data/open_cases.json --demo-dir demo_acme --mcp-dir demo_acme/mcp_bundle   # 租户体验页 + MCP 交付包一条命令（W2/W4：cases+demo+bundle 全包，见 docs/saas-maas-plan.md）
 python3 scripts/build_demo.py --open         # 构建 build/demo.html 并打开（三个数据文件缺一即 raise）
 python3 scripts/play_live_server.py          # 日常演示唯一命令：页面过期自动重建→起服务→自动开浏览器（含在线打分）
+python3 scripts/er_gateway.py --registry ~/.config/entity-arena/er_tenants.json   # 多租户打分网关：租户托管页 /t/<name>/ + MaaS API /v1/er/score|embed|resolve（W3）
 PYTHONPATH=src python3 -m unittest discover -s tests   # 测试（或装 pytest 后 pytest）
 ```
 
 改了 `synth/simulate/layout` → 必须重跑生成+构建；改了 `page/theme` → 重跑构建；
+改了 `cases_core/intake` → 先跑 `tests/test_tenant_cases.py`（锚 A 字节锁）再重建；
+改了 `gateway`/`er_gateway` → 先跑 `tests/test_er_gateway.py`（在线=入库逐对锁）再重建；
+改了 `er_mcp_server`/MCP 交付（`--mcp-dir`/conn.* 覆盖键）→ 先跑
+`tests/test_mcp_server.py`（Febrl 默认路径字节锁）+ `tests/test_mcp_delivery.py`
+（交付包三方一致）再重建；
 重新评测了平台模型 → 重跑 `update_open_benchmark.py` + 构建；
 重新取样了案例村向量 → 覆盖 `data_open/village_scores.json` 后重跑
 `build_open_cases.py` + 构建（village_scores 缺席时构建显式提示，
 页面只出合成轨——优雅降级路径保留，平台再故障时用）。
+租户侧同理：重新取样租户向量 → 覆盖 scores 文件后重跑
+`build_tenant_cases.py` + 构建。
 
 ## 代码地图
 
@@ -58,13 +69,25 @@ PYTHONPATH=src python3 -m unittest discover -s tests   # 测试（或装 pytest 
   `?fa=`/`?fb=` 深链直达并自动打分；sidecar 缺席时报错卡带启动命令，不静默）、
   connect=MCP 接入指南 + 部署服务容量实测卡（`renderBench`：`data_open/
   bench_embeddings.json` → 双口径 SVG 细柱——batch=1 QPS 饱和（16 并发红柱=
-  429 限流档）与 batch=32 吞吐，数据缺席优雅降级），这两个视图不随双轨切换）
+  429 限流档）与 batch=32 吞吐，数据缺席优雅降级），这两个视图不随双轨切换）；
+  **租户文案机制（W2）**：`t()` 先查 `DATA.open_cases.page_labels[k]` 再落内置
+  I18N，`plFieldTable` 优先 `OC.play_fields`——两个键都缺席时 Febrl 主页面
+  渲染零变化，新增页面文案凡带数字一律占位符键（如 `stat.rec.open`/
+  `home.step0.chip.open`），别在 JS 里拼死串
 - `src/entity_arena/theme.py` 双主题调色板（`LIGHT` 默认 / `DARK`，各过六查）与 CSS
 - `scripts/make_mock_data.py` 合成数据入口（带三态剧本契约断言：基线又误连
   又漏连、微调零误连+≥1 诚实漏连，不满足即 SystemExit）；`scripts/build_demo.py` 页面构建入口
 - `scripts/make_open_dataset.py` 开源基准（Febrl）→ inf-retriever 训练平台上传包；
   源数据在 `data_open/`（随仓库提交）；训练/评测走 MCP `inf-retriever`（token 在
   `~/.claude.json`，不进仓库），流程见 skill `inf-retriever-finetune`
+- `scripts/make_client_dataset.py` **客户数据入口**（SaaS/MaaS 路线 W1，见
+  `docs/saas-maas-plan.md`）：任意 schema 的 CSV/JSONL 记录 + 双标签格式
+  （A=entity_id 列 / B=--pairs 逐对标签）+ fieldmap 字段角色表 → 校验（行号定位、
+  全量收集）→ BEIR 平台上传包（`--zip` 确定性打包，可直接 upload_dataset）+
+  `intake_report.json` 溯源。共享逻辑在 `src/entity_arena/intake.py`——
+  **序列化/实体切分与后续租户体验页、在线打分是同一份**（单一事实来源），
+  切分算法与 febrl.split_entities 逐行同款（qrels 逐字节一致由
+  `tests/test_intake.py::TestFebrlAnchor` 锁定，改任一侧先跑它）
 - `scripts/update_open_benchmark.py` 平台评测报告（`data_open/eval_reports/`，随仓库
   提交作溯源）→ `data/open_benchmark.json`；基线口径漂移会 raise。指标板第二板块
   （开源基准轨：真实模型实测）由它供数，双轨 footer 各自诚实标注
@@ -72,35 +95,68 @@ PYTHONPATH=src python3 -m unittest discover -s tests   # 测试（或装 pytest 
   78 实体/1223 影子对，预算 `--budget 230`；**选村对模型分数盲**，规则写在
   provenance 里，避免挑案例之嫌）→ `data_open/village.json`
 - `scripts/fetch_village_embeddings.py` 调平台已部署微调服务的 `/v1/embeddings`
-  取真实向量（`EMB_TOKEN` 环境变量传令牌；向量只落 `.tmp/`，不入库）
+  取真实向量（`EMB_TOKEN` 环境变量传令牌；向量只落 `.tmp/`，不入库）。
+  双输入：`--village`（Febrl3 案例村）或 `--records`+`--fieldmap`（租户记录，
+  intake 序列化与训练同口径）
 - `scripts/live_pair_score.py` 现场演示打分器：两条记录（案例村实体/rid/自由文本）
   → 部署服务实时余弦 + θ 判定；演示剧本见 `docs/live-demo.md`（深链 `?q=`
   直达 Arena 指定剧本查询）
 - `scripts/er_mcp_server.py` **entity-er MCP 服务器**（stdio JSON-RPC，纯标准库）：
   把案例村打分器交给任意 MCP 客户端。三工具 `er_score_pair`/`er_find_records`/
   `er_about`；双模式：rid 对走 `village_scores.json` 离线矩阵（零配置、确定性=
-  实时），自由文本走 `EMB_TOKEN` 实时调用（embed_client.py 同源）。仓库根
+  实时），自由文本走 `EMB_TOKEN` 实时调用（embed_client.py 同源，双路径 import：
+  仓库 `src/entity_arena/` → 交付包同目录 `embed_client.py` 兜底，交付拷贝无仓库
+  也能跑）。**W4 租户模式**：`ER_META` 指向交付包 `er_meta.json` 时标签/真值
+  称谓/字段对照表/θ 来源全按租户口径泛化（θ 只认 meta，meta 只认
+  build_tenant_cases 产物），无 ER_META 的 Febrl 默认路径**逐字节不变**（由
+  tests/test_mcp_server.py 锁定）；租户行为由 `tests/test_mcp_delivery.py` 锁定
+  （三方一致：MCP 离线判定 == 页面试玩台 == er-gateway 在线）。仓库根
   `.mcp.json` 已带 Claude Code 项目级注册（无秘钥）；使用文档 `docs/mcp.md`、
-  页面「接入」视图（`?view=connect`，命令/示例可一键复制）；行为由
-  `tests/test_mcp_server.py` 锁定（离线分数必须等于入库矩阵值）
+  页面「接入」视图（`?view=connect`，命令/示例可一键复制；租户构建经
+  page_labels 覆盖 conn.* 键，注册命令指向交付包绝对路径）
 - `scripts/play_live_server.py` **试玩台在线打分 sidecar = 日常演示唯一入口**
   （纯标准库）：把 `build/demo.html` 与 `POST /api/score` 挂同一本地源——平台
   网关（istio-envoy）无 CORS（预检 401、响应无 ACAO，2026-11-09 实测），
   浏览器直连部署服务走不通，这是唯一干净路径。页面 fetch 相对路径
   `api/score`（零 URL 字符串）。**一个进程全包**：`ensure_page` 检测
   demo.html 缺失/构建输入（build_demo.py/page.py/theme.py/data/*.json）更新
-  → 自动重建；默认启动即开浏览器（`--no-open`/`--no-build` 可关）。令牌
+  → 自动重建；**fresh clone 引导（W5）**：前置 `ensure_data` 检测 `data/`
+  生成物缺失 → 三步确定性重建（make_mock_data → update_open_benchmark →
+  build_open_cases，每步只在产物缺且已入库输入齐时跑，village_scores 缺席
+  的降级路径不硬跑，~36s；行为由 test_play_live_server 注入式步骤锁定）；
+  默认启动即开浏览器（`--no-open`/`--no-build` 可关）。令牌
   `load_token` 三级解析：`--token` > `EMB_TOKEN` 环境变量 > 本机文件
   `~/.config/entity-arena/emb_token`（chmod 600、仓库外——**令牌绝不进仓库/页面**，
   本机已配好，启动零输入）；θ 与 live_pair_score/er_mcp_server 同源
   （open_cases.json，兜底 0.9208）；缺令牌 503 带人话、embed 失败 502、
   端口被占给人话提示（旧 sidecar 残留时 lsof|kill），行为由
   `tests/test_play_live_server.py` 锁定（score_fn 注入 stub，不碰网络）
+- `src/entity_arena/gateway.py` **多租户 ER 打分网关逻辑层**（W3，纯标准库）：
+  租户注册表加载（仓库外 JSON，逐租户全量校验；θ 与模型名**只认
+  build_tenant_cases 产物**——注册表没有 theta 键，model 与产物不一致启动即
+  报错，永不手调不漂移）+ `Gateway`（embed_fn 可注入）：`score`/`embed_records`/
+  `resolve` 三 API；结构化输入 `serialize_input` 走 **intake.serialize_record
+  同一份**（fieldmap 声明序，未知字段 400 列允许清单）；稳判 |score−θ|≥0.01
+  与页面/MCP/Explain 卡同口径；上游在途信号量护栏（默认 8，bench 锚点
+  16 并发触 429 → 429 人话）；resolve ≤256 条/批 + borderline 对清单
+  （|score−θ|<0.01，≤50 条，人工复核用）
+- `scripts/er_gateway.py` 网关 HTTP 入口（**单进程三合一**：`/t/<name>/`
+  各租户 demo 页同源托管——平台网关无 CORS，浏览器打分必须同源，这是
+  play_live_server 模式的多租户版 + `/v1/er/score|embed|resolve` MaaS API
+  （Bearer 每租户静态 api_key，X-Tenant 头或 body.tenant 选租户）+ `/`
+  落地页租户清单表）；令牌三级解析 importlib 复用 play_live_server 的
+  `load_token`（不抄一份，同样绝不进仓库/注册表）；Febrl 主页 `/api/score`
+  兼容路径保留（default_tenant + raw 文本模式），与 play_live_server 不冲突；
+  行为由 `tests/test_er_gateway.py` 锁定（25 项：双租户 θ/字段隔离、
+  FakeEmbed 注入下在线分数==入库矩阵逐对、无令牌/未知租户/超并发三路人话）
 - `src/entity_arena/embed_client.py` embeddings 客户端共用层（TLS1.2 强制+重试、
   余弦），live_pair_score / er_mcp_server / play_live_server 三处共用，别再写一份
 - `scripts/build_open_cases.py` 案例村 + 真实成对分数 → `data/open_cases.json`
-  （θ 扫描 F1 最大化 → 断言链 → 组件纯度；溯源分数写 `data_open/village_scores.json`
-  入库，默认从该文件离线复算）。**实测主轨全量数据都由它供**：
+  （**W2 起瘦身为 Febrl 适配层**：字段标签/基线权重 `_BASE_W`/叙事文案留在这，
+  统计全走 `cases_core.py`；输出与重构前逐字节一致由
+  `tests/test_tenant_cases.py::TestFebrlRebuildAnchor` 锁定，改核心先跑它）。
+  θ 扫描 F1 最大化 → 断言链 → 组件纯度；溯源分数写 `data_open/village_scores.json`
+  入库，默认从该文件离线复算。**实测主轨全量数据都由它供**：
   ① 网络三态：原始=影子关系纠缠簇 → 基线=字面相似度**代理**打分（平台无法逐对
   部署基模，权重/口径写进 provenance，误连红线+漏连红虚线⊘+混合组件红光环）→ 微调=真实断言
   组件。**漏连双轨统一组件级口径**：真对落在不同组件才算（与图上 ⊘ 一一对应，
@@ -115,6 +171,30 @@ PYTHONPATH=src python3 -m unittest discover -s tests   # 测试（或装 pytest 
   量化（u16 小端 b64，rid 排序上三角行主序）入 `open_cases.json`，构建期逐对
   断言量化判定与全精度一致（量化翻判定即 raise），完整性由
   `tests/test_playground.py` 锁定（与 village_scores 逐对相等、判定集==links）
+- `src/entity_arena/cases_core.py` **schema 无关的统计核心**（W2 从
+  build_open_cases.py 抽出）：θ 扫描/断言链/组件纯度/方向性指标/五分桶/
+  影子对挖掘/基线代理打分/play 矩阵量化/Explain·Arena 极值规则/
+  `build_cases_payload` 组装。**只算数不写文案**——Febrl 适配层与租户入口
+  注入 `name_of`/`stub_of`/`narrate_explain`/`narrate_arena`（ctx 只带
+  预计算统计，叙事层永不重算）
+- `scripts/build_tenant_cases.py` **租户体验页 + MCP 交付包入口**（SaaS/MaaS
+  路线 W2/W4，见 `docs/saas-maas-plan.md`）：intake 记录（格式 A/B 真值）+
+  成对真实分数（`--scores` 入库文件 / `--emb` 向量现算二选一，全对覆盖校验）+
+  fieldmap（含 `baseline_weight`/`label` 可选列）→ 与 open_cases.json 完全
+  同 shape 的 payload，另注入 `page_labels`（40 个 i18n 覆盖键：把页面所有
+  Febrl 硬编码文案换成按 payload 实算的租户文案——首页数字带/阶段 chip/
+  状态栏/徽标/轨道卡/试玩台占位符=首条记录真实序列化/W4 起 connect 视图
+  全套：`conn.install.cmd`/`conn.install.cfg` 注入交付包绝对路径、示例问题
+  用租户数据、容量卡去案例村措辞，数字仍占位符 `{TH}`/`{D}` 运行期替换）与
+  `play_fields`（试玩台字段表键）；影子对默认按 neg_key 桶挖掘
+  （`--shadow-max-bucket` 上限），也可 `--shadow-pairs` 显式给。`--demo-dir`
+  一条命令组装数据目录并跑 build_demo（**相对路径一律先 resolve 成绝对**：
+  子进程 cwd=仓库根，相对路径会静默写错位置——加过 mtime 守卫，demo.html
+  比刚写入的数据旧即 raise）。`--mcp-dir`（W4）另产出交付七件套（server +
+  embed_client 逐字节拷贝 + records/scores/er_meta + env + START.md），θ/模型
+  /字段表与 cases 产物同源。回归锚双保险在 `tests/test_tenant_cases.py`：
+  锚 A=Febrl 主构建字节不变，锚 B=案例村走租户路径逐字段一致（文案豁免：
+  比 fields/entity 不比 text）；交付包由 `tests/test_mcp_delivery.py` 锁定
 - `src/entity_arena/febrl.py` Febrl 数据共用工具（实体切分/序列化/索引）
 - **部署要点（2026-11-08 实测）**：平台 serving 当日整体故障过一轮（新产物
   `train`/`pipeline`、旧产物一律 ~4min FAILED；`deploy_model` 起的服务全挂），
@@ -155,7 +235,9 @@ PYTHONPATH=src python3 -m unittest discover -s tests   # 测试（或装 pytest 
 - 任何新 UI 先截图过一遍涉及视图（`?view=` 深链直达，导览+六视图见 page.py）、
   **两个主题各截一遍**（`?theme=dark` 直达）再合入（headless 截图记得加
   `--virtual-time-budget`：静态页 3000 起步，试玩台/深链自动打分态用 9000——
-  入场动画+网络往返都要走完，否则 `.view.active` 会被拍在半途发虚）。
+  入场动画+网络往返都要走完，否则 `.view.active` 会被拍在半途发虚；
+  **经 er_gateway 网关服务的页面给到 20000**，多一跳转发，9000 会把入场
+  渐隐拍在半途）。
 
 ## 数据契约（换真模型时）
 
@@ -171,7 +253,12 @@ PYTHONPATH=src python3 -m unittest discover -s tests   # 测试（或装 pytest 
 重建；village_scores 缺席时优雅降级为仅合成轨、切换器隐藏）——重新取样向量后
 覆盖 `village_scores.json` 再跑 `build_open_cases.py` 即可。必备键含
 `arena`（F1–F6 查询）与 `metrics`（方向性指标+分桶），缺即 raise（防半新半旧
-数据进页面）。深链：`?view=` 直达七视图（缺省=home 导览落地页）、
+数据进页面）。**两个可选键（W2/W4，租户轨专用，Febrl 主构建不带）**：
+`page_labels`——i18n 覆盖表 `{key: {en, zh}}`，页面 `t()` 先查它再落内置
+I18N（数字一律占位符 `{N}/{E}/{S}/{A}/{T}/{F}/{M}/{TH}/{D}` 运行期替换，
+构建期实算注入，文案里不手写数字；W4 的 `conn.install.cmd`/`conn.install.cfg`
+例外——交付包绝对路径构建期写死进键值）；`play_fields`——试玩台字段表的键列表（字段名即
+标签），缺席回落 Febrl 五字段。深链：`?view=` 直达七视图（缺省=home 导览落地页）、
 `?track=open|synth` 全局双轨、`?stage=0|1|2` 网络三态
 （双轨通用）、`?q=F1|Q2` / `?case=R3|P2`
 按前缀自动切轨、`?pair=ridA,ridB` 试玩台直达指定对（挑村页签）、

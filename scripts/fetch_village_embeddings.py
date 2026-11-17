@@ -1,17 +1,26 @@
 #!/usr/bin/env python3
-"""调用已部署的 embeddings 服务，为案例村记录取向量（纯标准库 urllib）。
+"""调用已部署的 embeddings 服务，为案例村/租户记录取向量（纯标准库 urllib）。
 
-输入：data_open/village.json（记录文本）+ 服务地址/令牌（来自平台 Deployed Services
-的 curl_command；令牌经环境变量 EMB_TOKEN 传入，不进命令行历史）。
+两种输入（二选一）：
+  --village data_open/village.json        Febrl3 案例村（记录自带 text）
+  --records x.csv --fieldmap fm.csv       租户记录（intake 序列化，与训练同口径：
+                                          fieldmap 声明序拼 'field: value | …'，
+                                          unique-key/ignore 不进文本）
+服务地址/令牌来自平台 Deployed Services 的 curl_command；令牌经环境变量
+EMB_TOKEN 传入，不进命令行历史。
 输出：JSON {model, dim, vectors: {rid: [float…]}}——只落 .tmp（向量是中间产物，
-入库的是派生的成对分数 data_open/village_scores.json，见 build_open_cases.py）。
+入库的是派生的成对分数，见 build_open_cases.py / build_tenant_cases.py --emb）。
 
-口径：全部记录用 input_type=document 编码一次（案例村是"记录两两比对"，不是
-query→doc 检索；两模型若都可用则同口径，公平）。
+口径：全部记录用 input_type=document 编码一次（案例村/租户集都是"记录两两比对"，
+不是 query→doc 检索；两模型若都可用则同口径，公平）。
 用法：
   EMB_TOKEN=... python3 scripts/fetch_village_embeddings.py \
     --url https://xxx.openapi-inspire.inf.tech --model febrl3-er-gemma \
     --out .tmp/village_emb_tuned.json
+  EMB_TOKEN=... python3 scripts/fetch_village_embeddings.py \
+    --records client.csv --fieldmap fieldmap.csv \
+    --url https://xxx.openapi-inspire.inf.tech --model client-er-model \
+    --out .tmp/client_emb.json
 """
 
 from __future__ import annotations
@@ -26,6 +35,10 @@ import urllib.request
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(ROOT / "src"))
+
+from entity_arena.intake import serialize_record  # noqa: E402
+
 BATCH = 32
 RETRIES = 3
 
@@ -39,21 +52,46 @@ def _ssl_ctx() -> ssl.SSLContext:
     return ctx
 
 
+def _tenant_records(records_path: Path, fieldmap_path: Path) -> list[dict]:
+    """租户记录 → [{rid, text}]（intake 序列化，与训练/页面同一份口径）。"""
+    from entity_arena.intake import load_fieldmap, load_records
+    fields = load_fieldmap(fieldmap_path)
+    _, rows = load_records(records_path)
+    out = []
+    for _, rec in rows:
+        rid = (rec.get("record_id") or "").strip() if isinstance(rec.get("record_id"), str) \
+            else rec.get("record_id")
+        if not rid:
+            raise SystemExit(f"记录缺 record_id：{list(rec)[:6]}…（先过 make_client_dataset.py 校验）")
+        out.append({"rid": str(rid), "text": serialize_record(rec, fields)})
+    return out
+
+
 def main() -> None:
     ap = argparse.ArgumentParser(description=__doc__)
-    ap.add_argument("--village", type=Path, default=ROOT / "data_open" / "village.json")
+    ap.add_argument("--village", type=Path, default=None)
+    ap.add_argument("--records", type=Path, default=None, help="租户记录 CSV/JSONL（与 --village 二选一）")
+    ap.add_argument("--fieldmap", type=Path, default=None, help="字段角色表（--records 时必给）")
     ap.add_argument("--url", required=True)
     ap.add_argument("--model", required=True)
     ap.add_argument("--input-type", default="document", choices=["document", "query"])
     ap.add_argument("--out", type=Path, required=True)
     args = ap.parse_args()
 
+    if bool(args.village) == bool(args.records):
+        raise SystemExit("--village 与 --records 恰好给一个")
+    if args.records and not args.fieldmap:
+        raise SystemExit("--records 需要 --fieldmap（序列化与训练同口径）")
+
     token = os.environ.get("EMB_TOKEN")
     if not token:
         raise SystemExit("缺 EMB_TOKEN 环境变量（平台 Deployed Services 的 Bearer 令牌）")
 
-    village = json.loads(args.village.read_text(encoding="utf-8"))
-    records = village["records"]
+    if args.village is not None:
+        village = json.loads(args.village.read_text(encoding="utf-8"))
+        records = village["records"]
+    else:
+        records = _tenant_records(args.records, args.fieldmap)
     vectors: dict[str, list[float]] = {}
     dim = None
 

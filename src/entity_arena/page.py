@@ -166,6 +166,7 @@ const I18N = {
   'app.zh':        {en:'Entity Resolution Demo', zh:'实体归并演示台'},
   'badge.synthetic':{en:'SYNTHETIC DATA', zh:'合成演示数据'},
   'badge.open':    {en:'FEBRL3 · REAL MODEL SCORES', zh:'FEBRL3 · 真实模型实测'},
+  'stat.rec.open': {en:'{N} rec / {E} ent · Febrl3', zh:'{N} 条记录 / {E} 个身份 · Febrl3'},
   'nav.home':      {en:'Guide', zh:'导览'},
   'nav.arena':     {en:'Arena', zh:'对比台'},
   'nav.network':   {en:'Network', zh:'关系网络'},
@@ -303,6 +304,10 @@ const I18N = {
   'conn.s3.t':     {en:'Real cosine, θ decision line, field diff, ground-truth check.', zh:'真实余弦、θ 判定线、字段对照、真值核验。'},
   'conn.install.h':{en:'Register the server', zh:'注册服务器'},
   'conn.install.cc':{en:'Claude Code — one command', zh:'Claude Code —— 一行命令'},
+  'conn.install.cmd':{en:'claude mcp add entity-er -- python3 scripts/er_mcp_server.py',
+                      zh:'claude mcp add entity-er -- python3 scripts/er_mcp_server.py'},
+  'conn.install.cfg':{en:'{\n  "mcpServers": {\n    "entity-er": {\n      "command": "python3",\n      "args": ["scripts/er_mcp_server.py"]\n    }\n  }\n}',
+                      zh:'{\n  "mcpServers": {\n    "entity-er": {\n      "command": "python3",\n      "args": ["scripts/er_mcp_server.py"]\n    }\n  }\n}'},
   'conn.install.repo':{en:'…or simply open this repo in Claude Code: the bundled .mcp.json offers the server — approve when prompted. Rid-pair scoring works immediately, no token, no network.',
                    zh:'……或者直接用 Claude Code 打开本仓库：自带的 .mcp.json 会提示启用，点允许即可。rid 对打分立即可用——不要令牌、不要联网。'},
   'conn.install.any':{en:'Claude Desktop / any MCP client — server entry', zh:'Claude Desktop / 任意 MCP 客户端 —— 服务器配置'},
@@ -413,12 +418,12 @@ const I18N = {
   'home.cta.play': {en:'Skip ahead — score a pair yourself', zh:'跳过导览 · 亲手挑一对打分'},
   'home.stats.h':  {en:'Headline numbers', zh:'开场数字'},
   'home.st.village':{en:'Febrl3 village · real benchmark', zh:'Febrl3 案例村 · 公开基准'},
-  'home.st.village.t':{en:'records · {E} identities · 1,223 look-alike shadow pairs', zh:'条记录 · {E} 个身份 · 1,223 对影子相似'},
+  'home.st.village.t':{en:'records · {E} identities · {S} look-alike shadow pairs', zh:'条记录 · {E} 个身份 · {S} 对影子相似'},
   'home.st.village.synth':{en:'Scripted world · seed 42', zh:'合成剧本 · seed 42'},
   'home.st.village.synth.t':{en:'records · {E} entities · 5 sources', zh:'条记录 · {E} 个实体 · 5 个来源'},
   'home.st.tuned.open':{en:'Tuned assertions · REAL scores', zh:'微调断言 · 真实分数'},
   'home.st.tuned.synth':{en:'Tuned · proxy score', zh:'微调 · 代理评分'},
-  'home.st.tuned.open.t':{en:'F1 · {A}/{T} true pairs asserted · 0 false · 0 missed', zh:'F1 · 断言 {A}/{T} 真对 · 0 误连 · 0 漏连'},
+  'home.st.tuned.open.t':{en:'F1 · {A}/{T} true pairs asserted · {F} false · {M} missed', zh:'F1 · 断言 {A}/{T} 真对 · {F} 误连 · {M} 漏连'},
   'home.st.tuned.synth.t':{en:'F1 · all {A} assertions correct · {M} honest miss(es) scripted', zh:'F1 · 断言 {A} 条全对 · 剧本保留 {M} 条诚实漏连'},
   'home.st.base':  {en:'Baseline · literal-similarity proxy', zh:'基线 · 字面相似代理'},
   'home.st.base.t':{en:'false merges / missed links — the red marks on the map', zh:'误连 / 漏连 —— 即图上的红线与红虚线 ⊘'},
@@ -429,6 +434,7 @@ const I18N = {
   'home.step0.h':  {en:'① Raw — no verdicts yet', zh:'① 原始 · 还没有判定'},
   'home.step0.t':  {en:'Records arrive unscored. Look-alike ties — shared surnames, addresses, birthdays — already tangle different people together.',
                    zh:'记录刚到，还没人打分。同姓、同址、同生日的"影子相似"已经把不同的人缠成一团团乱麻。'},
+  'home.step0.chip.open':{en:'Febrl3 · {N} rec · {E} id', zh:'Febrl3 · {N} 条记录 · {E} 个身份'},
   'home.step1.h':  {en:'② Baseline — literal resemblance', zh:'② 基线 · 只看长得像'},
   'home.step1.t':  {en:'A field-similarity proxy links whatever crosses θ: many true links found, but look-alikes get falsely merged (red lines) and some true pairs are left unlinked (dashed ⊘).',
                    zh:'字面相似度代理越过 θ 就连：真对连上不少，但影子被误连成一个人（红线），也有真对没敢连（红虚线 ⊘）。'},
@@ -466,7 +472,13 @@ const I18N = {
 
 let LANG = localStorage.getItem('ea_lang')
   || new URLSearchParams(location.search).get('lang') || 'en';
-function t(k){ const e = I18N[k]; return e ? (e[LANG] || e.en) : k; }
+function t(k){
+  // 租户数据集可按 i18n 键覆盖文案（open_cases.page_labels，键值 {en,zh}）：
+  // Febrl3 主构建不带该键 → 全部走 I18N 默认，主页面渲染零变化。
+  const ov = DATA.open_cases && DATA.open_cases.page_labels;
+  const e = (ov && ov[k]) || I18N[k];
+  return e ? (e[LANG] || e.en) : k;
+}
 function bi(obj){ return obj ? (obj[LANG] || obj.en) : ''; }
 function esc(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
 function f2(x){ return (x===null||x===undefined) ? '—' : Number(x).toFixed(2); }
@@ -547,9 +559,10 @@ function applyTrackChrome(){
   document.getElementById('thr-note').textContent = TRACK === 'open'
     ? 'θ base ' + OC.baseline.theta.toFixed(3) + ' (proxy) / tuned ' + OC.theta.toFixed(3) + ' · ' + t('thr.at')
     : 'θ = ' + TAU + ' · ' + t('thr.at');
-  /* buildInfo 也随轨：open 轨报案例村规模，synth 轨报生成时间戳（合成数据专属） */
+  /* buildInfo 也随轨：open 轨报实测集规模，synth 轨报生成时间戳（合成数据专属） */
   document.getElementById('buildInfo').textContent = (TRACK === 'open' && OC)
-    ? Object.keys(OC.records).length + ' rec / ' + OC.stats.components + ' ent · Febrl3'
+    ? t('stat.rec.open').replace('{N}', Object.keys(OC.records).length)
+             .replace('{E}', OC.stats.components)
     : DATA.meta.generated_at + ' · ' + DATA.meta.n_records + ' rec / ' + DATA.meta.n_entities + ' ent';
   document.getElementById('seed-pill').textContent = TRACK === 'open'
     ? t('badge.open') + ' · ' + OC.model
@@ -1549,9 +1562,10 @@ function connCode(code){
 }
 function renderConnect(){
   const el = document.getElementById('connectMain');
-  const cmd = 'claude mcp add entity-er -- python3 scripts/er_mcp_server.py';
-  const cfg = '{\n  "mcpServers": {\n    "entity-er": {\n' +
-    '      "command": "python3",\n      "args": ["scripts/er_mcp_server.py"]\n    }\n  }\n}';
+  /* 注册命令/配置走 i18n：Febrl 主构建=仓库内路径；租户构建经 page_labels
+     注入交付包绝对路径 + env（W4，conn.install.cmd/cfg 覆盖键） */
+  const cmd = t('conn.install.cmd');
+  const cfg = t('conn.install.cfg');
   const th = (typeof OC !== 'undefined' && OC) ? OC.theta.toFixed(3) : '0.921';
 
   let html = '<div class="conn-steps">';
@@ -1691,7 +1705,7 @@ function connCopy(btn){
 /* ============================ Play（试玩台：页面内亲手打分） ============================ */
 let playA = null, playB = null, playRevealed = false, playSaid = null;
 let playTab = 'pick';                      /* 'pick'=挑村记录（离线矩阵）| 'free'=直接输入（在线） */
-const playFree = {a: '', b: '', busy: false, res: null, err: null};
+const playFree = {a: '', b: '', fa: null, fb: null, busy: false, res: null, err: null};
 let playTally = {n: 0, ok: 0};
 const playQ = {a: '', b: ''};
 let playC = null;   // 解码缓存：{order,pos,u16,n,lo}
@@ -1817,11 +1831,59 @@ function renderPlayPick(){
   });
   renderPlayList('a'); renderPlayList('b'); renderPlayResult();
 }
-/* ---------- 直接输入两条（在线实测；双 rid 直填走内嵌矩阵，与 MCP er_score_pair 同款双模式） ---------- */
+/* ---------- 直接输入两条（在线实测；双 rid 直填走内嵌矩阵，与 MCP er_score_pair 同款双模式）。
+   租户数据集（open_cases.play_fields 存在）→ 结构化字段表单：按字段逐项填，
+   序列化由 er_gateway 按该租户 fieldmap 序完成（与训练同口径），页面不自己拼文本；
+   Febrl 主构建 → 原 raw 文本域（由本地 sidecar 转发），行为零变化。 ---------- */
+function plFreeFields(){
+  return (OC && OC.play_fields && OC.play_fields.length) ? OC.play_fields : null;
+}
+function plFreeForm(FLD){
+  /* 结构化表单：行=embedding 字段（字段名即标签），列 A/B；占位符=首条记录示例值 */
+  const order = (OC.play && OC.play.order) ? OC.play.order : Object.keys(OC.records);
+  const ph0 = (OC.records[order[0]] || {}).fields || {};
+  const fA = playFree.fa || {}, fB = playFree.fb || {};
+  let html = '<div class="pl-form">' +
+    '<div class="pl-frow"><span></span><span class="pl-lab mono">A</span><span class="pl-lab mono">B</span></div>';
+  FLD.forEach(function(f, i){
+    const ph = ph0[f] || '';
+    html += '<div class="pl-frow"><span class="flabel mono" title="' + esc(f) + '">' + esc(f) + '</span>' +
+      '<input class="pl-in" id="plFA_' + i + '" spellcheck="false" placeholder="' + esc(ph) + '" value="' + esc(fA[f] || '') + '">' +
+      '<input class="pl-in" id="plFB_' + i + '" spellcheck="false" placeholder="' + esc(ph) + '" value="' + esc(fB[f] || '') + '"></div>';
+  });
+  return html + '</div>';
+}
+function plSer(FLD, o){
+  /* 展示用序列化（与服务端 intake.serialize_record 同格式；结果卡回显） */
+  return FLD.filter(function(f){ return (o[f] || '').trim(); })
+            .map(function(f){ return f + ': ' + String(o[f]).trim(); }).join(' | ');
+}
+function plClean(FLD, o){
+  const out = {};
+  FLD.forEach(function(f){
+    const v = (o[f] === undefined || o[f] === null) ? '' : String(o[f]).trim();
+    if (v) out[f] = v;
+  });
+  return out;
+}
+function plParseSer(FLD, s){
+  /* 严格解析 'field: value | …'（深链预填用）：任一段不认得就整体放弃（不猜格式） */
+  const o = {};
+  const segs = String(s || '').split('|');
+  for (let i = 0; i < segs.length; i++) {
+    const seg = segs[i], c = seg.indexOf(':');
+    if (c < 0) return null;
+    const k = seg.slice(0, c).trim(), v = seg.slice(c + 1).trim();
+    if (FLD.indexOf(k) < 0 || Object.prototype.hasOwnProperty.call(o, k)) return null;
+    if (v) o[k] = v;
+  }
+  return Object.keys(o).length ? o : null;
+}
 function renderPlayFree(){
   const host = document.getElementById('playFree');
   if (!host) return;
   host.style.display = playTab === 'free' ? '' : 'none';
+  const FLD = plFreeFields();
   const tpl = DATA.pairs.filter(function(p){ return ['R1','R2'].indexOf(p.pair_id) >= 0; });
   let html = '<div class="card pl-free">' +
     '<div class="conn-h2" style="margin-top:0">' + t('play.free.h') + '</div>' +
@@ -1831,29 +1893,48 @@ function renderPlayFree(){
       return '<button class="pl-preset" data-tpl="' + p.pair_id + '">' +
         '<span class="mono" style="color:var(--cyan-b)">' + p.pair_id + '</span> ' + esc(bi(p.title)) + '</button>';
     }).join('') + '</div>' +
+    (FLD ? plFreeForm(FLD) :
     '<div class="pl-free-grid">' +
     '<div><div class="pl-lab mono">A</div>' +
     '<textarea class="pl-ta" id="plTaA" rows="5" spellcheck="false" placeholder="' + esc(t('play.free.ph')) + '">' + esc(playFree.a) + '</textarea></div>' +
     '<div><div class="pl-lab mono">B</div>' +
     '<textarea class="pl-ta" id="plTaB" rows="5" spellcheck="false" placeholder="' + esc(t('play.free.ph')) + '">' + esc(playFree.b) + '</textarea></div>' +
-    '</div>' +
+    '</div>') +
     '<div class="pl-free-bar"><button class="cta primary" id="plGo"' + (playFree.busy ? ' disabled' : '') + '>' +
     (playFree.busy ? t('play.free.busy') : t('play.free.go')) + '</button></div>' +
     '<div id="plFreeRes"></div></div>';
   host.innerHTML = html;
-  [['a','plTaA'],['b','plTaB']].forEach(function(pair){
-    const ta = document.getElementById(pair[1]);
-    ta.addEventListener('input', function(){ playFree[pair[0]] = ta.value; });
-  });
+  if (FLD) {
+    FLD.forEach(function(f, i){
+      [['fa','plFA_' + i],['fb','plFB_' + i]].forEach(function(pair){
+        const inp = document.getElementById(pair[1]);
+        inp.addEventListener('input', function(){
+          playFree[pair[0]] = playFree[pair[0]] || {};
+          playFree[pair[0]][f] = inp.value;
+        });
+      });
+    });
+  } else {
+    [['a','plTaA'],['b','plTaB']].forEach(function(pair){
+      const ta = document.getElementById(pair[1]);
+      ta.addEventListener('input', function(){ playFree[pair[0]] = ta.value; });
+    });
+  }
   host.querySelectorAll('[data-tpl]').forEach(function(b){
     b.addEventListener('click', function(){
       const p = DATA.pairs.find(function(x){ return x.pair_id === b.dataset.tpl; });
       if (!p) return;
-      playFree.a = OC.records[p.a].text; playFree.b = OC.records[p.b].text;
-      document.getElementById('plTaA').value = playFree.a;
-      document.getElementById('plTaB').value = playFree.b;
       playFree.res = null; playFree.err = null;
-      renderPlayFreeRes();
+      if (FLD) {
+        playFree.fa = Object.assign({}, OC.records[p.a].fields);
+        playFree.fb = Object.assign({}, OC.records[p.b].fields);
+        renderPlayFree();            /* 重渲染回填表单（内部会刷新结果区） */
+      } else {
+        playFree.a = OC.records[p.a].text; playFree.b = OC.records[p.b].text;
+        document.getElementById('plTaA').value = playFree.a;
+        document.getElementById('plTaB').value = playFree.b;
+        renderPlayFreeRes();
+      }
     });
   });
   document.getElementById('plGo').addEventListener('click', playFreeScore);
@@ -1861,8 +1942,34 @@ function renderPlayFree(){
 }
 function playFreeScore(){
   if (playFree.busy) return;
-  const a = playFree.a.trim(), b = playFree.b.trim();
   playFree.res = null; playFree.err = null;
+  const FLD = plFreeFields();
+  if (FLD) {
+    /* 租户结构化：字段→值整包发给同源网关（er_gateway 按租户 fieldmap 序列化） */
+    const a = playFree.fa || {}, b = playFree.fb || {};
+    const has = function(o){ return FLD.some(function(f){ return (o[f] || '').trim(); }); };
+    if (!has(a) || !has(b)) { playFree.err = {msg: t('play.free.need')}; renderPlayFreeRes(); return; }
+    playFree.a = plSer(FLD, a); playFree.b = plSer(FLD, b);   /* 结果卡回显（同格式） */
+    playFree.busy = true; renderPlayFree();
+    fetch('api/score', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({a: plClean(FLD, a), b: plClean(FLD, b)})
+    }).then(function(r){
+      return r.json().then(function(j){
+        if (!r.ok) throw new Error(j.error || ('HTTP ' + r.status));
+        return j;
+      });
+    }).then(function(d){
+      playFree.busy = false; playFree.res = {score: d.score, mode: 'live', model: d.model};
+      renderPlayFree();
+    }).catch(function(){
+      playFree.busy = false; playFree.err = {msg: t('play.free.err')};
+      renderPlayFree();
+    });
+    return;
+  }
+  const a = playFree.a.trim(), b = playFree.b.trim();
   if (!a || !b) { playFree.err = {msg: t('play.free.need')}; renderPlayFreeRes(); return; }
   const ra = OC.records[a], rb = OC.records[b];
   if (ra && rb) {
@@ -1984,8 +2091,12 @@ function plRecCard(rec, rid){
     '<div class="mono" style="opacity:.55;font-size:10.5px;margin-top:6px">' + rid + '</div></div>';
 }
 function plFieldTable(ra, rb){
-  const KEYS = [['name','play.f.name'],['dob','play.f.dob'],['address','play.f.address'],
-                ['locality','play.f.locality'],['ssn','play.f.ssn']];
+  // 字段表键：租户数据集带 play_fields（字段名列表，标签=字段名本身）；
+  // Febrl3 主构建不带 → 默认五字段 + 双语 i18n 标签（主页面零变化）。
+  const KEYS = (OC.play_fields && OC.play_fields.length)
+    ? OC.play_fields.map(function(k){ return [k, null]; })
+    : [['name','play.f.name'],['dob','play.f.dob'],['address','play.f.address'],
+       ['locality','play.f.locality'],['ssn','play.f.ssn']];
   let html = '<div class="card gline ftable" style="margin-top:12px">' +
     '<div class="frow"><span class="flabel"></span>' +
     '<span class="flabel" style="text-align:left">' + esc(ra.fields.name || playA) + '</span><span></span>' +
@@ -1995,7 +2106,7 @@ function plFieldTable(ra, rb){
     const st = plFieldState(va, vb);
     const cell = '<span class="sym">' + ST_SYM[st.state] + '</span> ' +
       (st.sim === null || st.state === 'exact' || st.state === 'missing' ? t('st.' + st.state) : st.sim);
-    html += '<div class="frow"><span class="flabel">' + t(k[1]) + '</span>' +
+    html += '<div class="frow"><span class="flabel">' + (k[1] ? t(k[1]) : esc(k[0])) + '</span>' +
       '<span class="fval' + (va ? '' : ' na') + '">' + esc(va || '—') + '</span>' +
       '<span class="fstate st-' + st.state + '">' + cell + '</span>' +
       '<span class="fval' + (vb ? '' : ' na') + '">' + esc(vb || '—') + '</span></div>';
@@ -2073,12 +2184,15 @@ function renderHome(){
   const ob = DATA.open_bench ? DATA.open_bench.models : [];
   let wl = [0, 0, 0];
   ob.forEach(m => { wl[0] += m.win_tie_loss[0]; wl[1] += m.win_tie_loss[1]; wl[2] += m.win_tie_loss[2]; });
+  const nShadow = open ? OC.network.edges_before.length : 0;
   const tiles = [
     { n: t(open ? 'home.st.village' : 'home.st.village.synth'), big: nRec,
-      d: t(open ? 'home.st.village.t' : 'home.st.village.synth.t').replace('{E}', nEnt), cls: '' },
+      d: t(open ? 'home.st.village.t' : 'home.st.village.synth.t').replace('{E}', nEnt)
+             .replace('{S}', nShadow.toLocaleString('en-US')), cls: '' },
     { n: t(open ? 'home.st.tuned.open' : 'home.st.tuned.synth'), big: f2(st.f1),
       d: t(open ? 'home.st.tuned.open.t' : 'home.st.tuned.synth.t')
-             .replace('{A}', st.asserted).replace('{T}', st.truth_pairs).replace('{M}', st.missed_pairs), cls: 'up' },
+             .replace('{A}', st.asserted).replace('{T}', st.truth_pairs)
+             .replace('{F}', st.false_links).replace('{M}', st.missed_pairs), cls: 'up' },
     { n: t('home.st.base'), big: bl.false_links + ' / ' + bl.missed_pairs,
       d: t('home.st.base.t'), cls: 'down' },
     { n: t('home.st.bench'), big: ob.length + '/' + ob.length,
@@ -2092,7 +2206,8 @@ function renderHome(){
   /* --- 三步叙事：整卡可点，直达网络三态（data-stage 与 ?stage= 同一路径） --- */
   const steps = [
     { s: 0, h: t('home.step0.h'), d: t('home.step0.t'),
-      chip: open ? 'Febrl3 · ' + nRec + ' rec · ' + nEnt + ' id' : 'seed 42 · ' + nRec + ' rec · 5 sources' },
+      chip: open ? t('home.step0.chip.open').replace('{N}', nRec).replace('{E}', nEnt)
+            : 'seed 42 · ' + nRec + ' rec · 5 sources' },
     { s: 1, h: t('home.step1.h'), d: t('home.step1.t'),
       chip: 'false ' + bl.false_links + ' · missed ' + bl.missed_pairs + ' · θ ' + A.baseline.theta.toFixed(3) },
     { s: 2, h: t('home.step2.h'), d: t(open ? 'home.step2.t.open' : 'home.step2.t.synth'),
@@ -2184,9 +2299,18 @@ function init(){
   if ((fa || fb) && OC && OC.play) {
     playTab = 'free'; playFree.a = fa || ''; playFree.b = fb || '';
     playFree.res = null; playFree.err = null; playFree.busy = false;
+    const FLD = plFreeFields();
+    if (FLD) {
+      /* 租户结构化：rid → 该记录字段；文本 → 严格解析 'field: value | …'，
+         解析不动就留空表单（预填是便利不是契约，不猜格式） */
+      playFree.fa = OC.records[fa] ? Object.assign({}, OC.records[fa].fields) : plParseSer(FLD, fa);
+      playFree.fb = OC.records[fb] ? Object.assign({}, OC.records[fb].fields) : plParseSer(FLD, fb);
+    }
     if (!v) document.querySelector('#nav button[data-view="play"]').click();
     else renderPlay();
-    if (playFree.a.trim() && playFree.b.trim()) playFreeScore();
+    const n = function(o){ return o && Object.keys(o).length > 0; };
+    if (FLD ? (n(playFree.fa) && n(playFree.fb)) : (playFree.a.trim() && playFree.b.trim()))
+      playFreeScore();
   }
   // ?resolve=1 直达"归并后"状态（跳过动画，供截图/分享；三态开源轨直达微调态）
   if (qs.get('resolve')) { netResolved = true; netT = netMax; netApply(netMax); netSyncUI(netMax); }
