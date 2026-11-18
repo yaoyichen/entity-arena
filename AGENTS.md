@@ -1,6 +1,6 @@
 # AGENTS.md
 
-实体归能（Entity Resolution）演示台：**双轨数据集**（Febrl3 实测主轨 + 合成剧本轨，
+实体归并（Entity Resolution）演示台：**双轨数据集**（Febrl3 实测主轨 + 合成剧本轨，
 页面顶部一键切换、四视图跟随）→ 双模型前后对比 → 单文件离线演示页 +
 **页内试玩台**（play 视图双出题模式：挑村记录对=内嵌全量真实分数矩阵离线打分 /
 直接输入两条=本地 sidecar 转发部署模型在线打分）+
@@ -290,8 +290,8 @@ HTTP 全链 + 零外链锁）；改了 `train_client`/`console_train` → 同一
   成对真实分数（`--scores` 入库文件 / `--emb` 向量现算二选一，全对覆盖校验；
   `--emb` 单用时溯源分数自动落向量旁 `<同名>.scores.json`，不依赖 --scores）+
   fieldmap（含 `baseline_weight`/`label` 可选列）→ 与 open_cases.json 完全
-  同 shape 的 payload，另注入 `page_labels`（40 个 i18n 覆盖键；带 `--mcp-dir`
-  时 42——多出 `conn.install.cmd`/`conn.install.cfg` 两键：把页面所有
+  同 shape 的 payload，另注入 `page_labels`（37 个 i18n 覆盖键；带 `--mcp-dir`
+  时 39——多出 `conn.install.cmd`/`conn.install.cfg` 两键：把页面所有
   Febrl 硬编码文案换成按 payload 实算的租户文案——首页数字带/阶段 chip/
   状态栏/徽标/轨道卡/试玩台占位符=首条记录真实序列化/W4 起 connect 视图
   全套：`conn.install.cmd`/`conn.install.cfg` 注入交付包绝对路径、示例问题

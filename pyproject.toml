@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "entity-arena"
 version = "0.1.0"
-description = "实体归能（Entity Resolution）演示台 — 合成数据 + 双模型前后对比 + 单文件离线演示页"
+description = "实体归并（Entity Resolution）演示台 — 合成数据 + 双模型前后对比 + 单文件离线演示页"
 requires-python = ">=3.11"
 dependencies = []  # 运行时零第三方依赖，纯标准库
 

@@ -6,7 +6,7 @@
 
 ## 1. 数据本体：Febrl3 是什么
 
-**Febrl**（Freely Extensible Biomedical Record Linkage）是实体归能领域的经典公开基准，
+**Febrl**（Freely Extensible Biomedical Record Linkage）是实体归并领域的经典公开基准，
 本仓库用 `recordlinkage` 官方发行版自带的 **dataset 3**（`data_open/febrl/febrl3.csv`，
 随仓库提交）。它是程序合成的澳大利亚人口档案——**不是真实个人信息**，但注入了真实
 ER 场景的四类噪声：**OCR 错、音译错、字段缺失、字段冲突**。

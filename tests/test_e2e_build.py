@@ -120,8 +120,8 @@ class TestEndToEnd(unittest.TestCase):
 
     def test_home_guide_view_in_page(self):
         """导览视图（默认落地页）：入口文案 + 三步叙事直达网络三态 + 双轨卡切换。"""
-        for marker in ('id="view-home"', "renderHome", "home.lede", "home.step2.t.open",
-                       "data-goto", "data-stage", "data-trackgo", "nav.home"):
+        for marker in ('id="view-home"', "renderHome", "home.lede", "home.step2.h",
+                       "buildMiniNet", "data-goto", "data-stage", "data-trackgo", "nav.home"):
             self.assertIn(marker, self.html)
 
     def test_console_entry_in_page(self):

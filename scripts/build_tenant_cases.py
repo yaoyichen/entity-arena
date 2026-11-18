@@ -230,7 +230,7 @@ def _page_labels(*, label: str, truth_label: str, n: int, n_ents: int,
 
     数字全部来自实算 payload；θ 值写进 sb.proto.open（主构建里是手写的，
     租户侧改为构建期注入——同一处文案不再有手工数字）。
-    W4 追加 connect 视图与 MCP 交付包相关键（conn.* / home.v.connect /
+    W4 追加 connect 视图与 MCP 交付包相关键（conn.* /
     conn.install.cmd|cfg——后两键仅 --mcp-dir 在场时注入，否则页面走 Febrl 默认）。
     """
     th, thb = f"{theta:.3f}", f"{theta_b:.3f}"
@@ -320,17 +320,11 @@ def _page_labels(*, label: str, truth_label: str, n: int, n_ents: int,
             "zh": f"{label}：客户数据入口的真实记录——序列化、切分与在线打分同一份口径。"
                   f"微调分数=部署模型真实输出；逐对基线=字面相似度代理——真实基模指标"
                   f"见记分牌。"},
-        "home.step2.t.open": {
-            "en": f"The fine-tuned model asserts with real scores — on this dataset the "
-                  f"components are pure and look-alikes are refused.",
-            "zh": f"微调模型用真实分数断言——本数据集上组件纯净，相似记录被拒连。"},
+
         "home.tr.open.h": {"en": f"{en_name} · measured track", "zh": f"{label} · 实测轨"},
         "stat.rec.open": {"en": f"{{N}} rec / {{E}} ent · {en_name}",
                           "zh": f"{{N}} 条记录 / {{E}} 个身份 · {label}"},
-        "home.v.play": {
-            "en": f"All {n_pairs:,} pairs embedded offline. Pick two, guess first, then "
-                  f"reveal the real score and verdict.",
-            "zh": f"全部 {n_pairs:,} 对分数离线内嵌。挑两条，先猜再揭晓真实分数与判定。"},
+
         "footer.note.open": {
             "en": f"Open track: {en_name} ({n} records / {n_ents} identities / "
                   f"{n_shadows:,} look-alike pairs), fine-tuned scores = real model "
@@ -408,10 +402,7 @@ def _page_labels(*, label: str, truth_label: str, n: int, n_ents: int,
                   f"断言，与 {truth_label} 核对（客户试点数据）。数据集：{n} 条记录 / "
                   f"{n_ents} 个身份 / {n_shadows:,} 对影子相似对。完整指南见交付包 "
                   f"START.md。"},
-        "home.v.connect": {
-            "en": "Take the scorer into your own AI via MCP — zero config for dataset "
-                  "rid pairs.",
-            "zh": "通过 MCP 把打分器装进你的 AI——数据集 rid 对零配置。"},
+
         # 容量实测卡是平台侧口径（bench 数据平台共享）：去掉案例村/仓库脚本措辞
         "conn.bench.sub": {
             "en": "How much traffic can the model service actually take? Load-tested "

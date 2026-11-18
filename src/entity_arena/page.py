@@ -194,8 +194,7 @@ const I18N = {
   'arena.sub.open':{en:'Febrl3 village, 228 real records. Left: literal-similarity baseline proxy. Right: the fine-tuned model\'s real scores. Same identity should be LINKED; look-alikes must NOT be.',
                    zh:'Febrl3 案例村，228 条真实记录。左栏：字面相似度基线代理；右栏：微调模型真实分数。同一身份的记录应被连接（LINKED）；相似的"影子人"绝不能连上。'},
   'arena.proxy':   {en:'literal-similarity proxy', zh:'字面相似度代理'},
-  'arena.qs':      {en:'Scripted queries', zh:'剧本查询'},
-  'arena.qrecord': {en:'Query record', zh:'查询记录'},
+
   'arena.missed':  {en:'not retrieved', zh:'未召回'},
   'arena.asserted':{en:'asserted', zh:'已断言'},
   'arena.of':      {en:'of', zh:'/'},
@@ -204,7 +203,7 @@ const I18N = {
   'v.candidate':   {en:'CANDIDATE below θ', zh:'候选 未过线'},
   'v.false':       {en:'FALSE LINK ✗ different person', zh:'误连 ✗ 不同的人'},
   'v.unrelated':   {en:'unrelated', zh:'无关'},
-  'f.name':        {en:'Name', zh:'姓名'},
+
   'f.id':          {en:'ID', zh:'证件号'},
   'f.dob':         {en:'DOB', zh:'生日'},
   'f.pob':         {en:'POB', zh:'籍贯'},
@@ -357,7 +356,7 @@ const I18N = {
   'conn.bench.qps': {en:'req/s', zh:'请求数/秒'},
   'conn.bench.rps': {en:'records/s', zh:'条/秒'},
   'conn.bench.conc':{en:'concurrent requests', zh:'并发请求数'},
-  'conn.bench.p95': {en:'p95 latency (s)', zh:'p95 延迟（秒）'},
+
   'conn.bench.note':{en:'Method: scripts/bench_embeddings.py (pure stdlib, TLS1.2, keep-alive), {N}-record corpus, 15s per step. Single-record scoring on this page sends 2 records per request — two orders of magnitude below saturation. Red bar = the step where the platform answered 429 (GPU queue full); the honest ceiling, not a failure.',
                    zh:'方法：scripts/bench_embeddings.py（纯标准库、TLS1.2、连接复用），语料 {N} 条记录，每档 15 秒。本页在线打分一次只发 2 条——离饱和还有两个数量级。红柱 = 平台回 429（GPU 队列满）的那一档：这是诚实的上限，不是故障。'},
   'play.h':        {en:'Playground — pick a pair, call the verdict', zh:'试玩台 · 挑一对，亲手下判定'},
@@ -442,23 +441,17 @@ const I18N = {
   'home.st.base.t':{en:'false merges / missed links — the red marks on the map', zh:'误连 / 漏连 —— 即图上的红线与红虚线 ⊘'},
   'home.st.bench': {en:'Open benchmark · real models × Febrl3', zh:'开源基准 · 真实模型 × Febrl3'},
   'home.st.bench.t':{en:'base models fine-tuned, NDCG@10 ≥ .998 · 850-query duels: {W} W / {L} L', zh:'个基座微调后 NDCG@10 ≥ .998 · 850 查询对垒 {W} 胜 / {L} 负'},
-  'home.steps.eyebrow':{en:'The story', zh:'三步叙事'},
-  'home.steps.h':  {en:'One network, three stages', zh:'同一张网，三个阶段'},
+
   'home.step0.h':  {en:'① Raw — no verdicts yet', zh:'① 原始 · 还没有判定'},
-  'home.step0.t':  {en:'Records arrive unscored. Look-alike ties — shared surnames, addresses, birthdays — already tangle different people together.',
-                   zh:'记录刚到，还没人打分。同姓、同址、同生日的"影子相似"已经把不同的人缠成一团团乱麻。'},
+
   'home.step0.chip.open':{en:'Febrl3 · {N} rec · {E} id', zh:'Febrl3 · {N} 条记录 · {E} 个身份'},
   'home.step1.h':  {en:'② Baseline — literal resemblance', zh:'② 基线 · 只看长得像'},
-  'home.step1.t':  {en:'A field-similarity proxy links whatever crosses θ: many true links found, but look-alikes get falsely merged (red lines) and some true pairs are left unlinked (dashed ⊘).',
-                   zh:'字面相似度代理越过 θ 就连：真对连上不少，但影子被误连成一个人（红线），也有真对没敢连（红虚线 ⊘）。'},
+
   'home.step2.h':  {en:'③ Fine-tuned — embeddings judge', zh:'③ 微调 · 嵌入来判'},
-  'home.step2.t.open':{en:'The fine-tuned model asserts with real scores — on this village every assertion is correct: 323/323 true pairs, 0 false, 0 missed.',
-                   zh:'微调模型用真实分数断言——在这个案例村上 323/323 真对全中，0 误连、0 漏连。'},
-  'home.step2.t.synth':{en:'The tuned proxy keeps honest blind spots: zero false links, and the scripted misses (twins, missing fields) stay visible as dashed ⊘.',
-                   zh:'微调代理保留诚实盲区：零误连，但剧本注定的失手（双胞胎、字段缺失）仍以红虚线 ⊘ 露着。'},
+
   'home.golink':   {en:'view this stage →', zh:'查看该阶段 →'},
   'home.tracks.eyebrow':{en:'Two datasets', zh:'双轨数据集'},
-  'home.tracks.h': {en:'Pick a track — every view follows', zh:'选一条轨——各视图全体跟随'},
+
   'home.tr.cur':   {en:'current', zh:'当前轨'},
   'home.tr.open.h':{en:'Febrl3 · measured track', zh:'Febrl3 · 实测轨'},
   'home.tr.open.t':{en:'A public benchmark (programmatically generated, no real PII). Fine-tuned scores are the deployed model\'s real outputs; the pairwise baseline is a literal-similarity proxy — real base-model metrics sit in the Scoreboard.',
@@ -467,12 +460,7 @@ const I18N = {
   'home.tr.synth.t':{en:'47 hand-scripted characters, deterministic (seed 42), built for explainable stories — twins, shared phones, typo storms. Scores are proxy formulas: they show the mechanism, not production performance.',
                    zh:'47 位剧本人物，seed 42 确定性生成，专为可解释叙事设计——双胞胎、共用电话、错字风暴。分数是代理公式：演示机制差异，不代表生产性能。'},
   'home.tr.enter': {en:'enter on this track →', zh:'以此轨进入 →'},
-  'home.v.arena':  {en:'One scripted query, two models side by side — who gets linked, who gets wrongly linked.', zh:'一个剧本查询，两模型并排——谁被连上、谁被误连。'},
-  'home.v.network':{en:'The same network in three stages: raw tangle → baseline red marks → tuned merge.', zh:'同一张网的三态：原始纠缠 → 基线红标 → 微调归并。'},
-  'home.v.explain':{en:'Field-by-field evidence for the decisive pairs, θ tick on every score bar.', zh:'关键记录对的逐字段证据，每根分数条上都标着 θ 刻度。'},
-  'home.v.scoreboard':{en:'Assertion metrics with the fine print — plus the real open-benchmark board below.', zh:'断言指标附完整口径——下方还有开源基准真实数字。'},
-  'home.v.play':   {en:'All 25,878 village pairs embedded offline. Pick two, guess first, then the real cosine.', zh:'全村 25,878 对分数内嵌离线。挑两条、先盲猜、再看真实余弦。'},
-  'home.v.connect':{en:'Take the scorer into your own AI via MCP — zero config for village rid pairs.', zh:'通过 MCP 把打分器装进你的 AI——rid 对零配置。'},
+
   'home.mode':     {en:'Honest labeling throughout — every number carries its caliber: real measurement, proxy score, or synthetic script (declared per track in the status bar, scoreboard and footer). Single-file build, opens offline; deep links like ?view=network&stage=1 jump straight in.',
                    zh:'全程诚实标注——每个数字都带自己的口径：真实实测、代理评分或合成剧本（按轨在状态条、统计条与页脚三处声明）。单文件构建断网可开；?view=network&stage=1 这类深链可直达任意位置。'},
 

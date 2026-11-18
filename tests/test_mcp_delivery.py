@@ -137,7 +137,7 @@ class TestMcpBundle(DeliveryBase):
         self.assertIn("{TH}", pl["conn.proto"]["en"])   # θ 仍由页面运行期注入
         self.assertIn("Pilot labels", pl["conn.proto"]["en"])
         self.assertIn("231", pl["conn.mode.off.t"]["en"])  # 全量对数实算
-        self.assertIn("dataset rid pairs", pl["home.v.connect"]["en"])
+        self.assertIn("measured track", pl["home.tr.open.h"]["en"])  # 首页轨道 chip 也按租户实算
         self.assertNotIn("village", pl["conn.sub"]["en"].lower())
         # 容量实测卡（平台共享 bench）：去案例村/仓库脚本措辞，日期仍运行期注入
         self.assertIn("{D}", pl["conn.bench.sub"]["en"])
