@@ -48,40 +48,39 @@ __CSS__
 </header>
 <main>
   <section id="view-home" class="view active">
-    <div class="hero">
-      <div class="eyebrow" data-i18n="home.eyebrow"></div>
-      <h1 data-i18n="home.h"></h1>
-      <p class="lede" data-i18n="home.lede"></p>
-      <div class="cta-row">
-        <button class="cta primary" data-goto="network" data-stage="0" data-i18n="home.cta.tour"></button>
-        <button class="cta ghost" data-goto="play" data-i18n="home.cta.play"></button>
+    <div class="heroGrid">
+      <div class="hero">
+        <div class="eyebrow" data-i18n="home.eyebrow"></div>
+        <h1 data-i18n="home.h"></h1>
+        <p class="lede" data-i18n="home.lede"></p>
+        <div class="cta-row">
+          <button class="cta primary" data-goto="network" data-stage="0" data-i18n="home.cta.tour"></button>
+          <button class="cta ghost" data-goto="play" data-i18n="home.cta.play"></button>
+        </div>
+      </div>
+      <!-- Hero 三态动画预览：buildMiniNet 渲染，整卡点击直达网络视图当前阶段 -->
+      <div class="card gline heroNet" id="heroNet" data-goto="network" data-stage="0">
+        <div class="mininet" id="miniNet"></div>
+        <div class="ministage" id="miniStage"></div>
       </div>
     </div>
     <div class="homeblock statblock">
-      <div class="eyebrow" data-i18n="home.stats.h"></div>
-      <div class="homestats" id="homeStats"></div>
+      <div class="heroStat" id="heroStat"></div>
+      <div class="homeFoot" id="homeFoot"></div>
     </div>
     <div class="homeblock">
-      <div class="eyebrow" data-i18n="home.steps.eyebrow"></div>
-      <h2 data-i18n="home.steps.h"></h2>
-      <div class="steps" id="homeSteps"></div>
+      <div class="stepline" id="homeSteps"></div>
     </div>
     <div class="homeblock" id="homeTracksBlock">
       <div class="eyebrow" data-i18n="home.tracks.eyebrow"></div>
-      <h2 data-i18n="home.tracks.h"></h2>
-      <div class="tracks2" id="homeTracks"></div>
-    </div>
-    <div class="homeblock">
-      <div class="eyebrow" data-i18n="home.views.eyebrow"></div>
-      <h2 data-i18n="home.views.h"></h2>
-      <div class="viewgrid" id="viewGrid"></div>
+      <div class="trackchips" id="homeTracks"></div>
     </div>
     <div class="homeblock" id="consoleBlock" hidden>
       <div class="eyebrow" data-i18n="home.console.eyebrow"></div>
       <h2 data-i18n="home.console.h"></h2>
       <p class="sub" data-i18n="home.console.lede"></p>
       <div class="cta-row">
-        <a class="cta primary" href="console/" target="_blank" rel="noopener" data-i18n="home.console.cta"></a>
+        <a class="cta ghost" href="console/" target="_blank" rel="noopener" data-i18n="home.console.cta"></a>
       </div>
     </div>
     <p class="homemode" data-i18n="home.mode"></p>
@@ -430,7 +429,7 @@ const I18N = {
   'home.console.h': {en:'Bring your own records', zh:'带上你自己的数据'},
   'home.console.lede': {en:'The engine behind this demo, delivered as a service: in the customer workspace you upload your own records and field roles — validation, training, effect review, deployment — a five-step self-serve loop, every number computed from your data.', zh:'这套演示背后的引擎、以服务形态交付：在客户工作台上传你自己的记录与字段角色——校验、开训、看效果、部署，五步自助闭环，页面上的一切数字都从你的数据算出。'},
   'home.console.cta': {en:'Open the customer workspace →', zh:'打开客户工作台 →'},
-  'home.stats.h':  {en:'Headline numbers', zh:'开场数字'},
+  'home.hero.false': {en:'false links', zh:'误连'},
   'home.st.village':{en:'Febrl3 village · real benchmark', zh:'Febrl3 案例村 · 公开基准'},
   'home.st.village.t':{en:'records · {E} identities · {S} look-alike shadow pairs', zh:'条记录 · {E} 个身份 · {S} 对影子相似'},
   'home.st.village.synth':{en:'Scripted world · seed 42', zh:'合成剧本 · seed 42'},
@@ -468,8 +467,6 @@ const I18N = {
   'home.tr.synth.t':{en:'47 hand-scripted characters, deterministic (seed 42), built for explainable stories — twins, shared phones, typo storms. Scores are proxy formulas: they show the mechanism, not production performance.',
                    zh:'47 位剧本人物，seed 42 确定性生成，专为可解释叙事设计——双胞胎、共用电话、错字风暴。分数是代理公式：演示机制差异，不代表生产性能。'},
   'home.tr.enter': {en:'enter on this track →', zh:'以此轨进入 →'},
-  'home.views.eyebrow':{en:'Six views', zh:'六个视图'},
-  'home.views.h':  {en:'Where to look, in what order', zh:'按这个顺序看'},
   'home.v.arena':  {en:'One scripted query, two models side by side — who gets linked, who gets wrongly linked.', zh:'一个剧本查询，两模型并排——谁被连上、谁被误连。'},
   'home.v.network':{en:'The same network in three stages: raw tangle → baseline red marks → tuned merge.', zh:'同一张网的三态：原始纠缠 → 基线红标 → 微调归并。'},
   'home.v.explain':{en:'Field-by-field evidence for the decisive pairs, θ tick on every score bar.', zh:'关键记录对的逐字段证据，每根分数条上都标着 θ 刻度。'},
@@ -2186,7 +2183,7 @@ function renderPlayResult(){
 
 /* ============================ Home（导览：入口落地页） ============================ */
 function renderHome(){
-  /* 入口页四块：开场数字带 / 三步叙事 / 双轨卡 / 六视图导览。
+  /* 入口页四块：hero+三态动画 / 英雄数字+注脚行 / 三步时间线 / 双轨 chips。
      数字全部按当前 TRACK 现算（与各视图同源），口径随 tile 名逐条标注。 */
   const A = trackAdapter();
   const open = TRACK === 'open';
@@ -2194,64 +2191,183 @@ function renderHome(){
   const nRec = open ? Object.keys(OC.records).length : DATA.meta.n_records;
   const nEnt = open ? st.components : DATA.meta.n_entities;
 
-  /* --- 开场数字带（4 tile，复用记分牌 .tile 样式；数字穿文字色，身份由 tile 名承载） --- */
+  /* --- 英雄数字：微调后误连——一个数字讲完卖点；其余三个口径降为注脚行 --- */
   const ob = DATA.open_bench ? DATA.open_bench.models : [];
   let wl = [0, 0, 0];
   ob.forEach(m => { wl[0] += m.win_tie_loss[0]; wl[1] += m.win_tie_loss[1]; wl[2] += m.win_tie_loss[2]; });
+  const heroDesc = t(open ? 'home.st.tuned.open.t' : 'home.st.tuned.synth.t')
+      .replace('{A}', st.asserted).replace('{T}', st.truth_pairs)
+      .replace('{F}', st.false_links).replace('{M}', st.missed_pairs);
+  document.getElementById('heroStat').innerHTML =
+      '<div class="hs-num"><span class="n-t">' + st.false_links + '</span>' +
+      '<span class="hs-unit">' + t('home.hero.false') + '</span></div>' +
+      '<div class="hs-side"><div class="hs-name">' + t(open ? 'home.st.tuned.open' : 'home.st.tuned.synth') + '</div>' +
+      '<div class="hs-desc">' + heroDesc + '</div></div>';
   const nShadow = open ? OC.network.edges_before.length : 0;
-  const tiles = [
-    { n: t(open ? 'home.st.village' : 'home.st.village.synth'), big: nRec,
+  const foot = [
+    { n: t(open ? 'home.st.village' : 'home.st.village.synth'), v: nRec,
       d: t(open ? 'home.st.village.t' : 'home.st.village.synth.t').replace('{E}', nEnt)
-             .replace('{S}', nShadow.toLocaleString('en-US')), cls: '' },
-    { n: t(open ? 'home.st.tuned.open' : 'home.st.tuned.synth'), big: f2(st.f1),
-      d: t(open ? 'home.st.tuned.open.t' : 'home.st.tuned.synth.t')
-             .replace('{A}', st.asserted).replace('{T}', st.truth_pairs)
-             .replace('{F}', st.false_links).replace('{M}', st.missed_pairs), cls: 'up' },
-    { n: t('home.st.base'), big: bl.false_links + ' / ' + bl.missed_pairs,
-      d: t('home.st.base.t'), cls: 'down' },
-    { n: t('home.st.bench'), big: ob.length + '/' + ob.length,
-      d: t('home.st.bench.t').replace('{W}', wl[0]).replace('{L}', wl[2]), cls: 'up' },
+               .replace('{S}', nShadow.toLocaleString('en-US')) },
+    { n: t('home.st.base'), v: bl.false_links + ' / ' + bl.missed_pairs,
+      d: t('home.st.base.t') },
+    { n: t('home.st.bench'), v: ob.length + '/' + ob.length,
+      d: t('home.st.bench.t').replace('{W}', wl[0]).replace('{L}', wl[2]) },
   ];
-  document.getElementById('homeStats').innerHTML = tiles.map(x =>
-    '<div class="tile"><div class="tname">' + x.n + '</div>' +
-    '<div class="nums"><span class="n-t">' + x.big + '</span></div>' +
-    '<div class="delta ' + x.cls + '">' + x.d + '</div></div>').join('');
+  document.getElementById('homeFoot').innerHTML = foot.map(x =>
+      '<div class="hf"><div class="hf-v">' + x.v + '</div>' +
+      '<div class="hf-n">' + x.n + '</div><div class="hf-d">' + x.d + '</div></div>').join('');
 
-  /* --- 三步叙事：整卡可点，直达网络三态（data-stage 与 ?stage= 同一路径） --- */
+  /* --- 三步叙事：横向时间线（叙述正文归网络视图，这里标题+数字芯片），
+         整段可点，直达网络三态（data-stage 与 ?stage= 同一路径） --- */
   const steps = [
-    { s: 0, h: t('home.step0.h'), d: t('home.step0.t'),
+    { s: 0, h: t('home.step0.h'),
       chip: open ? t('home.step0.chip.open').replace('{N}', nRec).replace('{E}', nEnt)
             : 'seed 42 · ' + nRec + ' rec · 5 sources' },
-    { s: 1, h: t('home.step1.h'), d: t('home.step1.t'),
+    { s: 1, h: t('home.step1.h'),
       chip: 'false ' + bl.false_links + ' · missed ' + bl.missed_pairs + ' · θ ' + A.baseline.theta.toFixed(3) },
-    { s: 2, h: t('home.step2.h'), d: t(open ? 'home.step2.t.open' : 'home.step2.t.synth'),
+    { s: 2, h: t('home.step2.h'),
       chip: 'asserted ' + st.asserted + ' · false ' + st.false_links + ' · missed ' + st.missed_pairs +
             ' · θ ' + A.theta.toFixed(3) },
   ];
-  document.getElementById('homeSteps').innerHTML = steps.map(x =>
-    '<button class="card gline stepcard" data-goto="network" data-stage="' + x.s + '">' +
-    '<span class="stepnum mono">0' + (x.s + 1) + '</span><div class="sh">' + x.h + '</div>' +
-    '<p class="st">' + x.d + '</p><span class="chip mono">' + x.chip + '</span>' +
-    '<span class="golink">' + t('home.golink') + '</span></button>').join('');
+  document.getElementById('homeSteps').innerHTML = steps.map((x, i) =>
+      (i ? '<span class="stl-line" aria-hidden="true"></span>' : '') +
+      '<button class="stl-seg" data-goto="network" data-stage="' + x.s + '">' +
+      '<span class="stl-dot" aria-hidden="true"></span><div class="sh">' + x.h + '</div>' +
+      '<span class="chip mono">' + x.chip + '</span></button>').join('');
 
-  /* --- 双轨卡：当前轨高亮，另一轨点击即切（与头部切换器等价，随后落到网络原始态） --- */
+  /* --- 双轨 chips：当前轨高亮，另一轨点击即切（与头部切换器等价）；
+         长口径文案收进 title 提示，不再占版面 --- */
   const trk = [];
-  if (OC) trk.push({ k: 'open', badge: t('badge.open'), h: t('home.tr.open.h'), d: t('home.tr.open.t') });
-  trk.push({ k: 'synth', badge: t('badge.synthetic'), h: t('home.tr.synth.h'), d: t('home.tr.synth.t') });
+  if (OC) trk.push({ k: 'open', h: t('home.tr.open.h'), d: t('home.tr.open.t') });
+  trk.push({ k: 'synth', h: t('home.tr.synth.h'), d: t('home.tr.synth.t') });
   document.getElementById('homeTracks').innerHTML = trk.map(x =>
-    '<button class="card gline trackcard' + (TRACK === x.k ? ' cur' : '') + '" data-trackgo="' + x.k + '">' +
-    '<div class="trackhead"><span class="sh">' + x.h + '</span><span class="pill">' + x.badge + '</span>' +
-    (TRACK === x.k ? '<span class="chip cy">' + t('home.tr.cur') + '</span>'
-                   : '<span class="golink">' + t('home.tr.enter') + '</span>') + '</div>' +
-    '<p class="st">' + x.d + '</p></button>').join('');
+      '<button class="trk-chip' + (TRACK === x.k ? ' cur' : '') + '" data-trackgo="' + x.k + '" title="' + esc(x.d) + '">' +
+      '<span class="sh">' + x.h + '</span>' +
+      (TRACK === x.k ? '<span class="chip cy">' + t('home.tr.cur') + '</span>'
+                     : '<span class="golink">' + t('home.tr.enter') + '</span>') + '</button>').join('');
   document.getElementById('homeTracksBlock').style.display = OC ? '' : 'none';
 
-  /* --- 六视图导览：一卡一句，点击直达 --- */
-  const views = ['arena', 'network', 'explain', 'scoreboard', 'play', 'connect'];
-  document.getElementById('viewGrid').innerHTML = views.map((v, i) =>
-    '<button class="card gline viewcard" data-goto="' + v + '">' +
-    '<span class="stepnum mono">0' + (i + 1) + '</span><div class="sh">' + t('nav.' + v) + '</div>' +
-    '<p class="st">' + t('home.v.' + v) + '</p></button>').join('');
+  buildMiniNet();
+}
+
+/* --- Hero 三态动画：网络视图的缩小预览，自动循环 原始→基线→微调。
+   只读同一份 layout 数据（nodes_before/edges_before/baseline/entities）与缓动函数，
+   独立渲染器：不挂交互（悬停/点节点归网络视图），整卡点击直达当前阶段。
+   轨道/语言切换会重跑 renderHome → 重建动画，miniNet.stop() 收掉旧 rAF 防泄漏。 --- */
+let miniNet = null;
+function buildMiniNet(){
+  const host = document.getElementById('miniNet');
+  const cap = document.getElementById('miniStage');
+  if (!host) return;
+  if (miniNet) miniNet.stop();
+  const A = trackAdapter(), ND = A.net, BL = A.baseline;
+  const hasBase = !!BL, two = hasBase;
+  const before = {}, tuned = {}, basePos = {};
+  ND.nodes_before.forEach(n => before[n.r] = n);
+  ND.nodes_after.forEach(n => tuned[n.r] = n);
+  if (hasBase) BL.network.nodes_after.forEach(n => basePos[n.r] = n);
+  host.innerHTML = '';
+  const svg = svgEl('svg', {viewBox: '0 0 ' + ND.canvas.w + ' ' + ND.canvas.h,
+                            'class': 'mn-svg', 'aria-hidden': 'true'});
+  const gE0 = svgEl('g', {}), gBL = svgEl('g', {}), gHalo = svgEl('g', {}), gNode = svgEl('g', {});
+  svg.append(gE0, gBL, gHalo, gNode);
+  host.appendChild(svg);
+  ND.edges_before.forEach(e => {                      // 原始影子边（细、随进度淡出）
+    const el = svgEl('line', {'class': 'mn-edge'});
+    el.dataset.a = e.a; el.dataset.b = e.b; gE0.appendChild(el);
+  });
+  if (hasBase) {                                      // 基线断言：误连红线 + 正确浅线
+    const badSet = new Set(BL.false_links);
+    BL.links.forEach(l => {
+      const isBad = badSet.has([l.a, l.b].sort().join('|'));
+      const el = svgEl('line', {'class': 'mn-edge' + (isBad ? ' mn-bad' : '')});
+      el.dataset.a = l.a; el.dataset.b = l.b; gBL.appendChild(el);
+    });
+  }
+  ND.entities.forEach(en => {                         // 微调组件光环（cyan=正确归并）
+    const c = svgEl('circle', {'class': 'mn-halo'});
+    c.dataset.cx = en.x; c.dataset.cy = en.y; c.dataset.R = 30 + 4 * en.size;  // 与主图同款半径
+    gHalo.appendChild(c);
+  });
+  const nodes = {}, pos = {};
+  Object.keys(before).forEach(rid => {
+    const c = svgEl('circle', {'class': 'mn-node', r: 5});
+    gNode.appendChild(c);
+    nodes[rid] = {el: c, bx: before[rid].x, by: before[rid].y,
+                  ax: tuned[rid] ? tuned[rid].x : before[rid].x,
+                  ay: tuned[rid] ? tuned[rid].y : before[rid].y,
+                  cx: basePos[rid] ? basePos[rid].x : null,
+                  cy: basePos[rid] ? basePos[rid].y : null};
+  });
+  function apply(u){                                  // 与主图 netApply 同款两跳插值（简化版）
+    const e1 = easeIO(Math.max(0, Math.min(1, u)));
+    const e2 = easeIO(Math.max(0, Math.min(1, u - 1)));
+    Object.keys(nodes).forEach(rid => {
+      const n = nodes[rid];
+      const mx = n.cx != null ? n.cx : n.ax, my = n.cy != null ? n.cy : n.ay;
+      const x = !two || u <= 1 ? lerp(n.bx, mx, e1) : lerp(mx, n.ax, e2);
+      const y = !two || u <= 1 ? lerp(n.by, my, e1) : lerp(my, n.ay, e2);
+      n.el.setAttribute('cx', x); n.el.setAttribute('cy', y);
+      pos[rid] = [x, y];
+    });
+    const oB = 1 - smooth(u, .12, .45);
+    const oHB = two ? smooth(u, .42, .8) * (1 - smooth(u, 1.42, 1.8)) : 0;
+    const u2 = two ? u - 1 : u;
+    const oH = smooth(u2, .42, .8);
+    gE0.childNodes.forEach(el => {
+      const pa = pos[el.dataset.a], pb = pos[el.dataset.b];
+      if (pa && pb) { el.setAttribute('x1', pa[0]); el.setAttribute('y1', pa[1]);
+                      el.setAttribute('x2', pb[0]); el.setAttribute('y2', pb[1]); }
+      el.setAttribute('opacity', oB);
+    });
+    gBL.childNodes.forEach(el => {
+      const pa = pos[el.dataset.a], pb = pos[el.dataset.b];
+      if (pa && pb) { el.setAttribute('x1', pa[0]); el.setAttribute('y1', pa[1]);
+                      el.setAttribute('x2', pb[0]); el.setAttribute('y2', pb[1]); }
+      el.setAttribute('opacity', oHB);
+    });
+    gHalo.childNodes.forEach(h => {
+      h.setAttribute('cx', h.dataset.cx); h.setAttribute('cy', h.dataset.cy);
+      h.setAttribute('r', lerp(6, +h.dataset.R, smooth(u2, .35, .9)));
+      h.setAttribute('opacity', oH * .9);
+    });
+  }
+  /* 阶段字幕 + 进度点；整卡 data-stage 跟随当前阶段（点击直达） */
+  const caps = [t('home.step0.h'), t('home.step1.h'), t('home.step2.h')];
+  let capStage = -1;
+  function setCap(s){
+    if (s === capStage) return;
+    capStage = s;
+    const card = document.getElementById('heroNet');
+    if (card) card.dataset.stage = s;
+    let dots = '';
+    for (let i = 0; i <= (two ? 2 : 0); i++) dots += '<span class="mnd' + (i === s ? ' on' : '') + '"></span>';
+    cap.innerHTML = '<span class="mncap">' + caps[two ? s : (s === 0 ? 0 : 2)] + '</span>' +
+                    '<span class="mndots">' + dots + '</span>' +
+                    '<span class="golink">' + t('home.golink') + '</span>';
+  }
+  /* 循环时间轴：停留→过渡交替（毫秒）；无基线块时退化为 原始↔微调 两态 */
+  const seq = two
+    ? [[0, 2600], [1, 1500], [1, 3000], [2, 1500], [2, 3600], [0, 1200]]
+    : [[0, 2600], [1, 1800], [1, 3600], [0, 1800]];
+  const segs = [];
+  let acc = 0, cur = 0;
+  seq.forEach(s => { segs.push({from: cur, to: s[0], t0: acc, t1: acc + s[1]}); acc += s[1]; cur = s[0]; });
+  const total = acc, start = performance.now();
+  let raf = 0, alive = true;
+  function frame(now){
+    if (!alive) return;
+    const tt = (now - start) % total;
+    let u = 0, stage = 0;
+    for (let i = 0; i < segs.length; i++) {
+      const s = segs[i];
+      if (tt < s.t1) { u = s.from + (s.to - s.from) * ((tt - s.t0) / (s.t1 - s.t0)); stage = Math.round(u); break; }
+    }
+    if (document.getElementById('view-home').classList.contains('active')) { apply(u); setCap(stage); }
+    raf = requestAnimationFrame(frame);
+  }
+  raf = requestAnimationFrame(frame);
+  miniNet = { stop: function(){ alive = false; cancelAnimationFrame(raf); } };
 }
 
 /* ============================ init ============================ */

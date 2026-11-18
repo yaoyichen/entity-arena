@@ -500,9 +500,10 @@ table.mtable { width:100%; border-collapse:collapse; font-size:12.5px; font-vari
 .pl-free-errh { font-size:11.5px; color:var(--t3); margin-top:6px; line-height:1.6; }
 button.chip { font:inherit; cursor:pointer; background:transparent; }
 
-/* ---------- Home 导览（入口落地页：hero + 数字带 + 三步叙事 + 双轨卡 + 视图导览） ---------- */
-.hero { padding:36px 0 4px; max-width:920px; }
-.hero h1 { font-size:28px; font-weight:700; line-height:1.25; letter-spacing:-.01em; margin-top:10px; }
+/* ---------- Home 导览（入口落地页：hero+三态动画 / 英雄数字 / 三步时间线 / 双轨 chips） ---------- */
+.heroGrid { display:grid; grid-template-columns:7fr 5fr; gap:36px; align-items:center; }
+.hero { padding:26px 0 4px; }
+.hero h1 { font-size:34px; font-weight:700; line-height:1.22; letter-spacing:-.015em; margin-top:10px; }
 .hero .lede { color:var(--t2); font-size:14px; line-height:1.75; margin-top:12px; }
 .cta-row { display:flex; gap:12px; margin-top:22px; flex-wrap:wrap; }
 .cta { font:inherit; font-size:13.5px; font-weight:600; letter-spacing:.02em;
@@ -512,27 +513,60 @@ button.chip { font:inherit; cursor:pointer; background:transparent; }
 .cta.primary:hover { filter:brightness(1.12); }
 .cta.ghost { background:var(--ghost); border:1px solid var(--line2); color:var(--t1); }
 .cta.ghost:hover { border-color:var(--t3); background:var(--panel2); }
+/* hero 三态动画预览卡：整卡可点直达网络视图当前阶段 */
+.heroNet { cursor:pointer; padding:12px 12px 10px; transition:border-color .18s; }
+.heroNet:hover { border-color:rgba(72,197,208,.5); }
+.heroNet:hover .golink { opacity:1; }
+.mn-svg { width:100%; height:auto; display:block; }
+.mn-edge { stroke:var(--edge); stroke-opacity:.95; stroke-width:1.4; }
+.mn-edge.mn-bad { stroke:var(--red); stroke-opacity:.95; stroke-width:2.2; }
+.mn-node { fill:var(--node-hi); }
+.mn-halo { fill:rgba(16,166,173,.10); stroke:rgba(16,166,173,.95); stroke-width:1.9; }
+.ministage { display:flex; align-items:center; gap:10px; margin-top:8px; min-height:22px; flex-wrap:wrap; }
+.mncap { font-size:12.5px; font-weight:600; color:var(--t1); }
+.mndots { display:inline-flex; gap:5px; }
+.mnd { width:6px; height:6px; border-radius:50%; background:var(--line2); }
+.mnd.on { background:var(--cyan); }
+.ministage .golink { margin:0 0 0 auto; }
 .homeblock { margin-top:36px; }
-.homeblock.statblock { margin-top:28px; }
+.homeblock.statblock { margin-top:18px; }
+#homeTracksBlock { margin-top:26px; }
 .homeblock h2 { font-size:16px; font-weight:650; margin:6px 0 14px; }
 .homeblock p.sub { color:var(--t2); font-size:13.5px; line-height:1.7; margin:0 0 14px; max-width:780px; }
-.homestats { display:grid; grid-template-columns:repeat(4,1fr); gap:16px; }
-.steps, .tracks2, .viewgrid { display:grid; gap:16px; }
-.steps { grid-template-columns:repeat(3,1fr); }
-.tracks2 { grid-template-columns:1fr 1fr; }
-.viewgrid { grid-template-columns:repeat(3,1fr); }
-.stepcard, .trackcard, .viewcard { font:inherit; text-align:left; display:block; width:100%;
+/* 英雄数字：一个主数字（微调后误连）+ 右侧口径行；其余三个数字降为注脚行 */
+.heroStat { display:flex; align-items:center; gap:24px; padding:12px 0 11px;
+  border-top:1px solid var(--line); border-bottom:1px solid var(--line); }
+.hs-num { display:flex; align-items:baseline; gap:10px; flex:none; }
+.hs-num .n-t { font-size:50px; font-weight:700; line-height:1; letter-spacing:-.02em; }
+.hs-unit { font-size:14px; font-weight:600; color:var(--t2); line-height:1; }
+.hs-name { font-size:13px; font-weight:650; color:var(--t1); }
+.hs-desc { font-size:12.5px; color:var(--t2); margin-top:4px; line-height:1.6; }
+.homeFoot { display:flex; gap:36px; margin-top:10px; flex-wrap:wrap; }
+.hf-v { font-size:20px; font-weight:650; line-height:1.2; }
+.hf-n { font-size:11px; color:var(--t3); margin-top:3px; }
+.hf-d { font-size:11px; color:var(--t3); margin-top:2px; line-height:1.55; }
+/* 三步时间线：横向分段 + 连接线，整段可点直达网络三态 */
+.stepline { display:flex; align-items:stretch; }
+.stl-seg { flex:1 1 0; font:inherit; text-align:left; background:transparent; border:none;
+  padding:12px 14px 10px; border-radius:var(--r-m); cursor:pointer;
+  transition:background .18s; color:var(--t2); }
+.stl-seg:hover { background:var(--ghost); }
+.stl-seg .sh { font-size:14px; font-weight:650; color:var(--t1); display:block; line-height:1.4; }
+.stl-seg .chip { margin-top:8px; }
+.stl-dot { display:block; width:10px; height:10px; border-radius:50%;
+  border:2px solid var(--line2); background:var(--panel); margin-bottom:10px; }
+.stl-seg:hover .stl-dot { border-color:var(--cyan); }
+.stl-line { flex:0 0 30px; align-self:center; height:1px; background:var(--line2); }
+/* 双轨 chips：当前轨高亮，另一轨点击即切；长口径收进 title */
+.trackchips { display:flex; gap:12px; flex-wrap:wrap; }
+.trk-chip { font:inherit; display:inline-flex; align-items:center; gap:10px;
+  padding:9px 14px; border:1px solid var(--line); border-radius:var(--r-m); background:transparent;
   color:var(--t2); cursor:pointer; transition:border-color .18s, background .18s; }
-.stepcard:hover, .trackcard:hover, .viewcard:hover { border-color:var(--line2); color:var(--t1); }
-.stepcard .sh, .trackcard .sh, .viewcard .sh { font-size:14px; font-weight:650; color:var(--t1); }
-.stepcard .st, .trackcard .st, .viewcard .st { font-size:12.5px; color:var(--t2); line-height:1.65; margin-top:6px; }
-.stepnum { display:block; font-size:11px; color:var(--t3); letter-spacing:.14em; margin-bottom:8px; }
-.stepcard .chip { margin-top:12px; }
+.trk-chip:hover { border-color:var(--line2); color:var(--t1); }
+.trk-chip .sh { font-size:13px; font-weight:650; color:var(--t1); }
+.trk-chip.cur { border-color:rgba(72,197,208,.45); background:var(--seltint); }
+.trk-chip .golink { margin:0; }
 .golink { display:block; margin-top:12px; font-size:12px; color:var(--cyan-b); opacity:.85; }
-.trackcard:hover .golink, .stepcard:hover .golink { opacity:1; }
-.trackhead { display:flex; align-items:center; gap:10px; flex-wrap:wrap; }
-.trackhead .golink { margin:0 0 0 auto; }
-.trackcard.cur { border-color:rgba(72,197,208,.45); background:var(--seltint); }
 .homemode { margin-top:28px; font-size:12px; color:var(--t3); line-height:1.7;
   border-top:1px dashed var(--line2); padding-top:14px; }
 
@@ -545,8 +579,12 @@ footer .fin { max-width:1280px; margin:0 auto; padding:0 24px; font-size:12px; c
   .arena-grid { grid-template-columns:1fr; }
   .duel, .xgrid, .sb-grid { grid-template-columns:1fr; }
   .tiles { grid-template-columns:1fr; }
-  .homestats { grid-template-columns:1fr 1fr; }
-  .steps, .tracks2, .viewgrid { grid-template-columns:1fr; }
+  .heroGrid { grid-template-columns:1fr; gap:20px; }
+  .hero h1 { font-size:28px; }
+  .stepline { flex-direction:column; gap:8px; }
+  .stl-line { display:none; }
+  .heroStat { flex-wrap:wrap; gap:14px; }
+  .hs-num .n-t { font-size:44px; }
   .netwrap { grid-template-columns:1fr; }
   .conn-steps, .conn-grid, .play-grid, .pl-free-grid { grid-template-columns:1fr; }
 }

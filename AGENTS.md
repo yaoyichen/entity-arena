@@ -81,8 +81,13 @@ HTTP 全链 + 零外链锁）；改了 `train_client`/`console_train` → 同一
   （FR + 分位归一 + 光环防撞 + 标签防撞 `_comp_layout`；微调态带关系边、
   基线态纯斥力），组件成员坐标 `comp_members` 供前端节点落位
 - `src/entity_arena/page.py` 演示页模板 + 前端 JS（双语文案、七个视图、深链；
-  home=导览·默认落地页（无 `?view=` 即落在它：开场数字带/三步叙事直达
-  `?stage=`/双轨卡/六视图导览，数字全部按 TRACK 现算、口径随 tile 名标注）；
+  home=导览·默认落地页（无 `?view=` 即落在它：**hero 双栏**——左疑问式标题+
+  双 CTA，右**三态动画预览卡**（`buildMiniNet()`，迷你网络图自动轮播
+  原始→基线→微调，caption+进度点+整卡点击直达当前阶段；独立渲染器
+  `miniNet.stop()` 可停，setLang/切轨重渲染幂等）/ 英雄数字带（主数字=微调后
+  误连，其余指标降注脚行）/ 三步时间线直达 `?stage=` / 双轨 chips；数字全部按
+  TRACK 现算、口径随 tile 名标注，主数字复用租户可覆盖键 `home.st.tuned.*`
+  ——不新增租户契约面）；
   network 三态双轨同构——synth `network.json.baseline` 与 open `open_cases.baseline`
   逐字段同 shape，一套渲染两轨通用，`?stage=` 双轨直达；
   play=试玩台·双页签出题（挑村记录对=内嵌矩阵离线打分 / 直接输入两条=
