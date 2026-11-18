@@ -457,9 +457,12 @@ _EXTRA_CSS = """
 .codebox { display:flex; align-items:center; gap:8px; background:var(--panel2);
   border:1px solid var(--line); border-radius:var(--r-s); padding:9px 11px; margin-top:8px; }
 .codebox code { flex:1; font-size:11.5px; line-height:1.6; overflow-wrap:anywhere; }
-.copybtn { background:var(--panel2); border:1px solid var(--line2); color:var(--t2);
-  border-radius:var(--r-s); padding:4px 10px; font-size:11px; cursor:pointer;
-  font-family:inherit; white-space:nowrap; }
+/* position 必须显式重置：theme.py 的 .copybtn 是 absolute（靠演示页 .codeblock
+   的 relative 锚定），控制台不重置就会飞到文档右上角被 sticky header 盖住——
+   这里静态定位，codebox（flex 项）与表格 <td> 两种宿主都正确 */
+.copybtn { position:static; background:var(--panel2); border:1px solid var(--line2);
+  color:var(--t2); border-radius:var(--r-s); padding:4px 10px; font-size:11px;
+  cursor:pointer; font-family:inherit; white-space:nowrap; flex:none; }
 .copybtn:hover { border-color:var(--cyan); color:var(--t1); }
 .copybtn:disabled { opacity:.6; cursor:default; }
 .filelink.dponly { padding:4px 9px; }
@@ -661,10 +664,18 @@ const I18N = {
   'dp.copied': {en:'Copied ✓', zh:'已复制 ✓'},
   'dp.done':  {en:'All five steps complete. After registering, ask your AI client er_about — a healthy bundle answers with model, θ and record count.', zh:'五步全部完成。注册完成后，向你的 AI 客户端问一句 er_about——健康的交付包会答出模型、θ 与记录数。'},
   'dp.done.k': {en:'Workspace complete', zh:'工作区已就绪'},
+  'dp.tools.h': {en:'What you can ask once registered', zh:'注册后能问什么'},
+  'dp.t1.d': {en:'Two records → real cosine + θ verdict + field diff + truth check. rid pairs work offline; free text needs the platform token.', zh:'两条记录 → 真实余弦 + θ 判定 + 字段对照 + 真值核验。rid 对离线可用；自由文本需平台令牌。'},
+  'dp.t2.d': {en:'Substring-search this dataset’s records (any field) → rids to feed er_score_pair.', zh:'按子串检索本数据集记录（任意字段）→ 拿 rid 喂给 er_score_pair。'},
+  'dp.t3.d': {en:'Provenance & config: model, θ origin, mode status, honesty statement.', zh:'口径与配置：模型、θ 来源、模式状态、诚实声明。'},
+  'dp.guide': {en:'Full guide in the workspace demo (Connect view): example questions, two scoring modes, measured capacity', zh:'完整指南见工作区演示页（接入视图）：示例提问、两种打分模式、容量实测'},
   'k.records':  {en:'records', zh:'条记录'},
   'k.file':  {en:'file', zh:'文件'},
   'k.role':  {en:'role', zh:'作用'},
   'k.size':  {en:'size', zh:'大小'},
+  'k.tool':  {en:'tool', zh:'工具'},
+  'k.args':  {en:'args', zh:'参数'},
+  'k.does':  {en:'what it does', zh:'做什么'},
   'k.entities': {en:'entities', zh:'个实体'},
   'k.pairs':    {en:'labeled positive pairs', zh:'带标正例对'},
   'k.fields':   {en:'embedding fields', zh:'个 embedding 字段'},
@@ -1408,7 +1419,19 @@ function viewDeploy(){
           encodeURIComponent(f) + '" download title="' + esc(f) + '">⇣</a></td></tr>';
       }).join('') + '</table>' +
       '<div style="font-size:12px;margin-top:8px"><a href="download/mcp/START.md" ' +
-      'target="_blank" rel="noopener">' + esc(t('dp.f.start')) + ' ⇗</a></div>';
+      'target="_blank" rel="noopener">' + esc(t('dp.f.start')) + ' ⇗</a></div>' +
+      /* 「怎么用」层：三工具紧凑表（租户通用静态文案，不带记录数等 Febrl 口径）*/
+      '<div class="sh" style="margin-top:16px">' + esc(t('dp.tools.h')) + '</div>' +
+      '<table class="ctable" style="margin-top:8px"><tr><th>' + esc(t('k.tool')) + '</th><th>' +
+      esc(t('k.args')) + '</th><th>' + esc(t('k.does')) + '</th></tr>' +
+      [['er_score_pair', 'a, b', 'dp.t1.d'], ['er_find_records', 'q?, limit?', 'dp.t2.d'],
+       ['er_about', '—', 'dp.t3.d']].map(function(r){
+        return '<tr><td><span class="mono" style="color:var(--cyan-b)">' + r[0] + '</span></td>' +
+          '<td class="mono" style="font-size:11px">' + r[1] + '</td><td>' + esc(t(r[2])) + '</td></tr>';
+      }).join('') + '</table>' +
+      /* 完整指南不复制：工作区演示页 connect 视图已被租户构建个性化（示例提问/两种模式/容量）*/
+      (S.has_demo ? '<div style="font-size:12px;margin-top:8px"><a href="demo/?view=connect" ' +
+        'target="_blank" rel="noopener">' + esc(t('dp.guide')) + ' ⇗</a></div>' : '');
   } else {
     h += '<div class="empty" style="margin-top:8px">' + esc(t('dp.empty')) + '</div>';
   }

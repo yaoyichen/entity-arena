@@ -659,6 +659,10 @@ class TestConsoleHTTP(unittest.TestCase):
         self.assertIn("dp.sub.off", html)           # 导语随 API 在场切换
         self.assertIn("dp.done", html)              # 终点收尾条
         self.assertIn("DP_ROLES", html)             # 包内清单带角色说明
+        self.assertIn("dp.tools.h", html)           # 「怎么用」层：三工具紧凑表
+        self.assertIn("er_score_pair", html)
+        self.assertIn("demo/?view=connect", html)   # 完整指南出链（演示页 connect 视图，不复制内容）
+        self.assertIn("S.has_demo ?", html)         # 指南链只在演示页在场时渲染
         # 旧的散链大胶囊（整宽 filelink 当主下载入口）不得复活
         self.assertNotIn('<a class="filelink" href="download/mcp/', html)
 

@@ -196,7 +196,10 @@ HTTP 全链 + 零外链锁）；改了 `train_client`/`console_train` → 同一
   散落小文件列表）+ 一行注册命令代码块可复制（`<bundle>` 占位与 START.md
   同形态）+ 包内清单表（角色/大小/单文件⇣）+ HTTP API 三态（未开通给
   占位卡不整段蒸发，导语 `dp.sub`/`dp.sub.off` 随在场切换）+ 五步完成
-  收尾条（er_about 冒烟指引）；state 带 `mcp_bytes` 供 CTA 体积元数据）
+  收尾条（er_about 冒烟指引）；state 带 `mcp_bytes` 供 CTA 体积元数据；
+  「怎么用」层=三工具紧凑表（租户通用静态文案）+ 完整指南出链
+  `demo/?view=connect`（工作区演示页 connect 视图已被租户构建个性化，
+  示例提问/两种模式/容量实测只在那一处——**别往控制台复制**，单源））
 - `src/entity_arena/train_client.py` **INF 训练平台 MCP-over-HTTP 客户端**
   （W7，纯标准库）：initialize（2025-03-26）→ `Mcp-Session-Id` →
   notifications/initialized → tools/call；SSE `data:` 行解析+整体 JSON
