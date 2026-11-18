@@ -228,7 +228,10 @@ def build_handler(ws: Workspace, label: str, api_url: str | None = None,
                              "--mcp-dir，或把交付包拷进工作区 mcp_bundle/）"])
                     ctype = ("text/markdown; charset=utf-8" if name.endswith(".md")
                              else "application/octet-stream")
-                    self._bytes(target.read_bytes(), ctype, download=name)
+                    # .md 走 inline：⑤ 页「START.md ⇗」带 target=_blank 是新窗查看
+                    # 形态；同源 download 属性的 ⇣ 钮不受影响照样落地为文件
+                    self._bytes(target.read_bytes(), ctype,
+                                download=None if name.endswith(".md") else name)
                 else:
                     raise ConsoleError([f"unknown path: {self.path}"])
             except ConsoleError as e:
