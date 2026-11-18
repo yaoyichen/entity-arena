@@ -124,6 +124,25 @@ class TestEndToEnd(unittest.TestCase):
                        "data-goto", "data-stage", "data-trackgo", "nav.home"):
             self.assertIn(marker, self.html)
 
+    def test_console_entry_in_page(self):
+        """首页 → 客户工作台入口：顶栏链接 + 导览区块，相对路径 console/
+        （零 URL 字符串契约不破）+ 同源探测点亮——探不到（离线双击 / 纯
+        sidecar / 租户托管页）保持 hidden，不留死链。"""
+        for marker in ('id="consoleLink"', 'id="consoleBlock"', 'href="console/"',
+                       "nav.console", "home.console.h", "home.console.cta",
+                       "fetch('console/api/state'", "el.hidden = false"):
+            self.assertIn(marker, self.html)
+        # 默认隐藏 + 相对路径（不是无条件外链，是探测式渐进增强）
+        self.assertIn('id="consoleLink" href="console/" target="_blank"', self.html)
+
+    def test_theta_tick_visible_css(self):
+        """θ 阈值刻度必须双主题可读：token 色 var(--t2) + 2px 宽 + 上下探出。
+        旧实现 1.5px / rgba(219,228,236,.45) 在浅色白底与深色深底上都近乎
+        不可见——Arena 与 Explain 的分数条等于没画阈值线（视觉审查实锤）。"""
+        self.assertIn(".sbar .tick", self.html)
+        self.assertIn("width:2px; background:var(--t2)", self.html)
+        self.assertNotIn("rgba(219,228,236,.45)", self.html)
+
     def test_theme_toggle_in_page(self):
         """黑白主题：默认浅色 + 先行脚本防闪 + 顶栏切换钮 + 双套调色板变量块。"""
         for marker in ('data-theme="light"', "ea_theme", 'id="themeBtn"',

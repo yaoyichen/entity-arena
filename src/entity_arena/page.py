@@ -41,6 +41,7 @@ __CSS__
       <button data-view="play" data-i18n="nav.play"></button>
       <button data-view="connect" data-i18n="nav.connect"></button>
     </nav>
+    <a class="lang ctalink" id="consoleLink" href="console/" target="_blank" rel="noopener" hidden data-i18n="nav.console"></a>
     <button class="lang" id="themeBtn" aria-label="theme">☾</button>
     <button class="lang" id="langBtn">中文</button>
   </div>
@@ -74,6 +75,14 @@ __CSS__
       <div class="eyebrow" data-i18n="home.views.eyebrow"></div>
       <h2 data-i18n="home.views.h"></h2>
       <div class="viewgrid" id="viewGrid"></div>
+    </div>
+    <div class="homeblock" id="consoleBlock" hidden>
+      <div class="eyebrow" data-i18n="home.console.eyebrow"></div>
+      <h2 data-i18n="home.console.h"></h2>
+      <p class="sub" data-i18n="home.console.lede"></p>
+      <div class="cta-row">
+        <a class="cta primary" href="console/" target="_blank" rel="noopener" data-i18n="home.console.cta"></a>
+      </div>
     </div>
     <p class="homemode" data-i18n="home.mode"></p>
   </section>
@@ -174,6 +183,7 @@ const I18N = {
   'nav.scoreboard':{en:'Scoreboard', zh:'指标板'},
   'nav.play':      {en:'Playground', zh:'试玩台'},
   'nav.connect':   {en:'Connect', zh:'接入'},
+  'nav.console':   {en:'Console →', zh:'控制台 →'},
   'lg.tuned':      {en:'Fine-tuned', zh:'微调模型'},
   'lg.baseline':   {en:'Baseline', zh:'基线模型'},
   'lg.false':      {en:'False link', zh:'误连'},
@@ -416,6 +426,10 @@ const I18N = {
                    zh:'实体归并端到端演示：两位判官给每一对记录打分——字面相似度基线与微调嵌入模型——各自越过自己的 θ 判定线，才敢断言"同一个人"。两个数据集与全部真实分数，都装在这一个断网可开的文件里。'},
   'home.cta.tour': {en:'▶ Take the tour — 3 stages', zh:'▶ 跟着走一遍 · 三步看懂'},
   'home.cta.play': {en:'Skip ahead — score a pair yourself', zh:'跳过导览 · 亲手挑一对打分'},
+  'home.console.eyebrow': {en:'Next step', zh:'下一步'},
+  'home.console.h': {en:'Bring your own records', zh:'带上你自己的数据'},
+  'home.console.lede': {en:'The engine behind this demo, delivered as a service: in the customer workspace you upload your own records and field roles — validation, training, effect review, deployment — a five-step self-serve loop, every number computed from your data.', zh:'这套演示背后的引擎、以服务形态交付：在客户工作台上传你自己的记录与字段角色——校验、开训、看效果、部署，五步自助闭环，页面上的一切数字都从你的数据算出。'},
+  'home.console.cta': {en:'Open the customer workspace →', zh:'打开客户工作台 →'},
   'home.stats.h':  {en:'Headline numbers', zh:'开场数字'},
   'home.st.village':{en:'Febrl3 village · real benchmark', zh:'Febrl3 案例村 · 公开基准'},
   'home.st.village.t':{en:'records · {E} identities · {S} look-alike shadow pairs', zh:'条记录 · {E} 个身份 · {S} 对影子相似'},
@@ -2319,6 +2333,21 @@ function init(){
   if (nst !== null && +nst >= 0 && +nst <= netMax) {
     netT = +nst; netApply(+nst); netSyncUI(+nst);
   }
+  // 客户工作台入口：同源探测（一体化入口 er_server 才有 /console/ 面）。
+  // 探不到（离线双击 / 纯 sidecar / 租户托管页）→ 入口保持隐藏，不留死链
+  // （优雅降级，同 bench 容量卡模式）；相对路径 console/，零 URL 字符串。
+  fetch('console/api/state').then(function(r){
+    if (!r.ok) return null;
+    if ((r.headers.get('content-type') || '').indexOf('json') < 0) return null; // 纯 sidecar 会把未知 GET 回成页面
+    return r.json();
+  }).then(function(d){
+    if (!d || !d.steps) return;
+    var ids = ['consoleLink', 'consoleBlock'];
+    for (var i = 0; i < ids.length; i++) {
+      var el = document.getElementById(ids[i]);
+      if (el) el.hidden = false;
+    }
+  }).catch(function(){});
 }
 init();
 """

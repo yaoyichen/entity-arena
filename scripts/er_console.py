@@ -12,6 +12,8 @@ W7 直连平台编排）；本文件只是薄 HTTP 壳（模式同 er_gateway.py
       --api-url http://127.0.0.1:8790/v1/er/score --api-key '<发给客户的静态键>'
   # W7 直连平台训练（缺令牌自动回落人工模式，行为不变）：
   TRAIN_TOKEN='Bearer …' python3 scripts/er_console.py --workdir … --label …
+  # 对外一体化（演示页 + 控制台同源单进程）：python3 scripts/er_server.py
+  # ——本控制台整面挂在其 /console/ 前缀下，行为与本文件单独起完全一致
 
 工作区布局（W7 直连模式下 ③ 自动生成产物；人工模式操作员拷入，④⑤ 都自动点亮）：
   <workdir>/uploads/…            客户上传原件（records/fieldmap/pairs）
@@ -34,6 +36,7 @@ W7 直连平台编排）；本文件只是薄 HTTP 壳（模式同 er_gateway.py
                                → 200 {report} | 400 {errors:[人话…]}
   POST /api/proxy-score      → {a:rid, b:rid} → 训练前基线代理分（非模型，页面标注）
   GET  /download/package.zip → 确定性训练上传包（可直接 upload_dataset）
+  GET  /download/mcp.zip     → 整个 MCP 交付包一个 zip（⑤ 页主 CTA，确定性打包）
   GET  /download/mcp/<file>  → MCP 交付包内文件（防路径穿越）
   GET  /demo/                → 工作区 demo.html（build_tenant_cases --demo-dir 产物）
 
@@ -99,6 +102,32 @@ _spec = importlib.util.spec_from_file_location(
 _pls = importlib.util.module_from_spec(_spec)
 _spec.loader.exec_module(_pls)
 load_emb_token = _pls.load_token
+
+
+def setup_trainer(workdir: Path, label: str, train_url: str,
+                  train_token: str | None = None,
+                  no_train: bool = False) -> tuple[Trainer | None, list[str]]:
+    """直连训练接线（er_console.main 与 er_server 共用，不抄两份）。
+
+    返回 (trainer, 横幅行)：首行 = 模式一句话（直连 / 人工+原因），其余行 =
+    细节（训练端点与令牌来源、取样向量令牌状态）。缺令牌 / --no-train 时
+    trainer=None（③ 走人工模式，行为不变——失败不静默，横幅如实说明）。
+    """
+    if no_train:
+        return None, ["人工模式：--no-train"]
+    tok, src = load_train_token(train_token)
+    emb_tok, emb_src = load_emb_token(None, os.environ.get("EMB_TOKEN"))
+    if not tok:
+        return None, ["人工模式：未找到平台令牌，③ 走下载 zip + 操作员中介"]
+    trainer = Trainer(workdir, TrainClient(train_url, tok),
+                      token=emb_tok or None, label=label)
+    lines = ["W7 直连平台训练", f"train    = {train_url}（令牌来源：{src}）"]
+    if emb_tok:
+        lines.append(f"embed    = 取样向量令牌来源：{emb_src}")
+    else:
+        lines.append("embed    = ⚠ 没找到取样令牌（EMB_TOKEN）——③ 的「生成效果"
+                     "数据」一步会提示补令牌，其余不受影响")
+    return trainer, lines
 
 
 def build_handler(ws: Workspace, label: str, api_url: str | None = None,
@@ -176,6 +205,17 @@ def build_handler(ws: Workspace, label: str, api_url: str | None = None,
                     zp = intake.zip_package(ws.root / "package")
                     self._bytes(zp.read_bytes(), "application/zip",
                                 download="package.zip")
+                elif path == "/download/mcp.zip":
+                    # ⑤ 页主 CTA：整个交付包一个 zip（确定性，双跑逐字节一致）。
+                    # 复用 package.zip 同款 zip_package（mcp_bundle 里没有
+                    # intake_report.json，排除项天然不影响）。
+                    if not (ws.root / "mcp_bundle" / "START.md").exists():
+                        raise ConsoleError(
+                            ["MCP 交付包尚未就位——先跑 build_tenant_cases.py "
+                             "--mcp-dir（或把交付包拷进工作区 mcp_bundle/）"])
+                    zp = intake.zip_package(ws.root / "mcp_bundle")
+                    self._bytes(zp.read_bytes(), "application/zip",
+                                download="mcp-bundle.zip")
                 elif path.startswith("/download/mcp/"):
                     name = path[len("/download/mcp/"):]
                     bundle = (ws.root / "mcp_bundle").resolve()
@@ -283,25 +323,12 @@ def main() -> None:
 
     def say(msg): print(msg, flush=True)
 
-    trainer = None
-    if not args.no_train:
-        tok, src = load_train_token(args.train_token)
-        emb_tok, emb_src = load_emb_token(None, os.environ.get("EMB_TOKEN"))
-        if tok:
-            trainer = Trainer(args.workdir, TrainClient(args.train_url, tok),
-                              token=emb_tok or None, label=args.label)
-            say("[er-console] 客户自助服务控制台（W7 直连平台训练）")
-            say(f"  train    = {args.train_url}（令牌来源：{src}）")
-            if emb_tok:
-                say(f"  embed    = 取样向量令牌来源：{emb_src}")
-            else:
-                say("  embed    = ⚠ 没找到取样令牌（EMB_TOKEN）——③ 的「生成效果"
-                    "数据」一步会提示补令牌，其余不受影响")
-        else:
-            say("[er-console] 客户自助服务控制台（人工模式：未找到平台令牌，"
-                "③ 走下载 zip + 操作员中介）")
-    else:
-        say("[er-console] 客户自助服务控制台（人工模式：--no-train）")
+    trainer, tr_lines = setup_trainer(args.workdir, args.label, args.train_url,
+                                      train_token=args.train_token,
+                                      no_train=args.no_train)
+    say(f"[er-console] 客户自助服务控制台（{tr_lines[0]}）")
+    for ln in tr_lines[1:]:
+        say(f"  {ln}")
 
     say(f"  workdir  = {args.workdir.resolve()}")
     st = {s["key"]: s["state"] for s in ws.steps()}

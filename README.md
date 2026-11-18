@@ -18,6 +18,18 @@
 python3 scripts/play_live_server.py
 ```
 
+**给客户交付/联调时只起这一个进程**（单进程双面：演示页 + 在线打分 +
+客户控制台同源挂载，一个基地址发给客户即可）：
+
+```bash
+python3 scripts/er_server.py --workdir .tmp/console_acme --label "Acme pilot"
+# /          → 能力演示页（试玩台「直接输入」实时打分，POST /api/score）
+# /console/  → 客户工作台（数据→训练→效果→部署五步，er_console 同一面）
+# /healthz   → 组件状态 JSON（页面/打分/五步/训练 phase）
+# 两个面分别复用 play_live_server 与 er_console，行为与单独起完全一致；
+# 默认绑 127.0.0.1——控制台接口无鉴权，对外暴露须前置带鉴权反代
+```
+
 从零重建数据时的四步如下（fresh clone 其实只跑上面那条命令就行——W5 起
 会自动补数据再构建；手动四步用于想单独控制某一步的场景）：
 
@@ -29,7 +41,7 @@ python3 scripts/build_demo.py --open         # ④ 构建 build/demo.html 并用
 ```
 
 - 零第三方依赖（Python ≥3.11 纯标准库）；产物**单文件、零外链、断网可开**，可直接发给客户。
-- 测试（281 项）：`PYTHONPATH=src python3 -m unittest discover -s tests`
+- 测试（295 项）：`PYTHONPATH=src python3 -m unittest discover -s tests`
 
 ## 双轨数据集（页面顶部一键切换）
 
@@ -282,7 +294,8 @@ python3 scripts/er_console.py --workdir .tmp/console_acme --label "Acme pilot" \
 #   基模一键开训（实时进度；缺令牌自动回落：下载 package.zip 走操作员
 #   中介，行为同 W6）→ 训练完一键部署 + 一键生成效果数据（取样向量 →
 #   θ 扫描 → cases/demo/MCP 全落工作区，④⑤ 自动点亮）→ ④ 全交互网络
-#   三态（阶段页签/悬停气泡/点击锁定）+ 领 API 表 + MCP 交付包下载
+#   三态（阶段页签/悬停气泡/点击锁定）+ 领 API 表 + MCP 交付包一键
+#   整包下载（mcp.zip，附一行注册命令与包内清单）
 # 工作区状态纯文件推导：uploads/+package/ → ①②，cases.json → ③④，
 #   mcp_bundle/ → ⑤；--api-key 只放 er_gateway 注册表同源的租户静态键，
 #   平台 EMB_TOKEN 绝不进控制台；平台训练令牌四级解析（--train-token >

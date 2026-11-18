@@ -226,6 +226,35 @@ er-gateway 同源转发（就是 play_live_server 模式上云）；GPU 抖动 �
   门控与降级）；全仓 **264 项 OK**。data/train/effect 三视图双主题
   重过（§3.7）。
 
+### W8 · 一体化产品服务 `er_server.py`（对外单进程）✅ 已完成（2026-11-18）
+
+- **来源**：用户需求（2026-11-18）——演示页（play_live_server）与客户
+  控制台（er_console）两个进程合成一个对外服务，「期望是成熟的对外的
+  产品」：一个基地址交给客户，能力展示与自助服务同源可达。
+- **架构（纯组合，零逻辑拷贝）**：`scripts/er_server.py` importlib 载入
+  两个薄壳的 `build_handler`，两个 Handler 类**多继承按路径分发**：
+  - `/` 能力演示页 + `POST /api/score` 在线打分（play_live_server 原面，
+    深链 `?view=`/`?track=` 照带；fresh clone 数据引导 + 页面自动重建
+    同一入口逻辑）；
+  - `/console/` 客户控制台整面（er_console 原面）——控制台 SPA 的
+    fetch/href **全相对路径**（`fetch('api/state')`、
+    `href="download/package.zip"`），服务端剥 `/console` 前缀再委托原
+    handler，`er_console.py` 与 `play_live_server.py` **零改动、行为与
+    单独起完全一致**（两薄壳套件原样全绿即证）；
+  - `GET /healthz` 组件状态 JSON（页面 built / 打分 live+θ / 五步 /
+    训练 phase）——对外可探测，不静默。
+- **顺带收敛**：er_console 的直连训练接线抽成 `setup_trainer`（er_console
+  与 er_server 共用一份，横幅语义不变）。
+- **命名空间与安全**：根级 `/api/*` 只认 `POST /api/score`，其余 404 带
+  「控制台在 /console/api/」人话指路；`/console` 无斜杠 302 补齐且保留
+  查询串（`?theme=` 深链不丢）；默认绑 127.0.0.1，绑非环回地址启动即
+  警告（控制台接口无鉴权、`train/start` 耗 GPU——跨机器暴露必须前置
+  带鉴权反代，口径与 W6/W7 相同）。
+- **验收**：新增 `tests/test_er_server.py` **14 项**（挂载拓扑/前缀剥除
+  委托/命名空间边界/healthz/无令牌诚实降级/OPTIONS 预检，stub 注入零
+  网络）；er_console 35 项 + play_live_server 13 项组合面回归全绿；
+  全仓 281 → **295 项 OK**。
+
 ## 3.1 实测记录（W1，2026-11-17）
 
 - `tests/test_intake.py` 39 项全绿；全仓 166 项 OK（原 127 + 39）。
@@ -527,6 +556,6 @@ er-gateway 同源转发（就是 play_live_server 模式上云）；GPU 抖动 �
 *执行约定：后续按 W1 → W2 → W3 → W4 顺序实施（W5 随手捎带）；每完成一个
 工作项：跑全量测试 + 重建页面双主题截图过查 + 本文档勾选状态并追加
 「实测记录」小节。本文档由 2026-11-17 评审产出，v0.1。
-**状态（2026-11-18 复核）：W1–W7 全部完成**（各节 ✅ + §3.1–§3.7 实测
-记录，含两批代码评审加固；全仓 281 项测试绿）。v1 的 DoD（真实客户
+**状态（2026-11-18 复核）：W1–W8 全部完成**（各节 ✅ + §3.1–§3.7 实测
+记录，含两批代码评审加固；全仓 295 项测试绿）。v1 的 DoD（真实客户
 schema 全链 ≤1 天）待第一个真实客户实证——工具链已就位。*

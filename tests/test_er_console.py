@@ -13,7 +13,9 @@
   EMB_TOKEN 只进 env）、产物落位后 ③④⑤ 点亮、缺包/校验失败/缺令牌人话；
 - HTTP 全链：SPA 零外链（唯一 URL = SVG 命名空间）、上传→报告、
   /api/sample 回环、/api/train 三端点 + models、package.zip 确定性
-  （双请求逐字节一致）、MCP 下载防路径穿越、demo 缺席 404 人话。
+  （双请求逐字节一致）、mcp.zip 整包交付（⑤ 主 CTA，同款确定性）、
+  MCP 下载防路径穿越、demo 缺席 404 人话、⑤ 页专业交付形态锁定
+  （zip 主 CTA/注册命令可复制/API 三态不蒸发/完成收尾）。
 """
 
 from __future__ import annotations
@@ -512,6 +514,44 @@ class TestConsoleHTTP(unittest.TestCase):
         self.assertEqual(urls, [])
         self.assertIn("api/upload", html)          # 同源相对路径 fetch
 
+    def test_spa_next_step_cta_and_train_naming(self):
+        """P0 视觉修整锁定：① 概览「下一步」必须是 CTA 按钮形态（渐变实心钮
+        a.btn、文案复用 nav.<step>），不得退回纯文字链——全页最重要的
+        动作不能埋掉；② 训练页 h1 与左导航同名（旧「平台训练」像内部运维
+        用语，客户会当成另一个页面）。"""
+        code, body = self.req("/")
+        self.assertEqual(code, 200)
+        html = body.decode("utf-8")
+        self.assertIn("""<a class="btn" href="#/' + routeOf(nextKey)""", html)
+        self.assertIn("ov.next", html)
+        self.assertIn("zh:'模型训练'", html)        # train.h 新值（= nav.train 去掉步号）
+        self.assertNotIn("zh:'平台训练'", html)     # 旧名不得复活
+
+    def test_spa_nav_labels_no_circled_numbers(self):
+        """导航标签不得带 ①③④⑤ 数字圆标（视觉审查否决：丑，且总览步骤卡的
+        01–05 眉标已承担步骤序号，卡片上等于双重编号）。按名称指代的正文
+        文案一并去数字（「④⑤ 自动点亮」这类指代没了锚点）。"""
+        code, body = self.req("/")
+        html = body.decode("utf-8")
+        for bad in ("zh:'① 数据'", "zh:'③ 模型训练'", "zh:'④ 效果展示'",
+                    "zh:'⑤ 服务部署'", "zh:'② 初版展示'", "zh:'① 数据上传'"):
+            self.assertNotIn(bad, html)
+        self.assertIn("zh:'数据'", html)            # 去号后的干净标签必须在
+        self.assertIn("zh:'效果展示'", html)
+        self.assertNotIn("④⑤ 自动点亮", html)      # 正文数字指代不得复活
+
+    def test_spa_back_to_demo_link(self):
+        """回能力演示页链接：相对路径 ../（零 URL 字符串）+ 默认 hidden +
+        同源探测点亮（../healthz 有则亮）——与演示页→控制台入口互为对称；
+        单独跑 er_console（自身就是根）探测 404，链接保持隐藏不留死链。"""
+        code, body = self.req("/")
+        html = body.decode("utf-8")
+        for marker in ('id="demoLink"', 'href="../" hidden', "fetch('../healthz'",
+                       "'top.demo'"):
+            self.assertIn(marker, html)
+        # 探测成功才摘 hidden——点亮逻辑必须存在
+        self.assertIn("demoLink').hidden = false", html)
+
     def test_state_shape(self):
         code, body = self.req("/api/state")
         self.assertEqual(code, 200)
@@ -521,6 +561,7 @@ class TestConsoleHTTP(unittest.TestCase):
         self.assertEqual({s["key"]: s["state"] for s in st["steps"]}["deploy"], "done")
         self.assertTrue(st["net"])          # cases.json 在 → ④ 网络速览可用
         self.assertIn("START.md", st["mcp_files"])
+        self.assertTrue(st["mcp_bytes"].get("START.md", 0) > 0)  # ⑤ 页 CTA 体积元数据
         self.assertEqual(st["summary"]["theta"], 0.965)
 
     def test_upload_bad_fieldmap_400(self):
@@ -575,6 +616,51 @@ class TestConsoleHTTP(unittest.TestCase):
             self.fail("expected 404")
         except urllib.error.HTTPError as e:
             self.assertEqual(e.code, 404)
+
+    def test_mcp_zip_endpoint(self):
+        """⑤ 主 CTA：整包一个 zip（确定性双跑逐字节一致）；缺包 404 人话。"""
+        import io as _io
+        import zipfile as _zf
+        c1, b1 = self.req("/download/mcp.zip")
+        c2, b2 = self.req("/download/mcp.zip")
+        self.assertEqual((c1, c2), (200, 200))
+        self.assertEqual(b1[:2], b"PK")
+        self.assertEqual(b1, b2)      # 确定性：双请求逐字节一致（同 package.zip 口径）
+        self.assertIn("START.md", _zf.ZipFile(_io.BytesIO(b1)).namelist())
+        # 缺交付包 → 404 人话（独立空工作区，不带 mcp_bundle）
+        tmp2 = Path(tempfile.mkdtemp(prefix="ea-console-zip-"))
+        srv, port = serve_for_tests(make_ws(tmp2, upload=False), "no bundle")
+        import threading
+        th2 = threading.Thread(target=srv.serve_forever, daemon=True)
+        th2.start()   # 必须先 serve_forever：否则 shutdown() 等永不置位的停机事件=死锁
+        try:
+            with self.assertRaises(urllib.error.HTTPError) as cm:
+                urllib.request.urlopen(
+                    f"http://127.0.0.1:{port}/download/mcp.zip", timeout=10)
+            self.assertEqual(cm.exception.code, 404)
+            self.assertIn("mcp_bundle", json.loads(cm.exception.read())["errors"][0])
+        finally:
+            srv.shutdown()
+            srv.server_close()
+
+    def test_deploy_view_professional_delivery(self):
+        """⑤ 页 P1 重构锁定：交付形态=一个 zip 主 CTA（不是散落小文件列表）、
+        注册命令代码块可一键复制（<bundle> 占位与 START.md 同形态）、
+        HTTP API 三态（未开通给占位卡不整段蒸发，导语随在场切换）、
+        包内清单带角色/大小、终点收尾条。"""
+        code, body = self.req("/")
+        self.assertEqual(code, 200)
+        html = body.decode("utf-8")
+        self.assertIn("download/mcp.zip", html)     # 一个 zip 收拢交付
+        self.assertIn("dpzip", html)                # 主 CTA 按钮形态
+        self.assertIn("data-copy-cmd", html)        # 注册命令一键复制
+        self.assertIn("ER_META=<bundle>/er_meta.json", html)
+        self.assertIn("dp.api.off", html)           # 未开通占位卡键
+        self.assertIn("dp.sub.off", html)           # 导语随 API 在场切换
+        self.assertIn("dp.done", html)              # 终点收尾条
+        self.assertIn("DP_ROLES", html)             # 包内清单带角色说明
+        # 旧的散链大胶囊（整宽 filelink 当主下载入口）不得复活
+        self.assertNotIn('<a class="filelink" href="download/mcp/', html)
 
     def test_demo_404_human_message(self):
         try:

@@ -153,6 +153,12 @@ nav button.active::after { content:""; position:absolute; left:12px; right:12px;
 .lang { background:none; border:1px solid var(--line2); color:var(--t2); cursor:pointer;
   padding:5px 12px; border-radius:var(--r-m); font-size:12px; }
 .lang:hover { color:var(--t1); border-color:var(--t3); }
+/* 客户工作台入口（顶栏）：CTA 主按钮档的渐变铬件（chrome-only 约定内），
+   默认 hidden——由同源探测点亮（er_server 等一体化入口才有 /console/ 面） */
+.lang.ctalink { background:var(--sig); color:var(--on-sig); border-color:transparent;
+  font-weight:600; text-decoration:none; }
+.lang.ctalink:hover { filter:brightness(1.12); color:var(--on-sig); }
+[hidden] { display:none !important; }
 
 main { max-width:1280px; margin:0 auto; padding:24px 24px 60px; }
 .view { display:none; }
@@ -232,7 +238,11 @@ main { max-width:1280px; margin:0 auto; padding:24px 24px 60px; }
 
 .sbar { position:relative; height:6px; border-radius:3px; background:rgba(125,148,166,.12); overflow:visible; }
 .sbar .fill { position:absolute; inset:0 auto 0 0; border-radius:3px 2px 2px 3px; }
-.sbar .tick { position:absolute; top:-3px; bottom:-3px; width:1.5px; background:rgba(219,228,236,.45); }
+/* θ 断言阈值刻度：token 色芯 + 面板色光环（双对比——刻度可能落在浅轨道上，
+   也可能被高分填充盖住：芯色保证对轨道可读，光环保证在青/紫填充上可读；
+   旧实现 1.5px 固定浅灰在两主题下都近乎不可见）。上下各探出 4px */
+.sbar .tick { position:absolute; top:-4px; bottom:-4px; width:2px; background:var(--t2);
+  border-radius:1px; box-shadow:0 0 0 1px var(--panel); }
 .srow { display:flex; align-items:center; gap:8px; }
 .srow .num { font-family:var(--mono); font-size:12px; width:38px; text-align:right; }
 .srow .sbar { flex:1; }
@@ -451,7 +461,8 @@ table.mtable { width:100%; border-collapse:collapse; font-size:12.5px; font-vari
 .pgauge { position:relative; height:10px; margin:26px 0 6px; background:var(--panel2);
   border-radius:5px; }
 .pg-fill { position:absolute; left:0; top:0; bottom:0; border-radius:5px; }
-.pg-tick { position:absolute; top:-5px; bottom:-5px; width:2px; background:var(--t2); }
+.pg-tick { position:absolute; top:-5px; bottom:-5px; width:2px; background:var(--t2);
+  border-radius:1px; box-shadow:0 0 0 1px var(--panel); }   /* 光环同 .sbar .tick */
 .pg-tick span { position:absolute; top:-15px; left:50%; transform:translateX(-50%);
   font-size:10px; color:var(--t3); white-space:nowrap; font-family:var(--mono); }
 .pl-truth { margin-top:12px; font-size:13px; color:var(--t2); }
@@ -504,6 +515,7 @@ button.chip { font:inherit; cursor:pointer; background:transparent; }
 .homeblock { margin-top:36px; }
 .homeblock.statblock { margin-top:28px; }
 .homeblock h2 { font-size:16px; font-weight:650; margin:6px 0 14px; }
+.homeblock p.sub { color:var(--t2); font-size:13.5px; line-height:1.7; margin:0 0 14px; max-width:780px; }
 .homestats { display:grid; grid-template-columns:repeat(4,1fr); gap:16px; }
 .steps, .tracks2, .viewgrid { display:grid; gap:16px; }
 .steps { grid-template-columns:repeat(3,1fr); }

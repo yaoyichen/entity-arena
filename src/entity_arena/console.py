@@ -165,7 +165,7 @@ class Workspace:
         report = self.root / "package" / "intake_report.json"
         if not report.exists():
             raise ConsoleError(["workspace has no validated upload yet "
-                                "（先完成 ① 数据上传）"])
+                                "（先完成数据上传）"])
         name = json.loads(report.read_text(encoding="utf-8")).get(
             "source", {}).get(slug)
         p = self.root / "uploads" / str(name or "")
@@ -248,7 +248,7 @@ class Workspace:
     def network(self) -> dict:
         p = self.root / "cases.json"
         if not p.exists():
-            raise ConsoleError(["还没有效果产物（先完成 ③ 训练）——网络速览无从画起"])
+            raise ConsoleError(["还没有效果产物（先完成模型训练）——网络速览无从画起"])
         c = json.loads(p.read_text(encoding="utf-8"))
         net = c.get("network") or {}
         bl = c.get("baseline") or {}
@@ -315,10 +315,13 @@ class Workspace:
                   if report_p.exists() else None)
         bundle = self.root / "mcp_bundle"
         # is_dir 而非 exists：路径被误放成文件时视为没有交付包，不裸崩
-        mcp = sorted(p.name for p in bundle.iterdir()) if bundle.is_dir() else []
+        files = sorted(bundle.iterdir()) if bundle.is_dir() else []
+        mcp = [p.name for p in files if p.is_file()]
         return {"label": label, "steps": self.steps(), "report": report,
                 "preview": self.preview() if report else None,
                 "summary": self.summary(), "mcp_files": mcp,
+                # 逐文件字节数：⑤ 页 CTA 显示「N 个文件 · X KB」（体积是交付元数据）
+                "mcp_bytes": {p.name: p.stat().st_size for p in files if p.is_file()},
                 "has_demo": (self.root / "demo.html").exists(),
                 "net": (self.root / "cases.json").exists(),
                 "api": {"url": api_url, "key": api_key}}
@@ -347,6 +350,11 @@ _HEAD = """<!DOCTYPE html>
   <div class="logo"><span class="mark">◆ ENTITY RESOLUTION</span><span class="zh">SERVICE CONSOLE</span></div>
   <span class="pill" id="wsPill">__LABEL__</span>
   <span style="flex:1"></span>
+  <!-- 回能力演示页：相对路径 ../（零 URL 字符串），默认 hidden——
+       由同源探测点亮（与演示页→控制台入口互为对称）：
+       只有挂在一体化 er_server 下（../healthz 存在）才亮；
+       单独跑 er_console（自己就是根）时探测 404，保持隐藏不留死链 -->
+  <a class="lang" id="demoLink" href="../" hidden>能力演示 ↗</a>
   <button class="lang" id="themeBtn" aria-label="theme">☾</button>
   <button class="lang" id="langBtn">中文</button>
 </div></header>
@@ -443,6 +451,18 @@ _EXTRA_CSS = """
 .empty { border:1px dashed var(--line2); border-radius:var(--r-m); padding:26px 22px;
   color:var(--t3); font-size:12.5px; line-height:1.8; }
 .klist { display:grid; grid-template-columns:repeat(auto-fit,minmax(170px,1fr)); gap:8px; margin:12px 0; }
+/* ⑤ 部署：zip 主 CTA 一行 + 注册命令代码块 + 清单行内小下载钮 */
+.dprow { display:flex; align-items:center; gap:12px; margin:12px 0; flex-wrap:wrap; }
+.dpzip { padding:9px 16px; font-size:13px; }
+.codebox { display:flex; align-items:center; gap:8px; background:var(--panel2);
+  border:1px solid var(--line); border-radius:var(--r-s); padding:9px 11px; margin-top:8px; }
+.codebox code { flex:1; font-size:11.5px; line-height:1.6; overflow-wrap:anywhere; }
+.copybtn { background:var(--panel2); border:1px solid var(--line2); color:var(--t2);
+  border-radius:var(--r-s); padding:4px 10px; font-size:11px; cursor:pointer;
+  font-family:inherit; white-space:nowrap; }
+.copybtn:hover { border-color:var(--cyan); color:var(--t1); }
+.copybtn:disabled { opacity:.6; cursor:default; }
+.filelink.dponly { padding:4px 9px; }
 .filelink { display:flex; justify-content:space-between; gap:8px; border:1px solid var(--line);
   border-radius:var(--r-s); padding:7px 11px; font-size:12px; color:var(--t2);
   text-decoration:none; }
@@ -503,6 +523,8 @@ select, input[type=text] { background:var(--panel2); border:1px solid var(--line
    0,1,1 赢过 .btn 的 0,1,0，深色主题下亮青文字落在亮渐变上≈1.2:1 直接消失
    （ghost 除外：透明底上 on-sig 近黑同样不可读，保持 t2） */
 .cmain a.btn:not(.ghost) { color:var(--on-sig); }
+/* 顶栏回演示页链接：借 .lang 钮件形态，去掉锚默认下划线与按钮一致 */
+#demoLink { text-decoration:none; }
 """
 
 _JS = r"""
@@ -513,19 +535,22 @@ let LANG = localStorage.getItem('ea_lang') ||
 
 const I18N = {
   'app.title':   {en:'ER Service Console', zh:'实体归并 · 服务控制台'},
+  'top.demo':    {en:'Capability demo ↗', zh:'能力演示 ↗'},
   'nav.overview':{en:'Overview', zh:'总览'},
-  'nav.data':    {en:'① Data', zh:'① 数据'},
-  'nav.upload':  {en:'① Data upload', zh:'① 数据上传'},   /* 总览步骤卡仍用 */
-  'nav.preview': {en:'② First look', zh:'② 初版展示'},    /* 总览步骤卡仍用 */
-  'nav.train':   {en:'③ Training', zh:'③ 模型训练'},
-  'nav.effect':  {en:'④ Results', zh:'④ 效果展示'},
-  'nav.deploy':  {en:'⑤ Deployment', zh:'⑤ 服务部署'},
+  /* 导航标签不带步号圆标（①③④⑤ 太丑，视觉审查否决）：步骤序号语义
+     由总览步骤卡的 01–05 眉标承担，左侧导航只留名称 + 状态点 */
+  'nav.data':    {en:'Data', zh:'数据'},
+  'nav.upload':  {en:'Data upload', zh:'数据上传'},   /* 总览步骤卡仍用 */
+  'nav.preview': {en:'First look', zh:'初版展示'},    /* 总览步骤卡仍用 */
+  'nav.train':   {en:'Training', zh:'模型训练'},
+  'nav.effect':  {en:'Results', zh:'效果展示'},
+  'nav.deploy':  {en:'Deployment', zh:'服务部署'},
   'st.empty':    {en:'not started', zh:'未开始'},
   'st.ready':    {en:'ready', zh:'就绪'},
   'st.waiting':  {en:'waiting', zh:'等待中'},
   'st.done':     {en:'done', zh:'完成'},
   'ov.h':  {en:'From your data to a live ER service', zh:'从你的数据到可用的归并服务'},
-  'ov.sub': {en:'Five steps, one workspace. Everything here is computed from your uploaded records — validation, split and the pre-training baseline run on this workspace; model training runs on our fine-tuning platform, and steps ④⑤ light up automatically when the trained artifacts land.', zh:'五个步骤、一个工作区。这里的一切都由你上传的记录计算而来——校验、切分与训练前基线在本工作区实时完成；模型训练在我们的微调平台执行，训练产物落回后 ④⑤ 自动点亮。'},
+  'ov.sub': {en:'Five steps, one workspace. Everything here is computed from your uploaded records — validation, split and the pre-training baseline run on this workspace; model training runs on our fine-tuning platform, and the results and deployment pages light up automatically when the trained artifacts land.', zh:'五个步骤、一个工作区。这里的一切都由你上传的记录计算而来——校验、切分与训练前基线在本工作区实时完成；模型训练在我们的微调平台执行，训练产物落回后，效果与部署页自动点亮。'},
   'ov.now': {en:'Workspace', zh:'工作区'},
   'ov.next': {en:'Next action', zh:'下一步'},
   'ov.next.upload':  {en:'Upload records + field map to start', zh:'上传记录 + 字段角色表，从这里开始'},
@@ -549,9 +574,9 @@ const I18N = {
   'up.sample': {en:'Load Febrl sample data', zh:'载入 Febrl 示例数据'},
   'up.sample.h': {en:'public benchmark · no real PII · fastest way to try the console end to end', zh:'公开基准 · 无真实个人数据 · 最快跑通全流程的方式'},
   'up.sample.busy': {en:'loading sample…', zh:'示例数据载入中…'},
-  'train.h':   {en:'Train on the platform', zh:'平台训练'},
+  'train.h':   {en:'Model training', zh:'模型训练'},   /* 与左导航 nav.train 同名（旧「平台训练」像内部运维用语，且客户会当成另一个页面） */
   'train.sub': {en:'Direct pipeline: this console uploads your training package to the INF retriever platform, starts the fine-tune, deploys the trained model and scores every record pair — θ is picked automatically by the F1 scan. No hopping between interfaces. The manual fallback (download the zip, operator-mediated) stays available when no platform token is configured.', zh:'直连流水线：本控制台把训练包上传到 INF retriever 平台、开训、部署训练好的模型，并对全部记录对打分——θ 由 F1 扫描自动选定，不用在多个界面之间跳转。未配置平台令牌时保留人工兜底（下载 zip、操作员中介）。'},
-  'train.sub.manual': {en:'v1 is human-in-the-loop by design: the package is submitted to the INF retriever fine-tuning platform (by you or our operator); training, evaluation and the θ scan run there; the artifacts land back in this workspace and steps ④⑤ light up automatically.', zh:'v1 有意保持人机协同：上传包提交到 INF retriever 微调平台（你或我们的操作员执行），训练、评测与 θ 扫描在平台完成；产物回到本工作区后 ④⑤ 自动点亮。'},
+  'train.sub.manual': {en:'v1 is human-in-the-loop by design: the package is submitted to the INF retriever fine-tuning platform (by you or our operator); training, evaluation and the θ scan run there; the artifacts land back in this workspace and the results and deployment pages light up automatically.', zh:'v1 有意保持人机协同：上传包提交到 INF retriever 微调平台（你或我们的操作员执行），训练、评测与 θ 扫描在平台完成；产物回到本工作区后，效果与部署页自动点亮。'},
   'train.cfg': {en:'Training config', zh:'训练配置'},
   'train.base': {en:'Base model', zh:'基座模型'},
   'train.out':  {en:'Output model name', zh:'输出模型名'},
@@ -563,7 +588,7 @@ const I18N = {
   'train.deploy': {en:'Deploy the trained model', zh:'部署训练好的模型'},
   'train.build': {en:'Score all pairs → build results (θ by F1 scan)', zh:'全对打分 → 生成效果数据（θ 由 F1 扫描自动选定）'},
   'train.build.busy': {en:'scoring every pair & building artifacts… (minutes)', zh:'全对打分并生成产物中…（分钟级）'},
-  'train.done': {en:'Artifacts landed — open ④ Results', zh:'产物已落位——去 ④ 效果展示'},
+  'train.done': {en:'Artifacts landed — open Results', zh:'产物已落位——去效果展示'},
   'train.retry': {en:'Retry', zh:'重试'},
   'train.svc': {en:'Deployed service', zh:'部署服务'},
   'train.warn': {en:'(platform status query failed — will keep retrying)', zh:'（平台状态查询失败——会继续重试）'},
@@ -614,11 +639,32 @@ const I18N = {
   'ef.empty': {en:'No results yet — training artifacts have not landed. When they do, key numbers appear here and the full results page unlocks.', zh:'还没有效果数据——训练产物尚未落回。落库后这里会出现关键数字，完整效果页随之解锁。'},
   'dp.h':   {en:'Deploy & integrate', zh:'部署与接入'},
   'dp.sub': {en:'Two integration paths: the HTTP API via the multi-tenant gateway (per-tenant static key — the one shown below is yours), and an offline MCP bundle for your own AI client.', zh:'两条接入路径：多租户网关的 HTTP API（每租户静态 key——下表展示的就是发给你的），以及给你自己 AI 客户端的离线 MCP 交付包。'},
+  'dp.sub.off': {en:'Your integration path for now is the offline MCP bundle (one zip, zero-config); the gateway HTTP API is not provisioned for this workspace yet.', zh:'当前接入路径：离线 MCP 交付包（一个 zip、零配置）；多租户网关的 HTTP API 尚未对本工作区开通。'},
   'dp.api':  {en:'HTTP API (gateway)', zh:'HTTP API（网关）'},
+  'dp.api.off': {en:'Not provisioned. Once the multi-tenant gateway is set up for this workspace, your dedicated endpoint and static key appear here.', zh:'未开通。多租户网关为本工作区开通后，这里会展示你的专属 endpoint 与静态 key。'},
+  'dp.api.nokey': {en:'Endpoint provisioned; the static key is issued separately — ask your operator.', zh:'endpoint 已开通；静态 key 另行发放——联系运营获取。'},
   'dp.mcp':  {en:'MCP delivery bundle (offline · zero-config)', zh:'MCP 交付包（离线 · 零配置）'},
-  'dp.empty': {en:'Delivery bundle not landed yet — it is generated together with the results artifacts in step ③.', zh:'交付包尚未就位——它与 ③ 的效果产物一同生成。'},
-  'dp.start': {en:'Setup guide: START.md (one-line registration)', zh:'接入指南：START.md（一行命令注册）'},
+  'dp.zip':  {en:'Download the bundle (.zip)', zh:'下载交付包（.zip）'},
+  'dp.zip.n': {en:'{N} files · {K} KB · deterministic build', zh:'{N} 个文件 · {K} KB · 确定性打包'},
+  'dp.cmd.h': {en:'Register in one line (Claude Code)', zh:'一行注册（Claude Code）'},
+  'dp.cmd.note': {en:'After unpacking, replace <bundle> with the absolute path of the unpacked directory. Same content as START.md inside the zip.', zh:'解压后把 <bundle> 替换成解压目录的绝对路径。与 zip 内 START.md 同款命令。'},
+  'dp.files.h': {en:'What’s inside', zh:'包内文件'},
+  'dp.f.server':  {en:'MCP server (pure-stdlib Python ≥3.11)', zh:'MCP 服务器（纯标准库 Python ≥3.11）'},
+  'dp.f.client':  {en:'Embeddings client layer (TLS1.2/retry, byte-identical copy)', zh:'embeddings 客户端共用层（TLS1.2/重试，原样拷贝）'},
+  'dp.f.env':     {en:'Environment variables (source & run)', zh:'环境变量（source 后直接起服务器）'},
+  'dp.f.meta':    {en:'Tenant metadata (labels/field table/θ)', zh:'租户口径元数据（标签/字段表/θ）'},
+  'dp.f.records': {en:'Your records (rid/entity/fields/serialized text)', zh:'本数据集记录（rid/实体/字段/序列化文本）'},
+  'dp.f.scores':  {en:'Pre-sampled full pairwise real scores (offline matrix)', zh:'预取样全量成对真实分数（离线矩阵）'},
+  'dp.f.start':   {en:'Setup guide (registration & both scoring modes)', zh:'接入指南（注册方式与两种打分模式）'},
+  'dp.empty': {en:'Delivery bundle not landed yet — it is generated together with the results artifacts after training.', zh:'交付包尚未就位——它与训练产出的效果物料一同生成。'},
+  'dp.copy':  {en:'Copy', zh:'复制'},
+  'dp.copied': {en:'Copied ✓', zh:'已复制 ✓'},
+  'dp.done':  {en:'All five steps complete. After registering, ask your AI client er_about — a healthy bundle answers with model, θ and record count.', zh:'五步全部完成。注册完成后，向你的 AI 客户端问一句 er_about——健康的交付包会答出模型、θ 与记录数。'},
+  'dp.done.k': {en:'Workspace complete', zh:'工作区已就绪'},
   'k.records':  {en:'records', zh:'条记录'},
+  'k.file':  {en:'file', zh:'文件'},
+  'k.role':  {en:'role', zh:'作用'},
+  'k.size':  {en:'size', zh:'大小'},
   'k.entities': {en:'entities', zh:'个实体'},
   'k.pairs':    {en:'labeled positive pairs', zh:'带标正例对'},
   'k.fields':   {en:'embedding fields', zh:'个 embedding 字段'},
@@ -655,6 +701,7 @@ window.addEventListener('hashchange', route);
 /* ---- 渲染 ---- */
 function render(){
   document.getElementById('langBtn').textContent = LANG === 'en' ? '中文' : 'EN';
+  document.getElementById('demoLink').textContent = t('top.demo');
   document.title = t('app.title');
   document.getElementById('themeBtn').textContent =
     document.documentElement.dataset.theme === 'dark' ? '☀' : '☾';
@@ -682,7 +729,7 @@ function renderMain(){
   else if (VIEW === 'data'){ el.innerHTML = viewData(); bindData(); }
   else if (VIEW === 'train'){ el.innerHTML = viewTrain(); bindTrain(); }
   else if (VIEW === 'effect'){ el.innerHTML = viewEffect(); bindEffect(); }
-  else if (VIEW === 'deploy') el.innerHTML = viewDeploy();
+  else if (VIEW === 'deploy'){ el.innerHTML = viewDeploy(); bindDeploy(); }
   if (VIEW !== 'train') trainPollStop();
 }
 
@@ -722,9 +769,13 @@ function viewOverview(){
       numcard(s.missed_pairs != null ? s.missed_pairs : '—', t('k.missed')) +
       '</div>';
   }
-  h += '<p class="sub" style="margin-top:18px"><b>' + esc(t('ov.next')) + ':</b> ' +
-    esc(t('ov.next.' + nextKey)) + ' — <a href="#/' + routeOf(nextKey) + '">' +
-    esc(t('nav.' + nextKey)) + '</a></p>';
+  /* 下一步是全页最重要的动作，必须给 CTA 按钮形态（渐变实心钮），不能只埋一行文字链。
+     按钮文案直接复用 nav.<step>（与左侧导航逐字一致——点击去向可预测）；
+     a.btn 实心形态的字色由 .cmain a.btn:not(.ghost) 兜底（见 console CSS 注释，别删） */
+  h += '<p class="sub" style="margin-top:20px"><b>' + esc(t('ov.next')) + ':</b> ' +
+    esc(t('ov.next.' + nextKey)) + '</p>' +
+    '<a class="btn" href="#/' + routeOf(nextKey) + '" style="display:inline-block;margin:12px 0 2px">' +
+    esc(t('nav.' + nextKey)) + ' →</a>';
   return h;
 }
 function routeOf(stepKey){ return (stepKey === 'upload' || stepKey === 'preview') ? 'data' : stepKey; }
@@ -1268,27 +1319,107 @@ function bindEffect(){
 }
 
 /* ---- ⑤ 部署 ---- */
+var DP_ROLES = {
+  'er_mcp_server.py': 'dp.f.server', 'embed_client.py': 'dp.f.client',
+  'er_mcp.env': 'dp.f.env', 'er_meta.json': 'dp.f.meta',
+  'records.json': 'dp.f.records', 'scores.json': 'dp.f.scores',
+  'START.md': 'dp.f.start'
+};
+function dpCmd(){
+  /* 与交付包内 START.md 的注册命令同形态；<bundle> 由客户替换为解压目录绝对路径 */
+  return 'claude mcp add entity-er -- env ER_VILLAGE=<bundle>/records.json ' +
+    'ER_SCORES=<bundle>/scores.json ER_META=<bundle>/er_meta.json ' +
+    'python3 <bundle>/er_mcp_server.py';
+}
+function dpSize(n){
+  return n >= 10240 ? Math.round(n / 1024) + ' KB'
+    : n >= 1024 ? (n / 1024).toFixed(1) + ' KB' : n + ' B';
+}
+function copyText(txt, btn){
+  const orig = btn.textContent, done = function(){
+    btn.textContent = t('dp.copied'); btn.disabled = true;
+    setTimeout(function(){ btn.textContent = orig; btn.disabled = false; }, 1400);
+  };
+  const fb = function(){                       /* 非 https/旧浏览器兜底 */
+    const ta = document.createElement('textarea');
+    ta.value = txt; ta.style.position = 'fixed'; ta.style.opacity = '0';
+    document.body.appendChild(ta); ta.select();
+    try { document.execCommand('copy'); done(); } catch (e) {}
+    document.body.removeChild(ta);
+  };
+  if (navigator.clipboard && navigator.clipboard.writeText)
+    navigator.clipboard.writeText(txt).then(done, fb);
+  else fb();
+}
+function bindDeploy(){
+  document.querySelectorAll('#cmain .copybtn').forEach(function(b){
+    b.addEventListener('click', function(){
+      copyText(b.dataset.copyCmd ? dpCmd() : b.dataset.copy, b);
+    });
+  });
+}
 function viewDeploy(){
-  let h = '<h1>' + esc(t('dp.h')) + '</h1><p class="sub">' + esc(t('dp.sub')) + '</p>';
-  if (S && S.api && S.api.url){
-    h += '<div class="card"><div class="sh">' + esc(t('dp.api')) + '</div>' +
-      '<table class="ctable" style="margin-top:8px">' +
-      '<tr><th>endpoint</th><td class="mono">' + esc(S.api.url) + '</td></tr>' +
-      (S.api.key ? '<tr><th>api_key</th><td class="mono">' + esc(S.api.key) + '</td></tr>' : '') +
-      '</table></div>';
+  const apiLive = S && S.api && S.api.url;
+  let h = '<h1>' + esc(t('dp.h')) + '</h1><p class="sub">' +
+    esc(t(apiLive ? 'dp.sub' : 'dp.sub.off')) + '</p>';
+  /* 路径一：HTTP API——三态（url+key / 仅 url / 未开通），未开通也给占位卡不整段蒸发 */
+  h += '<div class="card"><div class="sh">' + esc(t('dp.api')) + '</div>';
+  if (apiLive){
+    h += '<table class="ctable" style="margin-top:8px">' +
+      '<tr><th>endpoint</th><td class="mono">' + esc(S.api.url) + '</td>' +
+      '<td style="width:1%"><button class="copybtn" data-copy="' + esc(S.api.url) +
+      '">' + esc(t('dp.copy')) + '</button></td></tr>';
+    h += S.api.key
+      ? '<tr><th>api_key</th><td class="mono">' + esc(S.api.key) + '</td>' +
+        '<td style="width:1%"><button class="copybtn" data-copy="' + esc(S.api.key) +
+        '">' + esc(t('dp.copy')) + '</button></td></tr>'
+      : '<tr><th>api_key</th><td colspan="2" style="color:var(--t3)">' +
+        esc(t('dp.api.nokey')) + '</td></tr>';
+    h += '</table>';
+  } else {
+    h += '<div class="empty" style="margin-top:10px">' + esc(t('dp.api.off')) + '</div>';
   }
+  h += '</div>';
+  /* 路径二：MCP 交付包——一个 zip 主 CTA（不再散落小文件）+ 一行注册命令 + 包内清单 */
   h += '<div class="card" style="margin-top:14px"><div class="sh">' + esc(t('dp.mcp')) + '</div>';
   if (S && S.mcp_files && S.mcp_files.length){
-    h += '<div class="klist">' + S.mcp_files.map(function(f){
-      return '<a class="filelink" href="download/mcp/' + encodeURIComponent(f) +
-        '" download><span class="mono">' + esc(f) + '</span><span>⇣</span></a>';
-    }).join('') + '</div>' +
-    '<div style="font-size:12px"><a href="download/mcp/START.md" target="_blank" rel="noopener">' +
-      esc(t('dp.start')) + '</a></div>';
+    const kb = Object.keys(S.mcp_bytes || {}).reduce(
+      function(a, k){ return a + (S.mcp_bytes[k] || 0); }, 0);
+    h += '<div class="dprow"><a class="btn dpzip" href="download/mcp.zip" download>⇣ ' +
+      esc(t('dp.zip')) + '</a><span class="sub" style="margin:0">' +
+      esc(t('dp.zip.n').replace('{N}', String(S.mcp_files.length))
+        .replace('{K}', String(Math.max(1, Math.round(kb / 1024))))) +
+      '</span></div>' +
+      '<div class="sh" style="margin-top:16px">' + esc(t('dp.cmd.h')) + '</div>' +
+      '<div class="codebox"><code class="mono">' + esc(dpCmd()) + '</code>' +
+      '<button class="copybtn" data-copy-cmd="1">' + esc(t('dp.copy')) + '</button></div>' +
+      '<div style="font-size:12px;color:var(--t3);margin-top:6px">' +
+      esc(t('dp.cmd.note')) + '</div>' +
+      '<div class="sh" style="margin-top:16px">' + esc(t('dp.files.h')) + '</div>' +
+      '<table class="ctable" style="margin-top:8px"><tr><th>' + esc(t('k.file')) + '</th><th>' +
+      esc(t('k.role')) + '</th><th style="text-align:right">' + esc(t('k.size')) + '</th><th></th></tr>' +
+      S.mcp_files.map(function(f){
+        const b = (S.mcp_bytes || {})[f];
+        return '<tr><td class="mono" style="white-space:nowrap">' + esc(f) + '</td><td>' +
+          (DP_ROLES[f] ? esc(t(DP_ROLES[f])) : '—') + '</td>' +
+          '<td style="text-align:right;color:var(--t3);white-space:nowrap">' +
+          (b != null ? dpSize(b) : '—') + '</td>' +
+          '<td style="width:1%"><a class="filelink dponly" href="download/mcp/' +
+          encodeURIComponent(f) + '" download title="' + esc(f) + '">⇣</a></td></tr>';
+      }).join('') + '</table>' +
+      '<div style="font-size:12px;margin-top:8px"><a href="download/mcp/START.md" ' +
+      'target="_blank" rel="noopener">' + esc(t('dp.f.start')) + ' ⇗</a></div>';
   } else {
     h += '<div class="empty" style="margin-top:8px">' + esc(t('dp.empty')) + '</div>';
   }
-  return h + '</div>';
+  h += '</div>';
+  /* 终点收尾：五步完成 + 装好验证方式 + 回总览 */
+  if (stateOf('deploy') === 'done'){
+    h += '<div class="okbox" style="margin-top:14px"><b>' + esc(t('dp.done.k')) +
+      ' ✓</b> — ' + esc(t('dp.done')) + ' <a href="#/overview">' +
+      esc(t('nav.overview')) + '</a></div>';
+  }
+  return h;
 }
 
 function emptyBox(routeKey, msgKey, labelKey){
@@ -1309,6 +1440,12 @@ document.getElementById('langBtn').addEventListener('click', function(){
   render();
 });
 route();
+/* 回能力演示页：与演示页→控制台入口互为对称的同源探测——上一级源真有
+   /healthz（一体化 er_server）才点亮；单独跑 er_console（自身就是根，
+   ../healthz 归一到 /healthz → 404）保持隐藏，绝不留死链 */
+fetch('../healthz').then(function(r){
+  if (r.ok) document.getElementById('demoLink').hidden = false;
+}).catch(function(){});
 """
 
 
