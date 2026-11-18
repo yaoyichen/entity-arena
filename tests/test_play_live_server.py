@@ -70,6 +70,12 @@ class TestPlayLiveServer(unittest.TestCase):
             self.assertEqual(code, 400, payload)
             self.assertIn("error", out)
 
+    def test_rejects_non_object_body(self):
+        """合法 JSON 但非对象（如 [1,2]）：400 人话（曾 AttributeError 裸崩断连）。"""
+        code, out = _post(self.base + "/api/score", [1, 2])
+        self.assertEqual(code, 400)
+        self.assertIn("error", out)
+
     def test_no_token_honest_503(self):
         """缺 EMB_TOKEN：503 + 人话提示（页面照常可看、rid 对离线打分不受影响）。"""
         code, out = _post(self.offline_base + "/api/score", {"a": "x", "b": "y"})

@@ -41,7 +41,7 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "src"))
 
 from entity_arena.embed_client import (  # noqa: E402
-    DEFAULT_MODEL, DEFAULT_URL, EmbedError, cosine, embed,
+    DEFAULT_MODEL, DEFAULT_URL, EmbedError, cosine, embed, load_theta,
 )
 
 PAGE = ROOT / "build" / "demo.html"
@@ -136,12 +136,9 @@ def load_token(cli: str | None = None, env: str | None = None, path: Path | None
 
 
 def theta() -> float:
-    """与 live_pair_score / er_mcp_server 同源：优先用最新构建产物里的 θ，避免漂移。"""
-    try:
-        return float(json.loads(
-            (ROOT / "data" / "open_cases.json").read_text(encoding="utf-8"))["theta"])
-    except Exception:
-        return 0.9208  # 案例村 link-F1 最优（build_open_cases.py 扫描得出的兜底值）
+    """与 live_pair_score / er_mcp_server 同源（单源 embed_client.load_theta）：
+    优先用最新构建产物里的 θ，缺席/坏损兜底 THETA_FALLBACK。"""
+    return load_theta(ROOT / "data" / "open_cases.json")
 
 
 class ScoreUnavailable(RuntimeError):
@@ -207,9 +204,12 @@ def build_handler(score_fn, page_path: Path):
                 self._json(404, {"error": "unknown api endpoint"})
                 return
             try:
-                req = json.loads(self.rfile.read(int(self.headers["Content-Length"])))
+                req = json.loads(self.rfile.read(int(self.headers.get("Content-Length") or 0)))
             except (ValueError, TypeError):
                 self._json(400, {"error": "body must be JSON"})
+                return
+            if not isinstance(req, dict):      # 合法 JSON 非对象（如 [1,2]）：人话 400
+                self._json(400, {"error": "body must be a JSON object"})
                 return
             a, b = req.get("a"), req.get("b")
             if not isinstance(a, str) or not isinstance(b, str) or not a.strip() or not b.strip():

@@ -3,6 +3,11 @@
 纯标准库。两个已知坑都封在这里（AGENTS.md 部署要点）：
 - 平台网关掐 OpenSSL 3.x 默认 ClientHello（后量子密钥共享）→ 强制 TLS1.2，别改回去；
 - 服务偶发抖动 → 带重试（3 次，退避 3s/6s）。
+
+本模块是 MCP 交付包里唯一的共享拷贝（build_tenant_cases --mcp-dir 原样带走），
+所以三样"必须全仓单源"的东西都住在这里：ssl_ctx（TLS1.2 钳制）、cosine
+（余弦，零向量返 0.0）、load_theta（open_cases.json θ 读取 + 0.9208 兜底）
+——别在任何脚本里再写一份。
 """
 
 from __future__ import annotations
@@ -13,11 +18,13 @@ import ssl
 import sys
 import time
 import urllib.request
+from pathlib import Path
 
 DEFAULT_URL = "https://9dogmocj5hg5cpbgmkmcehcg5qkpcdqm.openapi-inspire.inf.tech"
 DEFAULT_MODEL = "febrl3-er-gemma"
 RETRIES = 3
 TIMEOUT_S = 120
+THETA_FALLBACK = 0.9208  # 案例村 link-F1 最优（build_open_cases.py 扫描得出的兜底值）
 
 
 class EmbedError(RuntimeError):
@@ -56,7 +63,22 @@ def embed(url: str, model: str, token: str, texts: list[str]) -> list[list[float
 
 
 def cosine(a: list[float], b: list[float]) -> float:
+    """余弦相似度；零向量（不可能出现在真实 embedding 里）守卫返 0.0，
+    与 cases_core 原实现同口径——单源住这里（交付包可独立运行）。"""
     dot = sum(x * y for x, y in zip(a, b))
     na = math.sqrt(sum(x * x for x in a))
     nb = math.sqrt(sum(x * x for x in b))
+    if na == 0 or nb == 0:
+        return 0.0
     return dot / (na * nb)
+
+
+def load_theta(cases_json: Path | str) -> float:
+    """读构建产物 open_cases.json 的 θ（live_pair_score / play_live_server /
+    er_mcp_server 三处共用同一兜底）；文件缺席/坏 JSON/缺 theta 键 →
+    THETA_FALLBACK——离线或产物未构建时打分判定线依然可用。"""
+    try:
+        return float(json.loads(
+            Path(cases_json).read_text(encoding="utf-8"))["theta"])
+    except Exception:
+        return THETA_FALLBACK

@@ -144,11 +144,11 @@ def scripted_pairs(world) -> list[dict]:
         if ov:
             b_score, t_score = ov["baseline"], ov["tuned"]
         else:
-            from entity_arena.simulate import baseline_score
+            from entity_arena.simulate import baseline_score, tuned_mix
 
             b_score = round(baseline_score(sims), 2)
             # P3 由公式给出（证件号全同 → 双模型都应过线）
-            t_score = round(0.30 * b_score + 0.70 * 0.90, 2)
+            t_score = round(tuned_mix(b_score, 0.90), 2)
         out.append({
             "pair_id": spec["pair_id"], "a": a.record_id, "b": b.record_id,
             "truth": spec["truth"], "title": spec["title"], "note": spec["note"],

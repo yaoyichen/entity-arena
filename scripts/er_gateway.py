@@ -41,6 +41,7 @@
 from __future__ import annotations
 
 import argparse
+import html
 import importlib.util
 import json
 import os
@@ -68,14 +69,17 @@ def _landing(gw: Gateway) -> bytes:
     rows = []
     for name in sorted(gw.tenants):
         t = gw.tenants[name]
-        page = (f'<a href="/t/{name}/">/t/{name}/</a>' if t.page
-                else f"<code>/t/{name}/</code>（未配 page）")
+        # 注册表是运维侧输入，但 label/model/name 仍统一转义——注入防线不该依赖上游卫生
+        esc_name, esc_label, esc_model = html.escape(name), html.escape(t.label), html.escape(t.model)
+        page = (f'<a href="/t/{esc_name}/">/t/{esc_name}/</a>' if t.page
+                else f"<code>/t/{esc_name}/</code>（未配 page）")
         dflt = " · default" if name == gw.default_tenant else ""
         rows.append(
-            f"<tr><td>{t.label}<br><small>{name}{dflt}</small></td>"
-            f"<td><code>{t.model}</code></td><td>{t.theta:.4f}</td>"
+            f"<tr><td>{esc_label}<br><small>{esc_name}{dflt}</small></td>"
+            f"<td><code>{esc_model}</code></td><td>{t.theta:.4f}</td>"
             f"<td>{page}</td><td><code>POST /v1/er/score</code> 等</td></tr>")
-    html = (
+    # （局部变量别叫 html——模块顶 import html 的转义函数要用，撞名会 UnboundLocal）
+    page = (
         "<!doctype html><meta charset='utf-8'><title>er-gateway</title>"
         "<style>body{font:14px/1.6 -apple-system,system-ui,sans-serif;max-width:880px;"
         "margin:40px auto;padding:0 16px;color:#1a2233}table{border-collapse:collapse;"
@@ -88,7 +92,7 @@ def _landing(gw: Gateway) -> bytes:
         "<p><small>θ 与模型名逐租户从 build_tenant_cases 产物读取（不手调）；"
         "结构化输入按该租户 fieldmap 序列化，与训练同口径。"
         "并发护栏与错误口径见 scripts/er_gateway.py 文档串。</small></p>")
-    return html.encode("utf-8")
+    return page.encode("utf-8")
 
 
 def build_handler(gw: Gateway):
@@ -108,7 +112,7 @@ def build_handler(gw: Gateway):
 
         def _body(self) -> dict:
             try:
-                req = json.loads(self.rfile.read(int(self.headers["Content-Length"])))
+                req = json.loads(self.rfile.read(int(self.headers.get("Content-Length") or 0)))
             except (ValueError, TypeError):
                 raise GatewayError(400, "body 必须是 JSON") from None
             if not isinstance(req, dict):

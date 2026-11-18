@@ -21,13 +21,14 @@ HTTP 路由与错误码在 scripts/er_gateway.py；本模块只做可注入测�
 
 from __future__ import annotations
 
+import hmac
 import json
 import threading
 from dataclasses import dataclass, field as dc_field
 from pathlib import Path
 
-from entity_arena.cases_core import components, cosine
-from entity_arena.embed_client import EmbedError, embed
+from entity_arena.cases_core import components
+from entity_arena.embed_client import EmbedError, cosine, embed
 from entity_arena.intake import FieldSpec, load_fieldmap, serialize_record
 
 STABLE_MARGIN = 0.01          # 判定稳态边界（θ 两侧），与页面/MCP/Explain 卡同口径
@@ -168,7 +169,8 @@ class Gateway:
     def check_key(self, t: Tenant, provided: str | None) -> None:
         if not t.api_key:
             raise GatewayError(403, f"租户「{t.name}」未配置 api_key（注册表加 api_key 字段）")
-        if provided != t.api_key:
+        # 恒时比较：api_key 比对不走 ==（短路比较泄漏时序信息，key 是长期凭据）
+        if provided is None or not hmac.compare_digest(provided.encode(), t.api_key.encode()):
             raise GatewayError(401, f"租户「{t.name}」的 api_key 不对（Authorization: Bearer <key>）")
 
     def _embed(self, t: Tenant, texts: list[str]) -> list[list[float]]:

@@ -41,12 +41,12 @@ sys.path.insert(0, str(ROOT / "src"))
 
 try:  # 仓库布局：src/entity_arena/embed_client.py
     from entity_arena.embed_client import (  # noqa: E402
-        DEFAULT_MODEL, DEFAULT_URL, EmbedError, cosine, embed,
+        DEFAULT_MODEL, DEFAULT_URL, EmbedError, cosine, embed, load_theta,
     )
 except ImportError:  # 交付包布局（W4）：同目录带 embed_client.py 原样拷贝
     sys.path.insert(0, str(Path(__file__).resolve().parent))
     from embed_client import (  # noqa: E402
-        DEFAULT_MODEL, DEFAULT_URL, EmbedError, cosine, embed,
+        DEFAULT_MODEL, DEFAULT_URL, EmbedError, cosine, embed, load_theta,
     )
 
 SERVER_NAME = "entity-er"
@@ -119,11 +119,9 @@ def _theta() -> float:
     m = _meta()
     if m.get("theta") is not None:
         return float(m["theta"])  # 租户交付：θ 与 cases 产物同源（永不手调）
-    try:  # 与 live_pair_score 同源：优先用最新构建产物里的 θ，避免两处维护漂移
-        return float(json.loads(
-            (ROOT / "data" / "open_cases.json").read_text(encoding="utf-8"))["theta"])
-    except Exception:
-        return 0.9208  # 案例村 link-F1 最优（build_open_cases.py 扫描得出的兜底值）
+    # 与 live_pair_score / play_live_server 同源（单源 embed_client.load_theta）：
+    # 优先用最新构建产物里的 θ，缺席/坏损兜底 THETA_FALLBACK
+    return load_theta(ROOT / "data" / "open_cases.json")
 
 
 # ---------- 数据（懒加载，启动握手不读 1MB 文件） ----------

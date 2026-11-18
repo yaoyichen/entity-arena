@@ -133,6 +133,8 @@ make_open_dataset.py ──► inf-retriever 平台 ──► update_open_benchm
 - **工程**：Python 纯标准库零依赖；111 项测试（剧本数值逐对锁定、确定性、
   零外链契约、实测轨断言链复算）；详见 `docs/adr/0001`（SVG 预计算布局）、
   `0002`（代理评分诚实性）、`docs/embedding-er.md`（Embedding×ER 技术说明）。
+  （2026-11-18 复核：测试数随 W1–W7 持续累加，现 281 项——本稿成文时 111，
+  口播不必报数，客户问起以 README 为准。）
 
 ---
 
@@ -144,6 +146,8 @@ make_open_dataset.py ──► inf-retriever 平台 ──► update_open_benchm
 
 【打开 demo.html——默认就是 Febrl3 实测轨、Arena F1】
 "您邮件里列的八条 The System shall，我们把它做成了一个可以上手的演示，两层证据：
+【2026-11-18 注：shall 条数照客户原邮件口径念，仓库无该清单存档——
+  若后续邮件更新了条数，口播跟着改，别让数字源头变成我们这份稿子。】
 现在屏幕上是**Febrl3 开源基准的实测层**——228 条记录、78 个人的案例村，右边一列
 是平台上真实微调过的模型打出的分数，全部数字实测可复算；顶部还有一个
 'Scripted world' 合成剧本轨，讲机制时我们切过去看。先看个案，最后看指标。

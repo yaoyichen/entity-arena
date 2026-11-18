@@ -24,12 +24,12 @@ python3 scripts/play_live_server.py
 ```bash
 python3 scripts/make_mock_data.py            # ① 合成数据：19 实体 / 47 记录 / 5 数据源
 python3 scripts/update_open_benchmark.py     # ② 开源基准轨：从已入库平台报告重建实测数字
-python3 scripts/build_open_cases.py --scores # ③ 实测主轨：从已入库真实分数重建 Febrl3 案例村（Arena/指标板同源）
+python3 scripts/build_open_cases.py             # ③ 实测主轨：默认从已入库真实分数 data_open/village_scores.json 离线复算（Arena/指标板同源；也可 --scores 指别的分数文件）
 python3 scripts/build_demo.py --open         # ④ 构建 build/demo.html 并用浏览器打开（纯静态路径）
 ```
 
 - 零第三方依赖（Python ≥3.11 纯标准库）；产物**单文件、零外链、断网可开**，可直接发给客户。
-- 测试（233 项）：`PYTHONPATH=src python3 -m unittest discover -s tests`
+- 测试（281 项）：`PYTHONPATH=src python3 -m unittest discover -s tests`
 
 ## 双轨数据集（页面顶部一键切换）
 
@@ -229,6 +229,18 @@ Arena F1–F6 查询、Explain R1–R6 卡、Network 三态、Scoreboard 方向�
    文案全套模板化（注册命令/示例问题/容量卡全按租户口径，零 Febrl 残留）；
    验收=MCP 离线判定 == 页面试玩台 == er-gateway 在线（`tests/test_mcp_delivery.py`
    三方一致锁定）。
+   W6 已完成：`scripts/er_console.py` **客户自助服务控制台**——给客户看的
+   干净五步界面（① 数据上传 → ② 初版展示 → ③ 模型训练 → ④ 效果展示 →
+   ⑤ 服务部署），能力展示归 `play_live_server.py`、两者分界明确；状态纯
+   文件推导（上传→intake 校验报告，训练产物/MCP 交付包落工作区即自动
+   点亮），③ 训练诚实标注操作员中介，② 打分是字面相似度基线代理
+   （NOT a model output）。
+   W7 已完成：控制台**直连训练平台**（交互式五步闭环）——③ 一屏选基模
+   （平台实时列表）/起服务名、实时进度 chip 流、一键部署、一键取样建
+   效果数据（θ=link-F1 扫描，不手选）；①② 合并为「数据」tab（去原生
+   file input 中文控件 + 内置 Febrl 示例一键载入）；④ 效果页全交互网络
+   三态（阶段页签/悬停气泡/点击锁定）。缺平台令牌自动回落 W6 人工模式，
+   行为不变；训练令牌只进进程内存，绝不落盘（`docs/saas-maas-plan.md` W7）。
 
 ### 租户体验页一条命令（W2）
 
@@ -258,6 +270,30 @@ python3 scripts/er_gateway.py --registry ~/.config/entity-arena/er_tenants.json
 # → 落地页 http://127.0.0.1:8790/（租户清单）；演示页 /t/<acme>/（同源打分，
 #   免 CORS）；API /v1/er/score|embed|resolve（Authorization: Bearer <api_key>）
 ```
+
+### 客户服务控制台（W6）：上传 → 初版 → 训练 → 效果 → 部署
+
+```bash
+# 给客户开的干净五步界面；能力展示（Febrl 演示页）继续用 play_live_server.py
+python3 scripts/er_console.py --workdir .tmp/console_acme --label "Acme pilot" \
+  --api-url http://127.0.0.1:8790/v1/er/score --api-key '<发给该客户的静态键>'
+# → http://127.0.0.1:8801/ 客户上传 CSV（校验全量人话报错；也可一键载入
+#   内置 Febrl 示例熟悉流程）→ 看序列化预览和基线代理打分 → ③ 选平台
+#   基模一键开训（实时进度；缺令牌自动回落：下载 package.zip 走操作员
+#   中介，行为同 W6）→ 训练完一键部署 + 一键生成效果数据（取样向量 →
+#   θ 扫描 → cases/demo/MCP 全落工作区，④⑤ 自动点亮）→ ④ 全交互网络
+#   三态（阶段页签/悬停气泡/点击锁定）+ 领 API 表 + MCP 交付包下载
+# 工作区状态纯文件推导：uploads/+package/ → ①②，cases.json → ③④，
+#   mcp_bundle/ → ⑤；--api-key 只放 er_gateway 注册表同源的租户静态键，
+#   平台 EMB_TOKEN 绝不进控制台；平台训练令牌四级解析（--train-token >
+#   TRAIN_TOKEN > EMB_TOKEN > ~/.claude.json inf-retriever），只进进程
+#   内存与子进程环境变量
+```
+
+> **只绑本机用**：控制台 `/api/train/start` 等接口**没有任何鉴权**（设计前提是
+> `--workdir` 落在本机、端口只绑 127.0.0.1 给单客户现场用）。要跨机器给客户开，
+> 前面套一层带鉴权的反代再暴露——直接把端口放到公网等于把「替你花 GPU 钱」的
+> 按钮交出去。
 
 ## 设计决策
 

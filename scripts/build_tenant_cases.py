@@ -11,7 +11,9 @@
   --records  客户记录 CSV/JSONL（record_id + 业务字段 [+ entity_id 列=格式 A]）
   --fieldmap 字段角色表 field,role[,normalize][,neg_key][,baseline_weight]
   --scores   成对真实分数（{model,dim,pairs:[[a,b,s],…]}，取样脚本泛化自
-             fetch_village_embeddings.py；或 --emb 向量文件由本脚本算余弦并写 --scores）
+             fetch_village_embeddings.py；复算输入，与 --emb 二选一）
+  --emb      向量文件（首次取样：本脚本算余弦并把溯源 scores 落到向量旁
+             <同名>.scores.json，不占 --scores 输入位）
   --pairs    格式 B 对标签文件（record_id_a,record_id_b,label；与 entity_id 二选一）
 可选：--shadow-pairs 显式影子对 / 默认按 neg_key 字段值自动挖掘（桶 ≤ --shadow-max-bucket）；
   --name-field 档案卡显示名字段（默认第一个 embedding 字段）；
@@ -553,9 +555,10 @@ def main() -> None:
     ap.add_argument("--records", type=Path, required=True, help="客户记录 CSV/JSONL")
     ap.add_argument("--fieldmap", type=Path, required=True, help="字段角色表")
     ap.add_argument("--scores", type=Path, default=None,
-                    help="成对真实分数 {model,dim,pairs}（与 --emb 二选一）")
+                    help="成对真实分数 {model,dim,pairs}（复算输入；与 --emb 二选一）")
     ap.add_argument("--emb", type=Path, default=None,
-                    help="向量文件 {model,dim,vectors}（首次路径：算余弦并写 --scores）")
+                    help="向量文件 {model,dim,vectors}（首次取样：算余弦并把溯源 "
+                         "scores 落到向量旁 <同名>.scores.json）")
     ap.add_argument("--pairs", type=Path, default=None, help="格式 B 对标签文件")
     ap.add_argument("--shadow-pairs", type=Path, default=None,
                     help="显式影子对 JSON [[ridA,ridB],…]（默认按 neg_key 自动挖掘）")
@@ -635,7 +638,7 @@ def main() -> None:
             for b in rids[i + 1:]:
                 pairs.append((a, b, cosine(vecs[a], vecs[b])))
         pairs.sort(key=lambda p: (p[0], p[1]))
-        sp = args.scores
+        sp = args.emb.with_suffix(".scores.json")   # 溯源落向量旁：--emb 单用不再依赖 --scores
         sp.parent.mkdir(parents=True, exist_ok=True)
         sp.write_text(json.dumps({
             "model": emb["model"], "dim": emb["dim"], "n_records": len(rids),

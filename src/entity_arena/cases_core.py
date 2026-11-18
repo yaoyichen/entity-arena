@@ -18,6 +18,7 @@ from __future__ import annotations
 import math
 from typing import Callable
 
+from entity_arena.embed_client import cosine  # 单源：余弦住 embed_client（交付包共享件）
 from entity_arena.layout import build_open_network
 
 # 叙事注入点签名（Febrl 适配器 / 租户入口各一份，统计核心对文案盲）：
@@ -30,15 +31,6 @@ NameOf = Callable[[dict, str], str]
 StubOf = Callable[[dict], dict]
 NarrateExplain = Callable[[str, dict], tuple[dict, dict]]
 NarrateArena = Callable[[str, dict], tuple[dict, dict]]
-
-
-def cosine(a: list[float], b: list[float]) -> float:
-    dot = sum(x * y for x, y in zip(a, b))
-    na = math.sqrt(sum(x * x for x in a))
-    nb = math.sqrt(sum(x * x for x in b))
-    if na == 0 or nb == 0:
-        return 0.0
-    return dot / (na * nb)
 
 
 def pick_theta(pairs: list[tuple[str, str, float]], truth: set[tuple[str, str]]) -> tuple[float, dict]:

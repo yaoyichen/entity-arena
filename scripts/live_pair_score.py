@@ -12,8 +12,9 @@
 
 口径（诚实声明，现场也这么讲）：
   - 分数是部署服务 /v1/embeddings 的真实输出，余弦相似度，input_type=document；
-  - θ=0.9328 是在 102 条记录的案例村上按 link-F1 最大化选出的判定线
-    （选村对分数盲、规则写死在 provenance，非挑出来的）；
+  - θ 运行期读最新构建产物 data/open_cases.json（228 条记录的案例村上按
+    link-F1 最大化选出的判定线，选村对分数盲、规则写死在 provenance，
+    非挑出来的）；产物缺席/坏损时兜底 0.9208（embed_client.THETA_FALLBACK）；
   - 判定只代表"微调模型在这对记录上的断言"，与 Febrl3 真值对照即得对错。
 """
 
@@ -29,15 +30,12 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "src"))
 
 from entity_arena.embed_client import (  # noqa: E402
-    DEFAULT_MODEL, DEFAULT_URL, EmbedError, cosine, embed,
+    DEFAULT_MODEL, DEFAULT_URL, EmbedError, cosine, embed, load_theta,
 )
 
 VILLAGE = ROOT / "data_open" / "village.json"
-THETA = 0.9208  # 案例村 link-F1 最优判定线（build_open_cases.py 扫描得出）
-try:  # 优先用最新构建产物里的 θ，避免两处维护漂移
-    THETA = float(json.loads((ROOT / "data" / "open_cases.json").read_text())["theta"])
-except Exception:
-    pass
+# θ 单源：embed_client.load_theta 读构建产物，缺席/坏损兜底 THETA_FALLBACK
+THETA = load_theta(ROOT / "data" / "open_cases.json")
 
 
 def show_pair(rec_a: dict, rec_b: dict) -> None:

@@ -55,3 +55,8 @@ Q6（Victor Chen ↔ 陈志强）**故意让微调也失败**：零表面重合�
 
 数据契约不变：`data/results.json`（{model: {qid: top-5}}）+ `data/metrics.json`
 换成真跑分产物即可，页面零改动。代理评分层（`simulate.py`）届时整体退役。
+
+> **2026-11-18 注记**：上文的 `qid` 键**实为 record_id**（每条记录都当一次
+> 查询，外层 key 就是被查记录自己的 record_id；适配层按 `q.record_id` 查回）。
+> 精确 shape 见 AGENTS.md「数据契约」：`{models: {baseline: {record_id:
+> [{r, s}×5]}, tuned: …}}`——写 ADR 时简写成 qid 留了个歧义，以 AGENTS 为准。

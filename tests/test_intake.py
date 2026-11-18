@@ -333,6 +333,20 @@ class TestFormatBGold(unittest.TestCase):
     def _lines(self, rel: str):
         return (self.tmp / "pkg" / rel).read_text(encoding="utf-8").splitlines()
 
+    def test_star_shaped_positives_raise_not_hang(self):
+        """回退负例不可达（正例伙伴覆盖其余全部记录）→ 人话 IntakeError，不死循环。"""
+        with tempfile.TemporaryDirectory(prefix="intake-star-") as d:
+            tmp = Path(d)
+            write(tmp / "rec.csv", "\n".join(RECORDS_A.splitlines()[:6]) + "\n")
+            write(tmp / "fm.csv", FIELDMAP_A)
+            write(tmp / "pairs.csv", "record_id_a,record_id_b,label\n"
+                                     "r1,r2,1\nr1,r3,1\nr1,r4,1\nr1,r5,1\n")
+            with self.assertRaises(IntakeError) as cm:
+                run_intake(tmp / "rec.csv", tmp / "fm.csv", tmp / "pairs.csv",
+                           out=tmp / "pkg")
+            self.assertIn("r1", msgs(cm.exception))
+            self.assertIn("label=0", msgs(cm.exception))
+
     def test_qrels_from_positives_both_directions(self):
         train = {tuple(l.split("\t")[:2]) for l in self._lines("qrels/train.tsv")}
         test = {tuple(l.split("\t")[:2]) for l in self._lines("qrels/test.tsv")}

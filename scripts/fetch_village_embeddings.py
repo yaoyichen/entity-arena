@@ -37,19 +37,11 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "src"))
 
+from entity_arena.embed_client import ssl_ctx  # noqa: E402  # 单源：TLS1.2 钳制
 from entity_arena.intake import serialize_record  # noqa: E402
 
 BATCH = 32
 RETRIES = 3
-
-
-def _ssl_ctx() -> ssl.SSLContext:
-    """强制 TLS1.2：平台网关会掐 OpenSSL 3.x 默认 ClientHello（含后量子
-    密钥共享，握手即 UNEXPECTED_EOF）；curl/LibreSSL 与 TLS1.2 均正常。"""
-    ctx = ssl.create_default_context()
-    ctx.minimum_version = ssl.TLSVersion.TLSv1_2
-    ctx.maximum_version = ssl.TLSVersion.TLSv1_2
-    return ctx
 
 
 def _tenant_records(records_path: Path, fieldmap_path: Path) -> list[dict]:
@@ -113,7 +105,7 @@ def main() -> None:
         body = None
         for attempt in range(1, RETRIES + 1):
             try:
-                with urllib.request.urlopen(req, timeout=300, context=_ssl_ctx()) as resp:
+                with urllib.request.urlopen(req, timeout=300, context=ssl_ctx()) as resp:
                     body = json.loads(resp.read().decode("utf-8"))
                 break
             except (urllib.error.URLError, ssl.SSLError, OSError) as e:

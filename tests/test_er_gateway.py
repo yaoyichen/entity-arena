@@ -494,6 +494,19 @@ class TestHTTP(GatewayBase):
         code, body = _get(self.base + "/t/ghost/")
         self.assertEqual(code, 404)
 
+    def test_landing_escapes_registry_markup(self):
+        """落地页对注册表 label/model 统一转义——注入防线不依赖上游卫生
+        （注册表是运维侧输入，但仍不该给裸插值留口子）。"""
+        t = self.gw.tenants["alpha"]
+        old_label = t.label
+        t.label = '<script>alert(1)</script>'
+        try:
+            body = egw._landing(self.gw).decode("utf-8")
+        finally:
+            t.label = old_label
+        self.assertNotIn("<script>alert(1)</script>", body)
+        self.assertIn("&lt;script&gt;alert(1)&lt;/script&gt;", body)
+
     def test_bad_json_400(self):
         req = urllib.request.Request(
             self.base + "/v1/er/score", data=b"not json",

@@ -28,15 +28,15 @@
 `(endpoint, model, θ, 序列化规则)`，与数据合同 §3 对齐；θ 一律
 > link-F1 扫描得出并写进 provenance，永不手调。
 
-## 1. 现状盘点（2026-11-17，均已验证）
+## 1. 现状盘点（2026-11-17 盘点，2026-11-18 复核更新）
 
 | 层 | 资产 | 状态 |
 |---|---|---|
 | 训练底座 | 平台 MCP 全工具面：`upload_dataset` → `create_finetune_job` → `evaluate_model` → `deploy_model` → `list_resources` 取 `service_url`/`curl_command`；skill `inf-retriever-finetune` 即操作 runbook | ✅ 已打通并真实跑通一轮（`data_open/eval_reports/` 六份报告 + `embedding-febrl3-er-gemma` 服务） |
-| MaaS API 雏形 | `scripts/play_live_server.py`（同源转发 + θ 同源 + 端口冲突人话）+ `src/entity_arena/embed_client.py`（TLS1.2/重试/余弦，三处共用） | ✅ 原型在；单模型、单令牌、localhost |
-| 体验层 | demo 页数据驱动契约（换 `data/*.json` 页面零改动，键校验在 `build_demo.py:_load_open_cases`）；`build_open_cases.py` 的 θ 扫描 / 断言链 / 组件纯度 / 方向性指标 / 五分桶 / Arena·Explain 极值规则 | ⚠️ 核心统计 schema-light，入口 Febrl 专用（字段词典、`_BASE_W` 基线权重、story 文案） |
-| 数据入口 | `docs/data-contract.md` §1–§2 定义完整（双标签格式、field-role 三分、intake 校验、自动硬负例） | ❌ **无代码**；`make_open_dataset.py` 列名写死 Febrl，共享逻辑在 `febrl.py` |
-| AI-native 接入 | `scripts/er_mcp_server.py` 三工具；租户参数化已就绪（`ER_VILLAGE`/`ER_SCORES`/`ER_EMB_URL`/`ER_EMB_MODEL`/`ER_THETA` 环境变量） | ✅ 基本就绪，缺租户数据文件与字段对照泛化 |
+| MaaS API 雏形 | `scripts/play_live_server.py`（同源转发 + θ 同源 + 端口冲突人话）+ `src/entity_arena/embed_client.py`（TLS1.2/重试/余弦，三处共用） | ✅ 原型在；单模型、单令牌、localhost（多租户版见 W3 `er_gateway.py`） |
+| 体验层 | demo 页数据驱动契约（换 `data/*.json` 页面零改动，键校验在 `build_demo.py:_load_open_cases`）；`build_open_cases.py` 的 θ 扫描 / 断言链 / 组件纯度 / 方向性指标 / 五分桶 / Arena·Explain 极值规则 | ✅（2026-11-18 复核）统计核心 W2 起抽为 schema 无关的 `cases_core.py`，Febrl 只是适配层；租户入口 `build_tenant_cases.py` 已实测（§3.2） |
+| 数据入口 | `docs/data-contract.md` §1–§2 定义完整（双标签格式、field-role 三分、intake 校验、自动硬负例） | ✅（2026-11-18 复核）W1 已落地：`make_client_dataset.py` + `intake.py`（任意 schema，序列化与训练/页面同一份，§3.1） |
+| AI-native 接入 | `scripts/er_mcp_server.py` 三工具；租户参数化已就绪（`ER_VILLAGE`/`ER_SCORES`/`ER_EMB_URL`/`ER_EMB_MODEL`/`ER_THETA` 环境变量） | ✅（2026-11-18 复核）W4 起租户模式就绪：`ER_META` 交付包标签/字段对照/θ 全按租户口径（§3.4） |
 | 容量 / SLA 锚点 | `data_open/bench_embeddings.json`：单条峰值 15.9 QPS（4 线程）、batch32 峰值 272 rps（8 线程）、16 并发触 429；结论"加 batch 不加并发" | ✅ 实测在库，待进 SLA 条款 |
 
 ## 2. 目标架构
@@ -147,8 +147,84 @@ er-gateway 同源转发（就是 play_live_server 模式上云）；GPU 抖动 �
 ### W5 · 内部便利项（低优先，顺手做）✅ 已完成（2026-11-17）
 
 - fresh clone 一条命令 bootstrap：`ensure_page` 检测 `data/` 缺失自动跑
-  三步确定性重建（~38s）或人话提示；README 测试数 126→127 校正。
+  三步确定性重建（~38s）或人话提示；README 测试数同步校正（评审当日
+  126→127，W2–W5 测试落地后最终 233，见 §3.5）。
   客户不可见，只服务内部同事与交付操作员。**已达成**，见 §3.5。
+
+### W6 · 客户自助服务控制台 `er_console.py` ✅ 已完成（2026-11-17）
+
+- **来源**：用户拍板（2026-11-17）——能力展示维持 `play_live_server.py`
+  不动，另开一个**干净的客户界面**：数据上传 → 初版展示 → 模型训练 →
+  效果展示 → 服务部署 五步，对标 INF 训练控制台的形态；两者明确分界，
+  互不掺和（此前租户 demo 页"太乱"的反馈由此解决：那是能力展示，不是服务面）。
+- **架构**：逻辑全在 `src/entity_arena/console.py`（`Workspace`：
+  **状态纯文件推导，不存第二份状态**——`uploads/`+`package/intake_report.json`
+  →①，`cases.json`+`demo.html`→③④，`mcp_bundle/START.md`→⑤，四态
+  empty/ready/waiting/done 自动点亮）；`scripts/er_console.py` 只是薄
+  HTTP 壳（模式同 er_gateway.py：build_handler + 纯标准库 + 同源零外链）。
+- **诚实边界**：③ 训练不假装——操作员中介（"本控制台不假装自己会训练"），
+  产物落工作区即点亮；② 打分器是字面相似度**基线代理**，页面标注
+  NOT a model output；⑤ 展示的 api_key 是发给该租户的静态键
+  （er_gateway 注册表同源），**平台 EMB_TOKEN 绝不进控制台**。
+- **④ 网络三态速览**（用户追加，2026-11-17）：完整效果页的 Network
+  三态（原始纠缠 → 基线代理红标 → 微调归并）浓缩成三张小图内嵌进
+  ④ 效果展示——客户不跳页就能看到"效果变化"。数据来自工作区
+  `cases.json` 的 `network`/`baseline.network` 块（build_tenant_cases
+  产物自带，零额外构建），`Workspace.network()` 服务端瘦身成三阶段
+  payload（"A|B" 串拆二元组、光环带 mixed 纯度位），`GET /api/network`
+  供前端 SVG 渲染；缺块人话报错（旧版产物提示重建），影子线用
+  `--edge` token 与演示页同可见度，渐变钮文字走 `--on-sig` 同
+  CTA 约定。完整大图仍由"打开完整效果页"跳 demo.html。
+- **验收**：`tests/test_er_console.py` 17 项（逻辑 8 + HTTP 8 + 模板 1）；
+  6 视图 × 双主题 12 张截图过查（含 5 处视觉修复 + 网络速览追加
+  2 处对比度修复，见 §3.6）。**已达成**。
+
+### W7 · 控制台直连训练平台（交互式五步闭环）✅ 已完成（2026-11-17）
+
+- **来源**：用户五点需求（2026-11-17）——① 效果页要可交互（静态三小图
+  太丑）；② 上传与数据查看合并同一 tab；③ 去掉原生 file input 的
+  「选择文件」中文控件；④ 内置 Febrl 示例数据一键载入方便熟悉上手；
+  ⑤ 训练与 θ 选择直接打通训练平台，不在多界面间跳转。
+- **架构**：
+  - `src/entity_arena/train_client.py`：**MCP-over-HTTP 客户端**（纯标准库，
+    与 .tmp/mcp_call.sh 同一已验证通路）——`initialize`
+    （protocolVersion 2025-03-26）取 `Mcp-Session-Id` →
+    `notifications/initialized` → `tools/call`；SSE `data:` 行解析 +
+    整体 JSON 兜底；"Session not found" 重握手一次自愈；平台网关掐
+    OpenSSL 3.x ClientHello → **强制 TLS1.2**（同 embed_client）。令牌
+    调用方注入，本模块不落盘不打印。
+  - `src/entity_arena/console_train.py`：`Trainer` 编排层。`start`
+    （zip_package → `upload_dataset` → `create_finetune_job`）/
+    `status`（轮询 job 推进 phase：training→trained / failed，失败带
+    人话）/ `deploy`（`deploy_model` → deploying→deployed，服务地址
+    `_service_url` 多级兜底 + `list_services` 兜底）/ `build`
+    （`fetch_village_embeddings --records --fieldmap` 取样向量 →
+    `build_tenant_cases --emb --demo-dir --mcp-dir` → ④⑤ 点亮）。
+    外部状态只记 `.train/state.json`（**平台世界的指针文件，不是第二份
+    工作区状态**——③④⑤ 点亮仍纯文件推导）；argv 组装是纯函数（测试锁）。
+  - `scripts/er_console.py` 新路由：`GET /api/sample`（Febrl 示例上传
+    载荷）、`GET /api/train[?models=1]`（实时状态 + 平台基模列表）、
+    `POST /api/train/start|deploy|build`；`load_train_token` 四级解析
+    （--train-token > TRAIN_TOKEN > EMB_TOKEN > ~/.claude.json 的
+    inf-retriever Authorization，启动打印来源）。
+  - 控制台 SPA：①② 合并为「数据」tab（自定义 dropzone 去 native 控件 +
+    「载入 Febrl 示例数据」按钮）；③ 训练配置面板（基模下拉=平台实时
+    列表、输出名/服务名自动生成可改）+ 实时进度面板（phase chip 流）；
+    ④ 效果页换成**全交互网络三态**（阶段页签/悬停高亮气泡/点击锁定，
+    与演示页同款交互）。
+- **诚实边界**：训练任务真耗 GPU——由客户自己点「上传训练包并开始训练」
+  （平台 skill 安全约定：不擅自替客户开训），控制台只编排不假装训练；
+  缺令牌自动回落 W6 人工模式（`can_train=False`，下载 zip + 操作员中介，
+  行为与旧版一致）；`--api-key` 仍只展示发给客户的静态键；**平台训练
+  令牌只进进程内存与子进程环境变量（EMB_TOKEN 取样），绝不落盘/进页面/
+  进工作区**；向量只落 `.train/`（工作区内部）；GPU 抖动 ±6e-4 惯例
+  （判定看 θ 两侧 ≥0.01）。
+- **θ 不手选**：`build` 走 build_tenant_cases 的 link-F1 扫描，θ 选择
+  口径与全仓一致（页面 chip 只展示扫描结果）。
+- **验收**：`tests/test_er_console.py` 17 → **31 项**（+14：SSE 解析/会话
+  自愈/错误面、Trainer 全 phase 推进与失败人话、argv 纯函数、HTTP 路由
+  门控与降级）；全仓 **264 项 OK**。data/train/effect 三视图双主题
+  重过（§3.7）。
 
 ## 3.1 实测记录（W1，2026-11-17）
 
@@ -312,6 +388,107 @@ er-gateway 同源转发（就是 play_live_server 模式上云）；GPU 抖动 �
   `tests/test_play_live_server.py` 注入式步骤锁定（4 分支：输入缺席跳过 /
   只报告不动手 / 执行落地 / 产物在不再跑）。
 
+## 3.6 实测记录（W6，2026-11-17）
+
+- `tests/test_er_console.py` 17 项全绿（逻辑 8：步骤推导/全量收集/文件名
+  护栏/序列化同口径/代理打分语义/产物点亮/报告形状/网络三态 payload；
+  HTTP 8：零外链锁、state 形状、400 人话、proxy-score、network 端点、
+  zip 双请求逐字节一致、MCP 下载防穿越防缺席、demo 404 人话；模板 1：
+  占位符填满）。全仓 **250 项 OK**（网络速览前 248 + 2）。
+- **端到端联调**（三进程：stub embeddings :8899 + er_gateway :8790 +
+  er_console :8801）：alpha 租户工作区五步全亮——① 上传 22 记录/13 实体/
+  qrels 14/4、hard negatives 79；② 预览序列化与训练同口径
+  （`name: alice smith | city: springfield`）、代理打分 exact=1.0 /
+  单侧缺失 0.75 / 影子对 1.0（代理看不见实体边界，页面标注）；③ package.zip
+  下载 1371B 确定性；④ θ=0.9650 / 断言 8 / 误连 0 / 漏连 1 vs 基线代理
+  θ=0.6944 / 误连 5；⑤ API 表（key-alpha-demo mono 展示）+ MCP 七件套
+  下载 + START.md。
+- **截图驱动的返工**（6 视图 × 双主题 12 张，1440×1000，virtual-time
+  9000）：修了五处——① 正文链接落到浏览器默认蓝（theme.py 只锁
+  :focus-visible 不锁链接色）→ `.cmain a` 统一 cyan-b token；② sidebar
+  `ready` 态点无规则落灰 → 空心 cyan 环（就绪≠完成）；③ 深色主题原生
+  file input 白得刺眼 → `color-scheme: dark` 跟随主题；④ 上传槽位不显示
+  当前生效文件（"—"）→ 预填 intake_report.source 文件名 + 说明行；
+  ⑤ 效果页两卡只有标题着色 → 角色色左线（cyan=微调/violet=基线代理，
+  同 stepcard.on 视觉语言）；另部署文案"key 另行安全交付"与页内展示
+  自相矛盾 → 改为"下表展示的就是发给你的"。
+- **截图方法备忘**：控制台主题深链是 `?theme=dark`（localStorage 优先），
+  与 hash 路由并用写作 `/?theme=dark#/view`——漏了参数时双主题截图会
+  逐字节相同（本轮实际踩到，靠文件 size 相同发现）。
+- **④ 网络三态速览追加**（用户需求：Full Results Page 的 Network 集成进
+  控制台）：`Workspace.network()` + `GET /api/network` + 前端三小图 SVG
+  （190px 高，坐标按 canvas 等比缩放）；真实工作区实测影子 51 / 基线
+  13 断言·5 误连·1 漏连·8 光环（含红） / 微调 8 断言·0 误连·1 诚实
+  漏连·8 cyan 光环，与指标卡数字一一对应。双主题截图各过一遍 AI 视觉
+  查检，追加修两处对比度：影子线从 `--line2`（28% 灰，深色下近乎不可见）
+  换 `--edge` @ .7（与演示页影子边同 token）；渐变钮文字 `#fff` 换
+  `var(--on-sig)`（对齐演示页 `.cta.primary` 家族约定）。视觉模型在 1×
+  小字号下把深色主题钮文误报为不可读，2×（--force-device-scale-factor=2）
+  重截人眼复核为清晰可读——小元素结论存疑时放大再判，别急着改。
+
+## 3.7 实测记录（W7，2026-11-17）
+
+- `tests/test_er_console.py` 17 → 31 项全绿；全仓 **264 项 OK**（250 + 14）。
+- **④ 效果页交互化 + 三连修**（截图与像素双重驱动）：
+  1. 固定高 360px + `meet` 保比例 → 两侧 letterbox 死白：改 `height:auto`
+     由 viewBox 宽高比自适应；
+  2. 小数据集（22 条租户试点）分位归一坐标挤在 1200×780 中段、离群点
+     落画布外被裁：消费端补 `netViewBox()`——按各阶段内容包围盒取景
+     （含光环半径、+26 呼吸边距、宽高比收进 [1.4, 2.6]）。layout.py
+     有字节锁**零改动**，问题全在消费侧；
+  3. 画布只有 632px 宽：theme.py `.netwrap`（演示页 1fr+270px 双栏）
+     与控制台同名 wrapper 撞名，grid 把画布挤进 1fr 列 → 控制台改名
+     `netwrapc`。**教训：theme.py CSS 两站共用，控制台新增类名必须先
+     对表查撞名**。
+  - 修后像素实测：画布 918px 双主题全列宽，22 节点双主题零裁切，
+    宽高比 ~1:1.45（带内）。
+- **AI 视觉误报与命中台账（方法论修正）**：视觉模型两轮都标记深色主题
+  渐变钮文字"看不清"，第一轮被判"1× 小字号误报"驳回（含一次 2× 重截
+  人眼复核"清晰可读"）。最终像素取证（纯标准库 PNG 解码 + 局部渐变
+  偏差扫描）证明**驳回本身才是误报**：`.cmain a { color:var(--cyan-b) }`
+  特异度 (0,1,1) 压过 `.btn` 的 (0,1,0)，链接形态的实心按钮文字渲染成
+  亮青 #48c5d0——深色主题亮渐变上 ≈1.2:1 真不可见（浅色主题深青可存活，
+  故一直漏网；§3.6 记录的"2× 复核可读"看的是 button 形态，锚点形态
+  一直坏着）。修复：`.cmain a.btn:not(.ghost) { color:var(--on-sig) }`
+  （ghost 透明底上 on-sig 近黑同样不可读，故排除）。修后字形强偏差像素
+  0→1086（深）/468→971（浅），on-sig 对两主题渐变端点 10.5/7.0:1
+  （深）与 5.4/4.7:1（浅）全 ≥4.5。**方法论结论：小元素结论存疑时
+  像素实测才是终审——"AI 误报"与"人眼复核可读"都可能错；同一评审
+  第二次标记同一处时，值得一次客观验证而不是第三次主观判**。
+- **训练直连链路**：FakeTrain 注入单测锁全 phase 推进
+  （start→training→trained→deploying→deployed→building→done，含失败
+  态人话与 BUSY 互斥）；基模列表对 ~/.claude.json 连接器令牌实测
+  （list_models 返回 embeddinggemma-2 等）。**真实训练任务未启动**
+  ——平台 skill 安全约定：GPU 成本，须用户明确确认才开训。
+- **代码评审加固批（2026-11-18）**：修复 4 个高优先级问题 + 补 7 项回归
+  测试，全仓 264 → **271 项 OK**（test_er_console 31 → 35）：
+  ① `build_tenant_cases --emb` 单用必崩（`sp=args.scores` 为 None，
+  控制台「生成效果数据」整链断）——溯源 scores 改为自动落向量旁
+  `<同名>.scores.json`，并补**真跑 CLI** 的端到端测试（此前控制台测试
+  用假子进程、本文件夹具全走 --scores，264 绿测没拦住）；
+  ② 「失败不静默」漏洞族收敛——er_console `/api/upload` 缺键裸崩、
+  play_live_server 非 dict JSON 裸崩、两台服务器缺 Content-Length
+  KeyError、console.state() 遇 mcp_bundle 为文件裸崩：一律人话 JSON
+  （400/500）+ er_console 加兜底 except（服务端打栈）；
+  ③ intake 格式 B 回退负例在星形标签（某记录正例伙伴覆盖其余全部记录）
+  下死循环 → 前置可达性检查，人话 IntakeError；
+  ④ Trainer start/deploy/build 加互斥锁（ThreadingHTTPServer 防并发
+  双发；非阻塞抢锁人话报错，status 只读不锁）。
+- **单源收敛批（2026-11-18）**：四个"必须全仓单源"的东西收进
+  `embed_client.py`（它是 MCP 交付包唯一的共享拷贝，放这里交付包才能
+  独立跑）：`ssl_ctx`（bench/fetch 各自的复制品删除）、`cosine`
+  （cases_core/gateway 改 import，零向量守卫同口径）、`load_theta`
+  （live_pair_score/play_live_server/er_mcp_server 三处 θ 兜底 0.9208
+  收敛为一份，live_pair_score 过期文档串"102 条记录 θ=0.9328"一并修正）、
+  令牌三级解析（bench_embeddings 改 importlib 复用 play_live_server.
+  load_token，硬失败语义保留）。附带：`tuned_mix` 混合式抽到 simulate.py
+  单点定义（make_mock_data P3 共用，**重生成 data/ 逐字节一致已验证**，
+  仅 demo.html 的 build 时间戳变化）；gateway api_key 比对改
+  `hmac.compare_digest`（恒时，key 是长期凭据）；er_gateway 落地页
+  label/model 统一 html 转义（防注册表侧注入，含回归测试）；theme.py
+  死别名 TOKENS 删除（零消费者，旧注释与现口径相反）。新增
+  `tests/test_embed_client.py` 9 项 + 落地页转义 1 项，全仓 271 → **281 项 OK**。
+
 ## 4. 里程碑
 
 | 阶段 | 内容 | 完成判据（DoD） |
@@ -337,6 +514,8 @@ er-gateway 同源转发（就是 play_live_server 模式上云）；GPU 抖动 �
    （路径 `/{tenant}/` vs 子域）、访问控制（带签名链接 vs 静态键）。
 2. **试玩台「直接输入」的租户形态**：结构化字段表单（序列化同口径，推荐）
    vs 保留自由文本（需向客户解释口径差异）。
+   **已拍板（2026-11-18 注记）**：走结构化——W2 起租户 payload 带
+   `play_fields` 字段表键，试玩台按 fieldmap 渲染结构化输入（§3.2 实测）。
 3. **格式 B（pair 标签）** 是否进 v1（合同开放问题；影响 W1 工作量约 +20%）。
 4. **租户基线列口径**：等权字面相似度默认 vs 每租户权重表（影响故事叙事
    强度 vs 配置成本）。
@@ -348,6 +527,6 @@ er-gateway 同源转发（就是 play_live_server 模式上云）；GPU 抖动 �
 *执行约定：后续按 W1 → W2 → W3 → W4 顺序实施（W5 随手捎带）；每完成一个
 工作项：跑全量测试 + 重建页面双主题截图过查 + 本文档勾选状态并追加
 「实测记录」小节。本文档由 2026-11-17 评审产出，v0.1。
-**状态（2026-11-17）：W1–W5 全部完成**（各节 ✅ + §3.1–§3.5 实测记录；
-全仓 233 项测试绿）。v1 的 DoD（真实客户 schema 全链 ≤1 天）待第一个
-真实客户实证——工具链已就位。*
+**状态（2026-11-18 复核）：W1–W7 全部完成**（各节 ✅ + §3.1–§3.7 实测
+记录，含两批代码评审加固；全仓 281 项测试绿）。v1 的 DoD（真实客户
+schema 全链 ≤1 天）待第一个真实客户实证——工具链已就位。*

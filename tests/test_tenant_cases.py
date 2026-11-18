@@ -409,6 +409,57 @@ class TestTenantErrorPaths(unittest.TestCase):
         self.assertIn("恰好给一个", r.stderr)
 
 
+class TestEmbOnlyPath(unittest.TestCase):
+    """--emb 单用（W7 控制台 cases_argv 的真实形态）：算余弦并把溯源 scores 落向量旁。
+
+    曾是断链 bug：--emb 不带 --scores 在 sp=args.scores 处 AttributeError
+    （控制台「生成效果数据」必死在子进程）；此前测试全用假子进程或全走
+    --scores，没拦住——这里真跑 CLI 锁回归。"""
+
+    def test_emb_writes_sibling_scores(self):
+        with tempfile.TemporaryDirectory(prefix="ea-tenant-emb-") as d:
+            tmp = _fixture_dir(Path(d))
+            # 同实体=同向 one-hot（余弦 1.0）、异实体正交（0.0）；再把首个
+            # ≥2 记录实体的一条记录压到 0.90——θ 扫描落 0.90、1.0 真对距
+            # θ 0.10，Explain R1 的 ≥0.01 边距规则成立（纯 1/0 会卡边距）
+            ents = sorted({r[1] for r in FIX_ROWS})
+            idx = {e: i for i, e in enumerate(ents)}
+            cnt = {e: sum(1 for r in FIX_ROWS if r[1] == e) for e in ents}
+            e0 = next(e for e in ents if cnt[e] >= 2)
+            star = next(r[0] for r in FIX_ROWS if r[1] == e0)
+            dim = len(ents) + 1
+            vec = {}
+            for rid, ent, *_ in FIX_ROWS:
+                v = [0.0] * dim
+                v[idx[ent]] = 1.0
+                if rid == star:
+                    v[idx[e0]] = 0.90
+                    v[-1] = (1 - 0.90 ** 2) ** 0.5
+                vec[rid] = v
+            vecs = tmp / "vectors.json"
+            vecs.write_text(json.dumps(
+                {"model": "fixture-er-model", "dim": dim, "vectors": vec}),
+                encoding="utf-8")
+            out = tmp / "cases.json"
+            run("scripts/build_tenant_cases.py",
+                "--records", str(tmp / "records.csv"),
+                "--fieldmap", str(tmp / "fieldmap.csv"),
+                "--emb", str(vecs),
+                "--out", str(out))
+            self.assertTrue(out.exists())
+            sibling = tmp / "vectors.scores.json"       # 溯源自动落向量旁
+            self.assertTrue(sibling.exists())
+            sc = json.loads(sibling.read_text(encoding="utf-8"))
+            self.assertEqual(sc["model"], "fixture-er-model")
+            self.assertEqual(sc["n_records"], len(FIX_ROWS))
+            self.assertEqual(len(sc["pairs"]),
+                             len(FIX_ROWS) * (len(FIX_ROWS) - 1) // 2)
+            payload = json.loads(out.read_text(encoding="utf-8"))
+            self.assertEqual(payload["model"], "fixture-er-model")
+            self.assertEqual(payload["theta"], 0.9)
+            self.assertEqual(payload["stats"]["false_links"], 0)
+
+
 class TestFormatBTenant(unittest.TestCase):
     """格式 B（对标签）：正例连通分量为实体，真值/组件口径正确。"""
 

@@ -137,7 +137,13 @@ def tuned_score(sims: dict[str, float | None], same_entity: bool, lookalike: boo
     else:
         oracle = max(0.12, base * 0.55)
     jitter = rng.uniform(-0.02, 0.02)
-    return min(1.0, max(0.0, 0.30 * base + 0.70 * oracle + jitter))
+    return min(1.0, max(0.0, tuned_mix(base, oracle) + jitter))
+
+
+def tuned_mix(base: float, oracle: float) -> float:
+    """微调代理分混合式（0.30·base + 0.70·oracle）——全仓唯一定义：
+    tuned_score 与 make_mock_data 的 P3 Explain 卡共用，改权重只动这里。"""
+    return 0.30 * base + 0.70 * oracle
 
 
 # 剧本钉死分数：(rid_a, rid_b) -> {"baseline": x, "tuned": y}

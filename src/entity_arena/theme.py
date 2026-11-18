@@ -101,8 +101,8 @@ DARK = {
     "shadow-2": "0 12px 32px -10px rgba(0,0,0,.5)",
 }
 
-# 向后兼容别名：测试与外部导入继续用 TOKENS（= 深色，历史口径）
-TOKENS = DARK
+# 向后兼容别名 TOKENS 已删（2026-11-18 代码评审）：零消费者，且旧注释
+# 「= 深色」与现口径（LIGHT 默认）相反——误导性死代码不如没有。
 PALETTES = {"light": LIGHT, "dark": DARK}
 
 

@@ -555,6 +555,12 @@ def run_intake(records_path: Path, fieldmap_path: Path,
         for qid in sorted({q for q, _ in qrels["train"]}):
             negs = sorted(zeros.get(qid, set()))[:max_neg]
             if not negs:
+                # 死循环防护：正例伙伴覆盖其余全部记录时无第三人可选——人话报错
+                if len(pos_partners.get(qid, ())) >= len(all_sorted) - 1:
+                    raise IntakeError([
+                        f"格式 B 负例回退失败：记录 {qid} 没有 label=0 金标负例，"
+                        "而它的正例伙伴又覆盖了其余全部记录（无第三人可作负例）——"
+                        "请为其补 label=0 对，或减少正例对"])
                 while True:
                     pick = rng.choice(all_sorted)
                     if pick != qid and pick not in pos_partners.get(qid, set()):

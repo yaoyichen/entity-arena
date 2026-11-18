@@ -27,9 +27,7 @@ import argparse
 import datetime
 import http.client
 import json
-import os
 import random
-import ssl
 import statistics
 import sys
 import threading
@@ -40,28 +38,25 @@ from urllib.parse import urlparse
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "src"))
 
-from entity_arena.embed_client import DEFAULT_MODEL, DEFAULT_URL  # noqa: E402
+from entity_arena.embed_client import DEFAULT_MODEL, DEFAULT_URL, ssl_ctx  # noqa: E402
 
-TOKEN_FILE = Path.home() / ".config" / "entity-arena" / "emb_token"
 ERR_STOP = 0.20  # 单档错误率超过 20% 视为过载，停止爬坡
 
+# 令牌解析复用 play_live_server.load_token（--token > EMB_TOKEN > 本机令牌文件，
+# 单一事实来源）；压测缺令牌必须硬失败（不能像演示那样诚实降级），包一层 SystemExit
+import importlib.util  # noqa: E402
 
-def load_token(cli: str | None) -> str:
-    if cli:
-        return cli
-    env = os.environ.get("EMB_TOKEN")
-    if env:
-        return env
-    if TOKEN_FILE.exists():
-        return TOKEN_FILE.read_text(encoding="utf-8").strip()
-    raise SystemExit("缺令牌：--token / EMB_TOKEN / ~/.config/entity-arena/emb_token 三处都没有")
+_spec = importlib.util.spec_from_file_location(
+    "_pls_for_token", ROOT / "scripts" / "play_live_server.py")
+_mod = importlib.util.module_from_spec(_spec)
+_spec.loader.exec_module(_mod)
 
 
-def ssl_ctx() -> ssl.SSLContext:
-    ctx = ssl.create_default_context()
-    ctx.minimum_version = ssl.TLSVersion.TLSv1_2
-    ctx.maximum_version = ssl.TLSVersion.TLSv1_2
-    return ctx
+def load_token(cli: str | None) -> tuple[str, str]:
+    tok, src = _mod.load_token(cli)
+    if not tok:
+        raise SystemExit("缺令牌：--token / EMB_TOKEN / ~/.config/entity-arena/emb_token 三处都没有")
+    return tok, src
 
 
 class Worker(threading.Thread):
@@ -170,8 +165,7 @@ def main() -> None:
                          "即更新页面容量卡数据源——URL/令牌不会写入）")
     args = ap.parse_args()
 
-    token = load_token(args.token)
-    token_src = "--token" if args.token else ("EMB_TOKEN" if os.environ.get("EMB_TOKEN") else str(TOKEN_FILE))
+    token, token_src = load_token(args.token)
     village = json.loads((ROOT / "data_open" / "village.json").read_text(encoding="utf-8"))
     texts = [r["text"] for r in village["records"]]
     print(f"target : {args.url}  model={args.model}")
