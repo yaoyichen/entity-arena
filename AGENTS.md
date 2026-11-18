@@ -81,7 +81,8 @@ HTTP 全链 + 零外链锁）；改了 `train_client`/`console_train` → 同一
   （FR + 分位归一 + 光环防撞 + 标签防撞 `_comp_layout`；微调态带关系边、
   基线态纯斥力），组件成员坐标 `comp_members` 供前端节点落位
 - `src/entity_arena/page.py` 演示页模板 + 前端 JS（双语文案、七个视图、深链；
-  home=导览·默认落地页（无 `?view=` 即落在它：**hero 双栏**——左疑问式标题+
+  home=导览·默认落地页（无 `?view=` 即落在它，重构决策与验证方法见
+  `docs/adr/0003-landing-hero-redesign.md`：**hero 双栏**——左疑问式标题+
   双 CTA，右**三态动画预览卡**（`buildMiniNet()`，迷你网络图自动轮播
   原始→基线→微调，caption+进度点+整卡点击直达当前阶段；独立渲染器
   `miniNet.stop()` 可停，setLang/切轨重渲染幂等）/ 英雄数字带（主数字=微调后
