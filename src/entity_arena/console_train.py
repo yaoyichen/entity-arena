@@ -313,7 +313,9 @@ def _auto_name(label: str) -> str:
 
 
 def _slug(label: str) -> str:
-    s = "".join(c if c.isalnum() else "-" for c in label.lower())
+    # 平台名字白名单：ASCII 字母/数字/点/下划线/连字符。str.isalnum() 对中文
+    # 也返回 True，不限定 ASCII 的话中文 label 会原样拼进数据集名被平台拒收
+    s = "".join(c if (c.isascii() and c.isalnum()) else "-" for c in label.lower())
     return "-".join(x for x in s.split("-") if x)[:32] or "tenant"
 
 
