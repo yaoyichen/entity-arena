@@ -54,6 +54,32 @@ def pick_theta(pairs: list[tuple[str, str, float]], truth: set[tuple[str, str]])
     return best["theta"], best
 
 
+def theta_quantize_safe(theta: float, pairs: list[tuple[str, str, float]]) -> float:
+    """1e-4 量化网格的 θ 安全位（play matrix 前置）。
+
+    θ 扫描候选=分数原值，最优 θ 常恰好等于某个对的分数；该分数小数位 >4 时
+    round-half-up 量化会把它向下拉（如 0.962025→0.9620），(q≥θ)≠(s≥θ)，
+    play matrix 逐对断言即 raise。修法：**θ 处真有翻判定对时**才把 θ 下探到
+    最近网格点 g=floor(θ,1e-4)，且要求下探后 (a) 逐对量化判定与全精度判定
+    一致 (b) 断言集 {s≥g}=={s≥θ} 逐对不变（link-F1 仍是同一最优解）——两条
+    都满足才动，否则原样返回交给逐对断言如实 raise（真不可表示，不是挪 θ
+    能救的）。「无翻判定即不动」保证历史上已通过断言的构建 θ 分毫不变，
+    字节锚不受影响。
+    """
+    def q(s: float) -> float:
+        return math.floor(s * 10000 + 0.5) / 10000
+    if not any((q(s) >= theta) != (s >= theta) for _, _, s in pairs):
+        return theta                  # θ 本就不翻判定——不动（历史构建走这里）
+    g = math.floor(theta * 10000 + 1e-9) / 10000
+    if g >= theta - 1e-12:            # 已在网格上还翻判定——挪不动
+        return theta
+    if any((q(s) >= g) != (s >= g) for _, _, s in pairs):
+        return theta                  # 下探后仍翻——不可救
+    if {(a, b) for a, b, s in pairs if s >= g} != {(a, b) for a, b, s in pairs if s >= theta}:
+        return theta                  # 会改断言集（变 F1）——不许动
+    return g
+
+
 def components(nids: list[str], links: list[tuple[str, str]]) -> list[list[str]]:
     parent = {n: n for n in nids}
 
@@ -623,6 +649,7 @@ def build_cases_payload(*, records: list[dict], ent_of: dict[str, str],
     if not truth:
         raise SystemExit("案例集没有多记录实体——无法定义真值对")
     theta, stats = pick_theta(pairs, truth)
+    theta = theta_quantize_safe(theta, pairs)   # 网格安全位（断言集不变才动）
 
     links = [(a, b) for a, b, s in pairs if s >= theta]
     score_of = {(a, b): s for a, b, s in pairs}
