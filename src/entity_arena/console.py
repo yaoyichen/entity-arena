@@ -119,6 +119,9 @@ class Workspace:
     # ---- ① 上传：原件落盘 + 全量校验 + 训练包（失败全量收集，人话返回）
     def upload(self, records: dict, fieldmap: dict, pairs: dict | None = None) -> dict:
         errs: list[str] = []
+        # 自愈：uploads 目录只在构造时建过一次，工作区运行中被清（运维重置/
+        # NFS 异常）后直接开写会 FileNotFoundError 裸 500——写前重建
+        (self.root / "uploads").mkdir(parents=True, exist_ok=True)
         rec_path = self._save("records", records, errs)
         fm_path = self._save("fieldmap", fieldmap, errs)
         pairs_path = self._save("pairs", pairs, errs) if pairs else None

@@ -24,6 +24,7 @@ import base64
 import csv
 import io
 import json
+import shutil
 import tempfile
 import unittest
 import urllib.error
@@ -196,6 +197,17 @@ class TestWorkspaceLogic(unittest.TestCase):
                              .read_text(encoding="utf-8"))
             self.assertEqual(rep["records"], len(FIX_ROWS))
             self.assertEqual(rep["entities"], N_ENTS)
+
+    def test_upload_selfheals_after_wipe(self):
+        """工作区运行中被 rm：再上传必须自愈重建，不许 FileNotFoundError 裸 500。"""
+        with tempfile.TemporaryDirectory(prefix="ea-console-") as d:
+            ws = make_ws(Path(d))
+            shutil.rmtree(ws.root)
+            ws.upload(b64_file(REC_CSV, "records.csv"),
+                      b64_file(FM_CSV, "fieldmap.csv"))
+            self.assertTrue((ws.root / "package" / "queries.jsonl").exists())
+            self.assertEqual(
+                {s["key"]: s["state"] for s in ws.steps()}["upload"], "done")
 
     def test_upload_errors_collect_all(self):
         """缺文件名 + 坏 base64 一次全报（失败不静默、不清工作区）。"""
