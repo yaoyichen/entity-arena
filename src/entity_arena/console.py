@@ -379,11 +379,13 @@ _EXTRA_CSS = """
   padding:7px 10px; border-radius:var(--r-s); cursor:pointer; font-family:inherit; }
 .cside button.snav:hover { background:var(--hover); color:var(--t1); }
 .cside button.snav.active { background:var(--navsel); color:var(--t1); font-weight:600; }
+/* 状态点四态全可见：实心青=done · 空心青=ready · 实心灰=waiting · 空心淡灰=empty。
+   empty 勿退回 --line2 实心——26% 墨水在浅色面板近乎隐形（2026-11-19 修正） */
 .sdot { width:8px; height:8px; border-radius:50%; flex:none;
-  background:var(--line2); }
-.sdot.done { background:var(--cyan); }
-.sdot.ready { background:none; border:2px solid var(--cyan); }  /* 就绪≠完成：空心 */
-.sdot.waiting { background:var(--t3); }
+  background:none; border:1.5px solid var(--t3); opacity:.5; }
+.sdot.done { background:var(--cyan); border-color:var(--cyan); opacity:1; }
+.sdot.ready { border:2px solid var(--cyan); opacity:1; }  /* 就绪≠完成：空心 */
+.sdot.waiting { background:var(--t3); border-color:var(--t3); opacity:1; }
 .cmain { padding-left:22px; min-width:0; }
 .cmain h1 { font-size:22px; margin:2px 0 4px; letter-spacing:-.01em; }
 .cmain .sub { color:var(--t3); font-size:12.5px; margin:0 0 18px; line-height:1.6; }
@@ -448,7 +450,10 @@ _EXTRA_CSS = """
   margin:10px 0; line-height:1.7; }
 .okbox { border:1px solid rgba(72,197,208,.45); background:rgba(72,197,208,.07);
   border-radius:var(--r-m); padding:10px 14px; font-size:12px; color:var(--t2); margin:10px 0; }
-.empty { border:1px dashed var(--line2); border-radius:var(--r-m); padding:26px 22px;
+/* 叫 emptycard 不叫 empty：侧栏状态点把 state 拼进 class（sdot empty），
+   bare 的 .empty 会以同特异度+靠后的位置压过 .sdot——曾把 8px 点撑成
+   46×54 虚线占位框（2026-11-19 修正），组件类一律带后缀防再撞 */
+.emptycard { border:1px dashed var(--line2); border-radius:var(--r-m); padding:26px 22px;
   color:var(--t3); font-size:12.5px; line-height:1.8; }
 .klist { display:grid; grid-template-columns:repeat(auto-fit,minmax(170px,1fr)); gap:8px; margin:12px 0; }
 /* ⑤ 部署：zip 主 CTA 一行 + 注册命令代码块 + 清单行内小下载钮 */
@@ -725,8 +730,9 @@ function renderSide(){
   let h = '<h3>' + esc(t('ov.now')) + '</h3>';
   for (const [k, key, dot] of items){
     const st = dot ? stateOf(dot) : 'done';
+    /* 总览不是步骤：点纯占位（opacity:0）保对齐，不携带状态语义 */
     h += '<button class="snav' + (VIEW === k ? ' active' : '') + '" data-v="' + k + '">' +
-      '<span class="sdot ' + st + '"' + (dot ? '' : ' style="opacity:.35"') + '></span>' +
+      '<span class="sdot ' + st + '"' + (dot ? '' : ' style="opacity:0"') + '></span>' +
       '<span>' + esc(t(key)) + '</span></button>';
   }
   document.getElementById('cside').innerHTML = h;
@@ -1388,7 +1394,7 @@ function viewDeploy(){
         esc(t('dp.api.nokey')) + '</td></tr>';
     h += '</table>';
   } else {
-    h += '<div class="empty" style="margin-top:10px">' + esc(t('dp.api.off')) + '</div>';
+    h += '<div class="emptycard" style="margin-top:10px">' + esc(t('dp.api.off')) + '</div>';
   }
   h += '</div>';
   /* 路径二：MCP 交付包——一个 zip 主 CTA（不再散落小文件）+ 一行注册命令 + 包内清单 */
@@ -1433,7 +1439,7 @@ function viewDeploy(){
       (S.has_demo ? '<div style="font-size:12px;margin-top:8px"><a href="demo/?view=connect" ' +
         'target="_blank" rel="noopener">' + esc(t('dp.guide')) + ' ⇗</a></div>' : '');
   } else {
-    h += '<div class="empty" style="margin-top:8px">' + esc(t('dp.empty')) + '</div>';
+    h += '<div class="emptycard" style="margin-top:8px">' + esc(t('dp.empty')) + '</div>';
   }
   h += '</div>';
   /* 终点收尾：五步完成 + 装好验证方式 + 回总览 */
@@ -1446,7 +1452,7 @@ function viewDeploy(){
 }
 
 function emptyBox(routeKey, msgKey, labelKey){
-  return '<div class="empty">' + esc(t(msgKey)) + ' <a href="#/' + routeKey + '">' +
+  return '<div class="emptycard">' + esc(t(msgKey)) + ' <a href="#/' + routeKey + '">' +
     esc(t(labelKey || ('nav.' + routeKey))) + '</a></div>';
 }
 
