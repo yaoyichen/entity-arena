@@ -14,6 +14,13 @@ play_live_server.load_token 的先例）：
   GET  /            → build/demo.html 能力演示页（play_live_server 同一面；
                       非 /api、非 /console 的 GET 一律回页面，深链 ?view= 随便带）
   POST /api/score   → 部署模型实时余弦打分（play_live_server 同一 sidecar 语义）
+  ANY  /mcp         → 托管 MCP（Streamable HTTP·JSON 模式；工具层 = er_mcp_server
+                      同一份，env 指向工作区 mcp_bundle/——客户一条命令接入：
+                      claude mcp add --transport http entity-er <origin>/mcp
+                      --header "Authorization: Bearer <key>"。鉴权键：--mcp-key >
+                      MCP_KEY > <workdir>/.mcp_key 自动生成；key 只展示在控制台
+                      ⑤ 部署页，绝不进 healthz/日志。交付包缺席时端点降级：
+                      工具可列出、调用回「先完成 ③④⑤」人话，注册命令始终有效）
   GET  /console/    → 客户控制台 SPA（er_console 同一面，五步服务流程）
   ANY  /console/…   → 控制台全部端点。SPA 的 fetch/href 全是相对路径
                       （fetch('api/state')、href="download/package.zip"），
@@ -30,7 +37,8 @@ play_live_server.load_token 的先例）：
 
 参数：--port 8788 --host 127.0.0.1 --no-open；演示面 --url/--model/--token/
 --page/--no-build（同 play_live_server）；控制台面 --workdir/--label/--api-url/
---api-key/--train-url/--train-token/--no-train（同 er_console）。
+--api-key/--train-url/--train-token/--no-train（同 er_console）；托管 MCP 面
+--mcp-key（默认 MCP_KEY > <workdir>/.mcp_key 自动生成）。
 """
 
 from __future__ import annotations
@@ -48,10 +56,12 @@ sys.path.insert(0, str(ROOT / "src"))
 
 from entity_arena.console import Workspace  # noqa: E402
 from entity_arena.embed_client import DEFAULT_MODEL, DEFAULT_URL  # noqa: E402
+from entity_arena import mcp_http  # noqa: E402
 from entity_arena.train_client import DEFAULT_URL as TRAIN_URL  # noqa: E402
 
 DEFAULT_PORT = 8788
 CONSOLE_PREFIX = "/console"
+MCP_PATH = "/mcp"
 
 
 def _load_sibling(name: str):
@@ -69,15 +79,17 @@ _con = _load_sibling("er_console")         # setup_trainer/build_handler
 
 def build_handler(score_fn, page_path: Path, ws: Workspace, label: str,
                   api_url: str | None = None, api_key: str | None = None,
-                  trainer=None):
+                  trainer=None, mcp: mcp_http.McpEndpoint | None = None):
     """构造一体化 handler：play 面 + console 面两个 Handler 类多继承，按路径分发。
 
     控制台整面挂 /console/ 前缀——SPA 全相对路径，服务端剥前缀后委托原
     handler；两个薄壳的行为（人话错误、CORS 预检、日志口径）原样保留。
+    mcp：托管 MCP 端点（可缺省——独立测试两个面时不挂）。
     """
     play_cls = _pls.build_handler(score_fn, page_path)
     con_cls = _con.build_handler(ws, label, api_url=api_url, api_key=api_key,
-                                 trainer=trainer)
+                                 trainer=trainer,
+                                 mcp=(mcp.console_state() if mcp else None))
 
     class Handler(play_cls, con_cls):
         # MRO = Handler → play → console → BaseHTTPRequestHandler：
@@ -109,16 +121,34 @@ def build_handler(score_fn, page_path: Path, ws: Workspace, label: str,
                         "steps": {s["key"]: s["state"] for s in ws.steps()},
                         "train_phase": ((trainer.file_state() or {}).get("phase")
                                         if trainer else "idle")},
+                    "mcp": (mcp.info() if mcp
+                            else {"path": MCP_PATH, "auth": True,
+                                  "ready": False, "mounted": False}),
                 }
                 self._json(200, payload)
             except Exception as e:   # healthz 自己也不能裸崩：500 人话 JSON
                 self._json(500, {"ok": False,
                                  "error": f"{type(e).__name__}: {e}"})
 
+        def _mcp(self) -> None:
+            # 托管 MCP 的 HTTP 胶水：协议/鉴权全在 McpEndpoint.handle（可注入测试）
+            body = (self.rfile.read(int(self.headers.get("Content-Length") or 0))
+                    if self.command == "POST" else b"")
+            status, headers, out = mcp.handle(self.command, self.headers, body)
+            self.send_response(status)
+            for k, v in headers:
+                self.send_header(k, v)
+            self.send_header("Content-Length", str(len(out)))
+            self.end_headers()
+            if out:
+                self.wfile.write(out)
+
         def do_GET(self):
             path = self.path.split("?")[0]
             if path == "/healthz":
                 self._healthz()
+            elif path == MCP_PATH and mcp:
+                self._mcp()
             elif path == CONSOLE_PREFIX:
                 self._redirect_console()
             elif path.startswith(CONSOLE_PREFIX + "/"):
@@ -133,19 +163,29 @@ def build_handler(score_fn, page_path: Path, ws: Workspace, label: str,
                 play_cls.do_GET(self)
 
         def do_POST(self):
-            if self.path.split("?")[0].startswith(CONSOLE_PREFIX + "/"):
+            if self.path.split("?")[0] == MCP_PATH and mcp:
+                self._mcp()
+            elif self.path.split("?")[0].startswith(CONSOLE_PREFIX + "/"):
                 self._strip()
                 con_cls.do_POST(self)
             else:
                 # /api/score 在线打分；其余 POST 回 play 面的人话 404
                 play_cls.do_POST(self)
 
+        def do_DELETE(self):
+            # 只服务 /mcp（Streamable HTTP 的会话终止；无状态受理即答）
+            if self.path.split("?")[0] == MCP_PATH and mcp:
+                self._mcp()
+            else:
+                self.send_error(501, "Unsupported method")
+
         def do_OPTIONS(self):
             play_cls.do_OPTIONS(self)   # /api/score 预检放行（play 面同一份）
 
         def log_message(self, fmt, *args):
             line = args[0] if args else ""
-            if "/api/" in line:         # 安静一点：只记接口调用（同两个薄壳）
+            # 安静一点：只记接口与 MCP 调用（同两个薄壳；Authorization 头从不进日志）
+            if "/api/" in line or "/mcp" in line:
                 super().log_message(fmt, *args)
 
     return Handler
@@ -182,6 +222,10 @@ def main() -> None:
                     help="平台训练令牌（默认 TRAIN_TOKEN > EMB_TOKEN > ~/.claude.json）")
     ap.add_argument("--no-train", action="store_true",
                     help="禁用直连训练（控制台 ③ 回到人工模式）")
+    # ---- 托管 MCP 面
+    ap.add_argument("--mcp-key", default=None,
+                    help="托管 MCP 静态 key（默认 MCP_KEY 环境变量 > "
+                         "<workdir>/.mcp_key 自动生成；key 见控制台 ⑤ 部署页）")
     args = ap.parse_args()
 
     def say(msg): print(msg, flush=True)
@@ -199,8 +243,18 @@ def main() -> None:
         args.workdir, args.label, args.train_url,
         train_token=args.train_token, no_train=args.no_train)
 
+    # 托管 MCP 面：key 三级解析 + 工具层载入（er_mcp_server 同一份，env 指向
+    # 工作区交付包；在线 URL 与 /api/score 同一套服务——.train/state.json 优先）
+    mcp_key, key_src = mcp_http.resolve_key(
+        args.mcp_key, os.environ.get("MCP_KEY"), args.workdir)
+    emb_url = mcp_http.resolve_emb_url(args.workdir, args.url)
+    core = mcp_http.load_core(args.workdir / "mcp_bundle", emb_url,
+                              token if token else None)
+    mcp = mcp_http.McpEndpoint(mcp_key, core)
+
     say(f"  演示页   → {addr}/            ← 能力展示（试玩台「直接输入」实时打分）")
     say(f"  控制台   → {addr}{CONSOLE_PREFIX}/    ← 客户工作台（数据→训练→效果→部署）")
+    say(f"  托管MCP  → {addr}{MCP_PATH}          ← 一条命令接入（Bearer 鉴权；key 见控制台 ⑤）")
     say(f"  健康检查 → {addr}/healthz")
     say(f"  page    = {args.page}（{page_state}）")
     say("  score   = " + (f"live: {args.model} @ 部署服务（令牌：{tok_src}）"
@@ -215,6 +269,11 @@ def main() -> None:
     say("  train   = " + tr_lines[0])
     for ln in tr_lines[1:]:
         say(f"  {ln}")
+    say("  mcp     = " + (
+        f"serving workspace bundle（model {core.EMB_MODEL}，在线自由文本"
+        f"{'✓' if token else '✗（无令牌→仅 rid 对离线矩阵）'}）" if core else
+        "degraded（工作区 mcp_bundle/ 缺席——工具回上线指引，完成 ③④⑤ 自动点亮）")
+        + f"；key：{key_src}（绝不进日志/healthz）")
     if args.api_url:
         say(f"  api     = {args.api_url}（控制台 ⑤ 部署页展示）")
     if args.host not in ("127.0.0.1", "localhost", "::1"):
@@ -228,7 +287,7 @@ def main() -> None:
             (args.host, args.port),
             build_handler(score_fn, args.page, ws, args.label,
                           api_url=args.api_url, api_key=args.api_key,
-                          trainer=trainer))
+                          trainer=trainer, mcp=mcp))
     except OSError as e:
         say(f"  ✗ {args.host}:{args.port} 起不来（{e}）——多半是旧服务还在跑。")
         say(f"    先停旧的：lsof -ti tcp:{args.port} | xargs kill；或换端口 --port {args.port + 1}")
@@ -238,12 +297,13 @@ def main() -> None:
 
 def serve_for_tests(score_fn, page_path: Path, ws: Workspace, label: str = "test",
                     port: int = 0, api_url: str | None = None,
-                    api_key: str | None = None, trainer=None):
+                    api_key: str | None = None, trainer=None,
+                    mcp: mcp_http.McpEndpoint | None = None):
     """起一个临时实例（测试用；port=0 由系统分配）。返回 (server, port)。"""
     srv = ThreadingHTTPServer(
         ("127.0.0.1", port),
         build_handler(score_fn, page_path, ws, label, api_url=api_url,
-                      api_key=api_key, trainer=trainer))
+                      api_key=api_key, trainer=trainer, mcp=mcp))
     return srv, srv.server_address[1]
 
 

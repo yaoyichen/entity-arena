@@ -10,7 +10,10 @@
   「控制台在 /console/api/」的人话指路；
 - /healthz 组件状态：页面 built / 在线打分 live+theta / 控制台 steps+train_phase；
 - 在线打分透传（stub 注入，不碰网络）：有令牌 200；无令牌实例 503 人话、
-  healthz 如实报 live=false（失败不静默）；OPTIONS 预检 204（play 面同一份）。
+  healthz 如实报 live=false（失败不静默）；OPTIONS 预检 204（play 面同一份）；
+- 托管 MCP 挂载面（/mcp）：Bearer 鉴权边界、initialize→Mcp-Session-Id、
+  GET 405/DELETE 200、healthz mcp 块（不带 key）、控制台 /api/state 回显
+  （协议与工具层的深测在 tests/test_mcp_http.py）。
 """
 
 from __future__ import annotations
@@ -29,6 +32,7 @@ sys.path.insert(0, str(ROOT / "src"))
 sys.path.insert(0, str(ROOT / "scripts"))
 
 from entity_arena.console import Workspace  # noqa: E402
+from entity_arena import mcp_http  # noqa: E402
 from er_server import serve_for_tests  # noqa: E402
 
 DEMO_PAGE = b"<!DOCTYPE html><html><title>entity-arena demo</title></html>"
@@ -187,6 +191,84 @@ class TestNoToken(_Base):
     def test_console_still_up_without_token(self):
         code, _ = _get_json(self.base + "/console/api/state")
         self.assertEqual(code, 200)
+
+
+class TestMcpMount(unittest.TestCase):
+    """/mcp 挂载面：鉴权边界 + healthz/控制台回显（降级核足够，不拖 bundle fixture）。"""
+
+    KEY = "ea-mount-test"
+
+    @classmethod
+    def setUpClass(cls):
+        cls.tmp = tempfile.TemporaryDirectory()
+        root = Path(cls.tmp.name)
+        cls.page = root / "demo.html"
+        cls.page.write_bytes(DEMO_PAGE)
+        cls.ws = Workspace(root / "workdir")
+        cls.ep = mcp_http.McpEndpoint(cls.KEY, None)   # 降级核：路由面已够
+        cls.srv, cls.port = serve_for_tests(stub_score, cls.page, cls.ws,
+                                            label="Mcp mount", mcp=cls.ep)
+        cls.th = threading.Thread(target=cls.srv.serve_forever, daemon=True)
+        cls.th.start()
+        cls.base = f"http://127.0.0.1:{cls.port}"
+
+    @classmethod
+    def tearDownClass(cls):
+        cls.srv.shutdown()
+        cls.srv.server_close()
+        cls.tmp.cleanup()
+
+    def _mcp(self, payload, headers):
+        req = urllib.request.Request(
+            self.base + "/mcp", data=json.dumps(payload).encode("utf-8"),
+            headers=headers, method="POST")
+        try:
+            with _OPENER.open(req, timeout=10) as r:
+                return r.status, dict(r.headers), r.read()
+        except urllib.error.HTTPError as e:
+            return e.code, dict(e.headers), e.read()
+
+    def _auth(self):
+        return {"Authorization": f"Bearer {self.KEY}"}
+
+    def test_unauthorized_401(self):
+        code, _, body = self._mcp({"jsonrpc": "2.0", "id": 1,
+                                   "method": "ping"}, {})
+        self.assertEqual(code, 401)
+        self.assertIn("key", json.loads(body)["error"])
+
+    def test_initialize_over_http(self):
+        code, headers, body = self._mcp(
+            {"jsonrpc": "2.0", "id": 1, "method": "initialize",
+             "params": {"protocolVersion": "2025-06-18"}}, self._auth())
+        self.assertEqual(code, 200)
+        self.assertTrue(headers.get("Mcp-Session-Id"))
+        self.assertEqual(json.loads(body)["result"]["protocolVersion"],
+                         "2025-06-18")
+
+    def test_get_405_delete_200(self):
+        req = urllib.request.Request(self.base + "/mcp", method="GET",
+                                     headers=self._auth())
+        with self.assertRaises(urllib.error.HTTPError) as cm:
+            urllib.request.urlopen(req, timeout=10)
+        self.assertEqual(cm.exception.code, 405)
+        req = urllib.request.Request(self.base + "/mcp", method="DELETE",
+                                     headers=self._auth())
+        with urllib.request.urlopen(req, timeout=10) as r:
+            self.assertEqual(r.status, 200)
+
+    def test_healthz_mcp_block_without_key(self):
+        code, data = _get_json(self.base + "/healthz")
+        self.assertEqual(code, 200)
+        self.assertFalse(data["mcp"]["ready"])          # 降级核如实报
+        self.assertTrue(data["mcp"]["auth"])
+        self.assertNotIn(self.KEY, json.dumps(data))    # healthz 绝不带 key
+
+    def test_console_state_echoes_mcp(self):
+        code, data = _get_json(self.base + "/console/api/state")
+        self.assertEqual(code, 200)
+        self.assertEqual(data["mcp"]["key"], self.KEY)  # ⑤ 部署页一行接入卡
+        self.assertEqual(data["mcp"]["ready"], False)
 
 
 if __name__ == "__main__":

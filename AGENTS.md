@@ -10,7 +10,11 @@ MCP 试用通道（connect 视图 + `scripts/er_mcp_server.py`）+
 **客户自助服务控制台 er-console**（`scripts/er_console.py`，W6：给客户看的
 干净五步界面——数据→训练→效果→部署；能力展示归 play_live_server，
 两者分界明确；W7：③ 直连训练平台一键开训/部署/建效果数据 + ④ 全交互
-网络三态，缺令牌自动回落人工模式）。
+网络三态，缺令牌自动回落人工模式）+
+**托管 MCP 通道**（`src/entity_arena/mcp_http.py`，W9：er_server 根级 `/mcp`
+Streamable HTTP·JSON 模式端点——客户 `claude mcp add --transport http` 一条
+命令接入，免下载免配置；工具层 importlib 复用 `er_mcp_server.py` 零改动，
+Bearer 静态 key 鉴权，交付包缺席诚实降级为上线指引）。
 +
 **一体化产品服务 er-server**（`scripts/er_server.py`，W8：对外只起这一个
 进程——`/` 演示页+在线打分、`/console/` 客户控制台、`/healthz` 组件状态，
@@ -42,7 +46,7 @@ python3 scripts/build_open_cases.py             # 生成 data/open_cases.json（
 python3 scripts/build_tenant_cases.py --records client.csv --fieldmap fm.csv --scores scores.json --dataset-label "Acme records" --out data/open_cases.json --demo-dir demo_acme --mcp-dir demo_acme/mcp_bundle   # 租户体验页 + MCP 交付包一条命令（W2/W4：cases+demo+bundle 全包，见 docs/saas-maas-plan.md）
 python3 scripts/build_demo.py --open         # 构建 build/demo.html 并打开（三个数据文件缺一即 raise）
 python3 scripts/play_live_server.py          # 日常演示唯一命令：页面过期自动重建→起服务→自动开浏览器（含在线打分）
-python3 scripts/er_server.py --workdir .tmp/console_acme --label "Acme pilot"   # 对外一体化产品服务（W8）：单进程双面——/ 演示页+在线打分、/console/ 客户控制台、/healthz；组合 play_live_server 与 er_console 两个面，对外交付只起这一个
+python3 scripts/er_server.py --workdir .tmp/console_acme --label "Acme pilot"   # 对外一体化产品服务（W8/W9）：单进程多面——/ 演示页+在线打分、/console/ 客户控制台、/mcp 托管 MCP（--mcp-key，默认 .mcp_key 自动生成）、/healthz；组合 play_live_server 与 er_console 两个面，对外交付只起这一个
 python3 scripts/er_gateway.py --registry ~/.config/entity-arena/er_tenants.json   # 多租户打分网关：租户托管页 /t/<name>/ + MaaS API /v1/er/score|embed|resolve（W3）
 python3 scripts/er_console.py --workdir .tmp/console_acme --label "Acme pilot" --api-url http://127.0.0.1:8790/v1/er/score --api-key '<租户静态键>'   # 客户服务控制台：五步界面（W6/W7；--api-key 只放发给客户的静态键，绝不放平台 EMB_TOKEN；W7 直连训练令牌走 --train-token/TRAIN_TOKEN/~/.claude.json，缺了自动回落人工模式）
 PYTHONPATH=src python3 -m unittest discover -s tests   # 测试（或装 pytest 后 pytest）
@@ -57,8 +61,10 @@ PYTHONPATH=src python3 -m unittest discover -s tests   # 测试（或装 pytest 
 HTTP 全链 + 零外链锁）；改了 `train_client`/`console_train` → 同一文件
 （SSE 解析/会话自愈/Trainer phase 推进都在里面）；
 改了 `er_server`（路由/前缀委托/healthz）→ 先跑 `tests/test_er_server.py`
-（挂载拓扑 + 命名空间边界 + 无令牌降级），再跑两个薄壳套件
+（挂载拓扑 + 命名空间边界 + 无令牌降级 + 托管 MCP 挂载面），再跑两个薄壳套件
 （test_play_live_server / test_er_console——组合面不能把被组合面改坏）；
+改了 `mcp_http`（托管 MCP 协议/鉴权/核心载入）→ 先跑 `tests/test_mcp_http.py`
+（协议 + 真实交付包工具层 + 降级 + key 解析），动了挂载再加 test_er_server；
 （SSE 解析/会话自愈/Trainer phase 推进都在里面）；
 改了 `er_mcp_server`/MCP 交付（`--mcp-dir`/conn.* 覆盖键）→ 先跑
 `tests/test_mcp_server.py`（Febrl 默认路径字节锁）+ `tests/test_mcp_delivery.py`
@@ -241,7 +247,8 @@ HTTP 全链 + 零外链锁）；改了 `train_client`/`console_train` → 同一
 - `scripts/er_server.py` **一体化产品服务入口**（W8，纯标准库）：对外只起
   这一个进程——`/` 能力演示页 + `POST /api/score` 在线打分
   （play_live_server 同一面）+ `/console/` 客户控制台（er_console 同一面）
-  + `GET /healthz` 组件状态（页面 built/打分 live+θ/五步/训练 phase）。
+  + `ANY /mcp` 托管 MCP（W9，mcp_http 同一份，见下条）+
+  `GET /healthz` 组件状态（页面 built/打分 live+θ/五步/训练 phase/mcp 块）。
   实现是纯组合：importlib 载入两个薄壳的 `build_handler`，两个 Handler
   类**多继承按路径分发**；控制台 SPA 全相对路径
   （`fetch('api/state')`、`href="download/package.zip"`），服务端剥掉
@@ -251,7 +258,26 @@ HTTP 全链 + 零外链锁）；改了 `train_client`/`console_train` → 同一
   其余 404 带「控制台在 /console/api/」人话指路；`/console` 无斜杠 302
   补齐且保留查询串；默认绑 127.0.0.1，绑非环回启动即警告（控制台接口
   无鉴权）；行为由 `tests/test_er_server.py` 锁定（挂载拓扑/前缀委托/
-  命名空间边界/healthz/无令牌诚实降级 13 项）
+  命名空间边界/healthz/无令牌诚实降级/托管 MCP 挂载面 19 项）
+- `src/entity_arena/mcp_http.py` **托管 MCP 传输层**（W9，纯标准库）：把
+  `er_mcp_server.py` 的工具层原样挂上 Streamable HTTP·JSON 模式——
+  **工具层零改动复用**：`load_core` 以 env 预设（ER_VILLAGE/ER_SCORES/
+  ER_META 指向工作区 `mcp_bundle/`，exec 后恢复）importlib 载入
+  scripts/er_mcp_server.py，stdio 面的 Febrl 默认路径字节锁不受影响；
+  bundle 缺席**不回落 Febrl 演示数据**，换 `_DegradedCore`（工具可列出、
+  调用回「先完成 ③④⑤」人话，注册命令始终有效）。鉴权：每工作区静态
+  key（`Authorization: Bearer`，常数时间比较），解析序 `--mcp-key` >
+  `MCP_KEY` > `<workdir>/.mcp_key` 自动生成（chmod 600）；key 只展示在
+  控制台 ⑤ 部署页（发给客户的静态键，同 er_gateway 语义），**绝不进
+  healthz/日志**。令牌边界：自由文本在线打分用**服务端**令牌（与
+  /api/score 同一份三级解析），在线 URL 解析 ER_EMB_URL > `.train/
+  state.json` service_url > DEFAULT——根治离线包「URL 默认 gemma、model
+  默认 meta」错配坑。协议：initialize 回 Mcp-Session-Id（无状态生成即弃）、
+  notifications→202、GET→405、DELETE→200；`McpEndpoint.handle()` 收
+  (method, headers, body) 回 (status, headers, body) 不碰 socket——
+  协议/鉴权/降级/分数一致性由 `tests/test_mcp_http.py` 锁定（真实交付包
+  fixture：about 口径 == meta、矩阵分数原样透出），HTTP 挂载面在
+  tests/test_er_server.py
 - `src/entity_arena/embed_client.py` embeddings 客户端**单源层**：它是 MCP
   交付包里唯一的共享拷贝（`--mcp-dir` 原样带走），所以四个全仓单源件都住这：
   `ssl_ctx`（TLS1.2 钳制，bench/fetch 复制品已删）、`cosine`（零向量守卫）、

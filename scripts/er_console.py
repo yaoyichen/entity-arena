@@ -131,8 +131,13 @@ def setup_trainer(workdir: Path, label: str, train_url: str,
 
 
 def build_handler(ws: Workspace, label: str, api_url: str | None = None,
-                  api_key: str | None = None, trainer: Trainer | None = None):
-    """构造 HTTP handler（Workspace 是纯文件推导，测试给临时目录即可）。"""
+                  api_key: str | None = None, trainer: Trainer | None = None,
+                  mcp: dict | None = None):
+    """构造 HTTP handler（Workspace 是纯文件推导，测试给临时目录即可）。
+
+    mcp：托管 MCP 端点信息 dict（er_server 注入；独立起 er_console 时不传，
+    ⑤ 部署页就不出托管卡——两形态行为各自完整）。
+    """
     page = render_console(theme.CSS, label).encode("utf-8")
 
     class Handler(BaseHTTPRequestHandler):
@@ -177,6 +182,8 @@ def build_handler(ws: Workspace, label: str, api_url: str | None = None,
                                         else {"can_train": False, "can_embed": False})
                     out["train"] = (trainer.file_state() if trainer
                                     else {"phase": "idle"})
+                    if mcp is not None:
+                        out["mcp"] = mcp   # 托管 MCP（⑤ 部署页一行接入卡）
                     self._json(200, out)
                 elif path == "/api/network":
                     self._json(200, ws.network())

@@ -649,6 +649,11 @@ const I18N = {
   'lg.base':  {en:'baseline link', zh:'基线断言连线'},
   'ef.empty': {en:'No results yet — training artifacts have not landed. When they do, key numbers appear here and the full results page unlocks.', zh:'还没有效果数据——训练产物尚未落回。落库后这里会出现关键数字，完整效果页随之解锁。'},
   'dp.h':   {en:'Deploy & integrate', zh:'部署与接入'},
+  'dp.sub.host': {en:'Fastest path: the hosted MCP endpoint on this server — one line below, no download. The offline bundle stays for air-gapped use; the gateway HTTP API for multi-tenant SaaS.', zh:'最快路径：本服务器自带的托管 MCP 端点——下面一行命令即接入，无需下载。离线交付包留给隔离环境；网关 HTTP API 留给多租户 SaaS。'},
+  'dp.host.t':   {en:'Hosted MCP (recommended · no download)', zh:'托管 MCP（推荐 · 免下载）'},
+  'dp.host.ok':  {en:'Live — serving this workspace’s artifacts', zh:'在线——正服务本工作区的交付数据'},
+  'dp.host.wait':{en:'Waiting for artifacts — the command registers fine; tools answer with setup guidance until ③–⑤ complete', zh:'等待产物——命令现在就能注册；③–⑤ 完成前工具会回复上线指引'},
+  'dp.host.note':{en:'Any machine that can reach this server works; no files to download, no env vars. rid pairs score from the pre-sampled matrix; free text uses the live embedding service when the server holds a platform token (otherwise it reports honestly that live mode is off).', zh:'任何能访问本服务器的机器都能用；无需下载文件、无需配置环境变量。rid 对走预取样矩阵打分；自由文本在服务端持有平台令牌时走实时嵌入（否则会诚实告知在线模式未开）。'},
   'dp.sub': {en:'Two integration paths: the HTTP API via the multi-tenant gateway (per-tenant static key — the one shown below is yours), and an offline MCP bundle for your own AI client.', zh:'两条接入路径：多租户网关的 HTTP API（每租户静态 key——下表展示的就是发给你的），以及给你自己 AI 客户端的离线 MCP 交付包。'},
   'dp.sub.off': {en:'Your integration path for now is the offline MCP bundle (one zip, zero-config); the gateway HTTP API is not provisioned for this workspace yet.', zh:'当前接入路径：离线 MCP 交付包（一个 zip、零配置）；多租户网关的 HTTP API 尚未对本工作区开通。'},
   'dp.api':  {en:'HTTP API (gateway)', zh:'HTTP API（网关）'},
@@ -1378,12 +1383,32 @@ function bindDeploy(){
     });
   });
 }
+function mcpCmd(){
+  /* 托管 MCP 注册命令：URL 与控制台同源（er_server 单进程双面天然成立） */
+  return 'claude mcp add --transport http entity-er ' + location.origin +
+    '/mcp --header "Authorization: Bearer ' + (S.mcp ? S.mcp.key : '') + '"';
+}
 function viewDeploy(){
   const apiLive = S && S.api && S.api.url;
+  const host = S && S.mcp && S.mcp.enabled;
   let h = '<h1>' + esc(t('dp.h')) + '</h1><p class="sub">' +
-    esc(t(apiLive ? 'dp.sub' : 'dp.sub.off')) + '</p>';
+    esc(t(host ? 'dp.sub.host' : apiLive ? 'dp.sub' : 'dp.sub.off')) + '</p>';
+  /* 路径〇（er_server 部署时在场）：托管 MCP——一行接入，免下载免配置 */
+  if (host){
+    h += '<div class="card"><div class="sh">' + esc(t('dp.host.t')) + '</div>' +
+      '<div class="dprow"><span class="sub" style="margin:0;color:' +
+      (S.mcp.ready ? 'var(--cyan-b)' : 'var(--t3)') + '">' +
+      esc(t(S.mcp.ready ? 'dp.host.ok' : 'dp.host.wait')) + '</span></div>' +
+      '<div class="sh" style="margin-top:16px">' + esc(t('dp.cmd.h')) + '</div>' +
+      '<div class="codebox"><code class="mono">' + esc(mcpCmd()) + '</code>' +
+      '<button class="copybtn" data-copy="' + esc(mcpCmd()) + '">' +
+      esc(t('dp.copy')) + '</button></div>' +
+      '<div style="font-size:12px;color:var(--t3);margin-top:6px">' +
+      esc(t('dp.host.note')) + '</div></div>';
+  }
   /* 路径一：HTTP API——三态（url+key / 仅 url / 未开通），未开通也给占位卡不整段蒸发 */
-  h += '<div class="card"><div class="sh">' + esc(t('dp.api')) + '</div>';
+  h += '<div class="card' + (host ? '" style="margin-top:14px' : '') +
+    '"><div class="sh">' + esc(t('dp.api')) + '</div>';
   if (apiLive){
     h += '<table class="ctable" style="margin-top:8px">' +
       '<tr><th>endpoint</th><td class="mono">' + esc(S.api.url) + '</td>' +

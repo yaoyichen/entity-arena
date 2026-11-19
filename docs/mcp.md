@@ -13,7 +13,22 @@
 
 ## 30 秒上手
 
-### Claude Code（推荐 · 零手改）
+### 托管端点（er-server 部署 · 一条命令，免下载免配置）
+
+`er_server.py` 起的服务自带托管 MCP 端点（Streamable HTTP），任何能访问
+该服务器的机器直接注册——key 在控制台 ⑤ 部署页（`/console/#/deploy`）：
+
+```bash
+claude mcp add --transport http entity-er https://<host>/mcp \
+    --header "Authorization: Bearer <控制台 ⑤ 的 key>"
+```
+
+工具与离线交付包同一份（工作区 `mcp_bundle/`）：rid 对走预取样矩阵
+（离线=实时），自由文本由**服务端**令牌走实时嵌入——客户侧不接触任何
+平台令牌。交付数据未构建时端点诚实降级：工具可列出，调用回
+「先完成 ③④⑤」的上线指引，注册命令始终有效。
+
+### 本地 stdio（仓库演示 · 零手改）
 
 仓库已带项目级注册文件 `.mcp.json`：在本仓库目录启动 Claude Code，
 首次使用会提示批准 `entity-er` 服务器，批准即可。等价的手动命令：
